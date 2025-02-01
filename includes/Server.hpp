@@ -10,6 +10,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <vector>
+#include <map>
 
 class Server {
     private:
