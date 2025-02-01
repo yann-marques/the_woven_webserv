@@ -17,6 +17,7 @@ void Server::handleSignal(int signal) {
 	{
 		std::cout << "\nSignal received, stopping the events loop...\n";
 		_stopListenEvents = 1;
+		// throw exception ?
 	}
 }
 
@@ -47,9 +48,9 @@ void Server::readRequest(const int fd)
 void Server::listenEvents(void) {
 
 	struct sockaddr_in clientAddress;
-	struct epoll_event eventClient, events[this->_maxEvents];
+	struct epoll_event eventClient, events[this->_maxEvents]; // member attributes
 
-	while (!this->_stopListenEvents)
+	while (!this->_stopListenEvents) // try - si handleSignal throw une exception, sera-t-elle catch ici ? OUI
 	{
 		int numEvents = epoll_wait(this->_epollFd, events, this->_maxEvents, -1);
 		if (numEvents == -1)
@@ -68,6 +69,7 @@ void Server::listenEvents(void) {
 				if (clientFd == -1)
 				{
 					std::cerr << "Failed to accept client connection." << std::endl;
+					//todo: exception
 				}
 
 				setNonBlocking(clientFd);
@@ -79,6 +81,7 @@ void Server::listenEvents(void) {
 					std::cerr << "Failed to add client socket to epoll instance." << std::endl;
 					close(clientFd);
 					continue;
+					//todo: exception
 				}
 
 				std::cout << "Event number " << i << " executed. Server FD: " << events[i].data.fd << std::endl;
@@ -94,11 +97,13 @@ void Server::listenEvents(void) {
 }
 
 void    Server::start(void) {
-	struct sockaddr_in serverAddress;
-	struct epoll_event eventServer;
+	struct sockaddr_in serverAddress;	// member attribute // vector ?
+	struct epoll_event eventServer;		// same ? // vector
 
 	_stopListenEvents = 0;
 	signal(SIGINT, this->handleSignal);
+
+////////////////// SET SERVER(S) SOCKET
 
 	this->_serverFd = socket(AF_INET, SOCK_STREAM, 0);
 	if (this->_serverFd == -1) {
@@ -121,6 +126,7 @@ void    Server::start(void) {
 	if (bind(this->_serverFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1) {
 		std::cerr << "Failed to bind socket." << std::endl;
 		close(this->_serverFd);
+		//todo: exception
 	}
 
 	if (listen(this->_serverFd, this->_maxClients) == -1) {
@@ -128,13 +134,17 @@ void    Server::start(void) {
 		close(this->_serverFd);
 		//todo: exception
 	}
-    
-	this->_epollFd = epoll_create(this->_maxClients + 1);
+
+/////////////////// set EPOLL
+
+	this->_epollFd = epoll_create(this->_maxClients + 1); // arg deprecated ?
 	if (this->_epollFd == -1) {
 		std::cerr << "Failed to create epoll instance." << std::endl;
 		close(this->_serverFd);
 		//todo: exception
 	}
+
+/////////////////// EPOLL server
 
 	eventServer.events = EPOLLIN;
 	eventServer.data.fd = this->_serverFd;
