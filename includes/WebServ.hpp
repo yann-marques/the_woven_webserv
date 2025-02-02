@@ -1,6 +1,7 @@
 #ifndef WEBSERV_HPP
 # define WEBSERV_HPP
 
+# include <exception>
 # include <vector>
 # include <map>
 # include "Config.hpp"
@@ -8,12 +9,16 @@
 
 class	WebServ {
 	private:
-		Config	_config;	// parsed config file
+		static int const		_maxClients = 1000; // defined in config file ?
+		static int const		_maxEvents = 1000; // defined in config file ?
+		const Config			_config;	// parsed config file
 
-		vector<int>	_serverFds;
-		map<int, VServ>	_servers; // indexes = server fds // VServ pointers ?
+		int						_epollFd;
 
-		vector<int>	_clientFds;
+		std::vector<int>		_serverFds;
+		std::map<int, VServ>	_servers;
+
+		std::vector<int>		_clientFds;
 
 	public:
 		WebServ();
@@ -26,11 +31,21 @@ class	WebServ {
 		void	setServer(int fd, const VServ& rhs);
 		void	setClientFd(int i, int fd);
 
-		int	getServerFd(int i);
-		VServ	getServer(int fd);
-		int	getClientFd(int i);
+		int	getServerFd(int i) const;
+		VServ&	getServer(int fd) const;
+		int	getClientFd(int i) const;
 
-		// exceptions:
+		void	handleSignal(int signal);
+
+		// EXCEPTIONS
+		class	SIGINTException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	EpollCreateException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
 };
 
 #endif
