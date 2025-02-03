@@ -8,6 +8,7 @@ VServ::VServ(VServConfig config, int maxClients): _maxClients(maxClients) {
 	_host = config.getHost();
 	// parse config ...
 	setAddress();
+	std::cout << "2 address port = " << _address.sin_port << std::endl;
 	socketInit();
 
 	setEvent();
@@ -20,6 +21,7 @@ VServ&	VServ::operator=(const VServ& rhs) {
 	_host = rhs.getHost();
 	_fd = rhs.getFd();
 	setAddress();
+//	std::cout << "address port = " << _address.sin_port << std::endl;
 	setEvent();
 	return (*this);
 }
@@ -35,6 +37,7 @@ void	VServ::setAddress() {
 	_address.sin_family = AF_INET;
 	_address.sin_addr.s_addr = INADDR_ANY;
 	_address.sin_port = htons(_port);
+	std::cout << "1 address port = " << _address.sin_port << std::endl;
 }
 
 void	VServ::setEvent() {

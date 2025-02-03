@@ -14,7 +14,7 @@ class	VServConfig { // ?
 	// std::string	index;
 	public:
 		VServConfig(int i) {
-			_port = i;
+			_port = 8080 + i;
 			_host = i + 10;
 		}
 

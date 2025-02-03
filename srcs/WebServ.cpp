@@ -14,14 +14,14 @@ WebServ::WebServ(std::string filename): _config(filename) {
 		_serverNbr = _config.getServersNbr();
 		std::cout << "serverNbr = " << _serverNbr << std::endl;
 		for (size_t i = 0; i < _serverNbr; i++) { // c.serverConfig : container ? vector
-			VServ	server(_config.getServerConfig(i), _maxClients); // epoll ? epollFd en arg ?
-			int	sfd = server.getFd();
+			VServ*	server = new VServ(_config.getServerConfig(i), _maxClients); // epoll ? epollFd en arg ?
+			int	sfd = server->getFd();
 
 			setServerFd(sfd);
 			setServer(sfd, server);
 
 			// epoll ctl in VServ
-			_servers[sfd].epollCtl(_epollFd);
+			_servers[sfd]->epollCtl(_epollFd);
 		}
 	} catch (EpollCreateException& e) {
 		std::cerr << e.what() << std::endl;
@@ -52,6 +52,9 @@ WebServ::~WebServ() {
 */
 	if (_epollFd != -1)
 		close(_epollFd);
+	size_t	size = getServerNbr();
+	for (size_t i = 0; i < size; i++)
+		delete getServer(getServerFd(i));
 /*
 	size = _clientFds.size();
 
@@ -66,7 +69,7 @@ void	WebServ::setServerFd(int fd) {
 	_serverFds.push_back(fd);
 }
 
-void	WebServ::setServer(int fd, const VServ& rhs) {
+void	WebServ::setServer(int fd, VServ* rhs) {
 	_servers[fd] = rhs;
 }
 
@@ -84,7 +87,7 @@ int	WebServ::getServerFd(int i) const {
 	return (_serverFds[i]);
 }
 
-VServ&	WebServ::getServer(int fd) {
+VServ*	WebServ::getServer(int fd) {
 	return (_servers[fd]);
 }
 
@@ -120,7 +123,7 @@ std::ostream&	operator<<(std::ostream& os, WebServ& ws) {
 		<< "\tepollFd = " << ws.getEpollFd() << std::endl;
 
 	for (size_t i = 0; i < size; i++) {
-		os << ws.getServer(ws.getServerFd(i));
+		os << *(ws.getServer(ws.getServerFd(i)));
 	}
 	return (os);
 }

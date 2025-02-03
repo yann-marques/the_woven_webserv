@@ -22,7 +22,7 @@ class	WebServ {
 
 		std::vector<int>		_serverFds;
 		std::size_t				_serverNbr;
-		std::map<int, VServ>	_servers;
+		std::map<int, VServ*>	_servers;
 
 		std::vector<int>		_clientFds;
 
@@ -34,12 +34,12 @@ class	WebServ {
 		~WebServ();
 
 		void	setServerFd(int fd);
-		void	setServer(int fd, const VServ& rhs);
+		void	setServer(int fd, VServ* rhs);
 		void	setClientFd(int i, int fd);
 
 		int	getEpollFd() const;
 		int	getServerFd(int i) const;
-		VServ&	getServer(int fd);
+		VServ*	getServer(int fd);
 		int	getClientFd(int i) const;
 		std::size_t	getServerNbr() const;
 
