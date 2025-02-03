@@ -11,12 +11,13 @@ WebServ::WebServ(std::string filename): _config(filename) {
 		if (_epollFd == -1)
 			throw EpollCreateException();
 
-		int	serversNbr = _config.serverConfig.size();
-		for (int i = 0; i < serversNbr; i++) { // c.serverConfig : container ? vector
-			VServ	server(_config.serverConfig[i]); // epoll ? epollFd en arg ?
+		_serverNbr = _config.getServersNbr();
+		std::cout << "serverNbr = " << _serverNbr << std::endl;
+		for (size_t i = 0; i < _serverNbr; i++) { // c.serverConfig : container ? vector
+			VServ	server(_config.getServerConfig(i), _maxClients); // epoll ? epollFd en arg ?
 			int	sfd = server.getFd();
 
-			setServerFd(i, sfd);
+			setServerFd(sfd);
 			setServer(sfd, server);
 
 			// epoll ctl in VServ
@@ -61,25 +62,29 @@ WebServ::~WebServ() {
 
 // SETTERS
 
-void	setServerFd(int i, int fd) {
-	_serverFds[i] = fd;
+void	WebServ::setServerFd(int fd) {
+	_serverFds.push_back(fd);
 }
 
-void	setServer(int fd, const VServ& rhs) {
+void	WebServ::setServer(int fd, const VServ& rhs) {
 	_servers[fd] = rhs;
 }
 
-void	setClientFd(int i, int fd) {
+void	WebServ::setClientFd(int i, int fd) {
 	_clientFds[i] = fd;
 }
 
 // GETTERS
 
+int	WebServ::getEpollFd() const {
+	return (_epollFd);
+}
+
 int	WebServ::getServerFd(int i) const {
 	return (_serverFds[i]);
 }
 
-VServ&	WebServ::getVServ(int fd) const {
+VServ&	WebServ::getServer(int fd) {
 	return (_servers[fd]);
 }
 
@@ -87,11 +92,15 @@ int	WebServ::getClientFd(int i) const {
 	return (_clientFds[i]);
 }
 
+std::size_t	WebServ::getServerNbr() const {
+	return (_serverNbr);
+}
+
 //
 
 void	WebServ::handleSignal(int signal) {
 	if (signal == SIGINT)
-		throw (StopSignalException());
+		throw (SIGINTException());
 }
 
 // EXCEPTIONS
@@ -102,4 +111,16 @@ const char*	WebServ::SIGINTException::what() const throw() {
 
 const char*	WebServ::EpollCreateException::what() const throw() {
 	return ("Failed to create epoll instance.");
+}
+
+std::ostream&	operator<<(std::ostream& os, WebServ& ws) {
+	size_t	size = ws.getServerNbr();
+
+	os	<< "////////// WEBSERV //////////" << std::endl
+		<< "\tepollFd = " << ws.getEpollFd() << std::endl;
+
+	for (size_t i = 0; i < size; i++) {
+		os << ws.getServer(ws.getServerFd(i));
+	}
+	return (os);
 }

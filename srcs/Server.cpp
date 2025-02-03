@@ -155,6 +155,7 @@ void    Server::start(void) {
 		//todo: exception
 	}
 
+/////////////////// 
 	std::cout << "Server started. Listening on port " << this->_port << std::endl;
 	this->listenEvents();
 

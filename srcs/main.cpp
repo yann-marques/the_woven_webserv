@@ -1,4 +1,5 @@
-#include "Server.hpp"
+#include "WebServ.hpp"
+/* OLD MAIN
 
 int main(void) {
 
@@ -7,5 +8,13 @@ int main(void) {
     Server server = Server(8080);
 
     server.start();
+    return (0);
+}
+*/
+
+int main() {
+    WebServ ws("filename");
+
+    std::cout << ws;
     return (0);
 }

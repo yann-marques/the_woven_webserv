@@ -1,21 +1,42 @@
 #ifndef CONFIG_HPP
 # define CONFIG_HPP
 
+# include <iostream>
 # include <vector>
 
-class	VServConfig; // ?
+class	VServConfig { // ?
+	private:
+		int _port;
+		int _host; // int ?
+	//	std::string	_name;
+	// error pages + locations
+	//	std::string	root;
+	// std::string	index;
+	public:
+		VServConfig(int i) {
+			_port = i;
+			_host = i + 10;
+		}
+
+		int	getPort() const { return (_port); }
+		int	getHost() const { return (_host); }
+};
 
 class	Config {
 	private:
-/*
-		vector<VServConfig>	serverConfig;
-*/
+		std::vector<VServConfig>	_serverConfig;
+		std::size_t	_serversNbr;
+
+		std::size_t	_maxClientBody;
 	public:
 		Config();
-		Config(std::string	filename);
+		Config(std::string filename);
 		Config(const Config& rhs);
 		Config&	operator=(const Config& rhs);
-		~Config();
+		~Config() {}
+
+		std::size_t		getServersNbr() const;
+		VServConfig&	getServerConfig(int i);
 };
 
 #endif

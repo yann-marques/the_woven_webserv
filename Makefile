@@ -5,7 +5,7 @@ DIR_SRCS=srcs
 DIR_OBJS=objects
 DIR_INCS=includes
 
-LST_SRCS=main.cpp Server.cpp
+LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp
 LST_OBJS=$(LST_SRCS:.cpp=.o)
 LST_INCS=
 
