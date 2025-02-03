@@ -35,7 +35,7 @@ void Server::readRequest(const int fd)
         std::cout << http_request << std::endl;
 
         this->parseRequest(http_request);
-    } else if (bytes_read == 0){ //Empty FD, so the client closed request.
+    } else if (bytes_read == 0) { //Empty FD, so the client closed request.
         close(fd);
         std::cout << "HTTP Request stop. FD Client closed!!" << std::endl;
     } else {
@@ -46,51 +46,51 @@ void Server::readRequest(const int fd)
 
 void Server::listenEvents(void) {
 
-    struct sockaddr_in clientAddress;
-    struct epoll_event eventClient, events[this->_maxEvents];
+        struct sockaddr_in clientAddress;
+        struct epoll_event eventClient, events[this->_maxEvents];
 
-    while (!this->_stopListenEvents)
-    {
-        int numEvents = epoll_wait(this->_epollFd, events, this->_maxEvents, -1);
-        if (numEvents == -1)
+        while (!this->_stopListenEvents)
         {
-            std::cerr << "Failed to wait for events." << std::endl;
-            break;
-        }
-
-        for (int i = 0; i < numEvents; ++i)
-        {
-            if (events[i].data.fd == this->_serverFd) //EVENTS ON SERVERFD
+            int numEvents = epoll_wait(this->_epollFd, events, this->_maxEvents, -1);
+            if (numEvents == -1)
             {
-                // Accept new client connection
-                socklen_t clientAddressLength = sizeof(clientAddress);
-                int clientFd = accept(this->_serverFd, (struct sockaddr*)&clientAddress, &clientAddressLength);
-                if (clientFd == -1)
+                std::cerr << "Failed to wait for events." << std::endl;
+                break;
+            }
+
+            for (int i = 0; i < numEvents; ++i)
+            {
+                if (events[i].data.fd == this->_serverFd) //EVENTS ON SERVERFD
                 {
-                    std::cerr << "Failed to accept client connection." << std::endl;
+                    // Accept new client connection
+                    socklen_t clientAddressLength = sizeof(clientAddress);
+                    int clientFd = accept(this->_serverFd, (struct sockaddr*)&clientAddress, &clientAddressLength);
+                    if (clientFd == -1)
+                    {
+                        std::cerr << "Failed to accept client connection." << std::endl;
+                    }
+
+                    setNonBlocking(clientFd);
+
+                    // Add client socket to epoll
+                    eventClient.events = EPOLLIN | EPOLLET;
+                    eventClient.data.fd = clientFd;
+                    if (epoll_ctl(this->_epollFd, EPOLL_CTL_ADD, clientFd, &eventClient) == -1) {
+                        std::cerr << "Failed to add client socket to epoll instance." << std::endl;
+                        close(clientFd);
+                        continue;
+                    }
+
+                    std::cout << "Event number " << i << " executed. Server FD: " << events[i].data.fd << std::endl;
+                    std::cout << "Client FD created. FD: " << clientFd << std::endl << std::endl;
+
+                } else //NON SERVER-FD EVENTS (CLIENT FDS)
+                {
+                    this->readRequest(events[i].data.fd);
+                    std::cout << "Event number " << i << " executed: FD: " << events[i].data.fd << std::endl << std::endl;
                 }
-
-                setNonBlocking(clientFd);
-
-                // Add client socket to epoll
-                eventClient.events = EPOLLIN | EPOLLET;
-                eventClient.data.fd = clientFd;
-                if (epoll_ctl(this->_epollFd, EPOLL_CTL_ADD, clientFd, &eventClient) == -1) {
-                    std::cerr << "Failed to add client socket to epoll instance." << std::endl;
-                    close(clientFd);
-                    continue;
-                }
-
-                std::cout << "Event number " << i << " executed. Server FD: " << events[i].data.fd << std::endl;
-                std::cout << "Client FD created. FD: " << clientFd << std::endl << std::endl;
-
-            } else //NON SERVER-FD EVENTS (CLIENT FDS)
-            {
-                this->readRequest(events[i].data.fd);
-                std::cout << "Event number " << i << " executed: FD: " << events[i].data.fd << std::endl << std::endl;
             }
         }
-    }
 }
 
 void    Server::start(void) {
