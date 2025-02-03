@@ -1,5 +1,4 @@
-#ifndef VSERV_HPP
-# define VSERV_HPP
+#pragma once
 
 # include <exception>
 # include <sys/socket.h>
@@ -7,7 +6,9 @@
 # include <netinet/in.h>
 # include <unistd.h>
 # include <fcntl.h>
+
 # include "Config.hpp"
+# include "HTTPRequest.hpp"
 
 class	VServ {
 	private:
@@ -18,7 +19,6 @@ class	VServ {
 		// ...
 		int			_fd;
 		sockaddr_in	_address;
-		epoll_event	_event;
 
 	public:
 		VServ(): _maxClients(1024) {}
@@ -29,16 +29,17 @@ class	VServ {
 
 		// SETTERS
 		void	setAddress();
-		void	setEvent();
 
 		// GETTERS
 		int	getPort() const;
 		int	getHost() const;
 		int	getFd() const;
 
-		//
+		// METHODS
 		void	socketInit();
-		void	epollCtl(int epollFd);
+		int		clientAccept(void);
+		std::string readRequest(const int fd);
+		void	processRequest(std::string rawRequest, int clientFd);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -57,12 +58,22 @@ class	VServ {
 			public:
 				const char*	what() const throw();
 		};
-		class	EpollCtlException: public std::exception {
+		class	AcceptException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	RecvException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	SendException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	SendPartiallyException: public std::exception {
 			public:
 				const char*	what() const throw();
 		};
 };
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs);
-
-#endif

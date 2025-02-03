@@ -8,10 +8,7 @@ VServ::VServ(VServConfig config, int maxClients): _maxClients(maxClients) {
 	_host = config.getHost();
 	// parse config ...
 	setAddress();
-	std::cout << "2 address port = " << _address.sin_port << std::endl;
 	socketInit();
-
-	setEvent();
 }
 
 // VServ::VServ(const VServ& rhs);
@@ -22,7 +19,6 @@ VServ&	VServ::operator=(const VServ& rhs) {
 	_fd = rhs.getFd();
 	setAddress();
 //	std::cout << "address port = " << _address.sin_port << std::endl;
-	setEvent();
 	return (*this);
 }
 
@@ -37,12 +33,6 @@ void	VServ::setAddress() {
 	_address.sin_family = AF_INET;
 	_address.sin_addr.s_addr = INADDR_ANY;
 	_address.sin_port = htons(_port);
-	std::cout << "1 address port = " << _address.sin_port << std::endl;
-}
-
-void	VServ::setEvent() {
-	_event.events = EPOLLIN;
-	_event.data.fd = _fd;
 }
 
 // GETTERS
@@ -59,7 +49,7 @@ int	VServ::getFd() const {
 	return (_fd);
 }
 
-//
+// METHODS
 
 void	VServ::socketInit() {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -80,10 +70,55 @@ void	VServ::socketInit() {
 	// catch in WebServ constructor
 }
 
-void	VServ::epollCtl(int epollFd) {
-	if (epoll_ctl(epollFd, EPOLL_CTL_ADD, _fd, &_event) == -1)
-		throw (EpollCtlException());
+int	VServ::clientAccept(void) {
+	sockaddr_in clientAddress;
+	socklen_t clientAddressLength = sizeof(clientAddress);
+	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
+	if (clientFd == -1)
+		throw (AcceptException());
+	return (clientFd);
 }
+
+std::string	VServ::readRequest(const int fd)
+{
+	std::vector<char> buffer(4096);
+	int bytes_read = recv(fd, buffer.data(), buffer.size(), MSG_DONTWAIT);
+
+	if (bytes_read > 0) {
+		std::string rawRequest(buffer.begin(), buffer.begin() + bytes_read);
+		return (rawRequest);
+	} else if (bytes_read == 0){
+		return "";
+	} else {
+		throw RecvException();
+	}
+}
+
+void	VServ::processRequest(std::string rawRequest, int clientFd) {
+	HttpRequest rq(rawRequest);
+
+	/* std::cout << rawRequest << std::endl;
+	std::cout << rq.getMethod() << std::endl;
+	std::cout << rq.getPath() << std::endl;
+	std::cout << rq.getVersion() << std::endl;
+	std::cout << rq.getHeader("Host") << std::endl; */
+
+	rq.makeReponse("Je suis la reponse. Je suis construit depuis HttpRequest::makeReponse et call dans VServ::processRequest");
+	std::string rawResponse = rq.makeRawResponse();
+
+	std::cout << rawResponse << std::endl;
+
+	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
+	if (bytesSent == -1) {
+		throw SendException();
+	} else if (bytesSent < static_cast<ssize_t>(rawResponse.size())) {
+    	throw SendPartiallyException();
+	} else { //request finialized
+		close(clientFd);
+	}
+}
+
+//EXCEPTION
 
 const char*	VServ::SocketException::what() const throw() {
 	return ("Failed to create socket.");
@@ -101,8 +136,20 @@ const char*	VServ::ListenException::what() const throw() {
 	return ("Failed to listen.");
 }
 
-const char*	VServ::EpollCtlException::what() const throw() {
-	return ("Failed to add server socket to epoll instance.");
+const char*	VServ::AcceptException::what() const throw() {
+	return ("Failed accept connection on socket.");
+}
+
+const char*	VServ::RecvException::what() const throw() {
+	return ("Failed to read the request in the buffer.");
+}
+
+const char*	VServ::SendException::what() const throw() {
+	return ("Failed to send the request to the clientfd");
+}
+
+const char*	VServ::SendPartiallyException::what() const throw() {
+	return ("Failed to send entire request to the client");
 }
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs) {

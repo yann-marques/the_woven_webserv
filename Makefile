@@ -5,9 +5,9 @@ DIR_SRCS=srcs
 DIR_OBJS=objects
 DIR_INCS=includes
 
-LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp
+LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp HTTPRequest.cpp
 LST_OBJS=$(LST_SRCS:.cpp=.o)
-LST_INCS=
+LST_INCS=Config.hpp HTTPRequest.hpp VServ.hpp WebServ.hpp
 
 SRCS=$(addprefix $(DIR_SRCS)/, $(LST_SRCS))
 OBJS=$(addprefix $(DIR_OBJS)/, $(LST_OBJS))
