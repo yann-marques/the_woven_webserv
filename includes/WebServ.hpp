@@ -66,11 +66,14 @@ class	WebServ {
 		//METHODS
 		bool	fdIsServer(int fd);
 		bool	fdIsClient(int fd);
+		void	handleServerEvent(int fd);
+		void	handleClientEvent(int fd);
 		void	handleSignal(int signal);
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd);
 		void	epollCtlDel(int fd);
+		void	deleteFd(int fd);
 		void	setEvent(uint32_t epoll_event, int fd);
 
 

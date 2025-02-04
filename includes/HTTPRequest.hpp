@@ -5,6 +5,14 @@
 # include <sstream>
 # include <exception>
 
+//METHODS
+
+#define GET "GET"
+#define POST "POST"
+#define DELETE "DELETE"
+#define PUT "PUT"
+#define OPTIONS "OPTIONS"
+
 class HttpRequest {
     private:
         std::string _method;
@@ -39,5 +47,5 @@ class HttpRequest {
 
         //METHODS:
         std::string makeRawResponse(void);
-        void        makeReponse(const std::string &body);
+        void        setDefaultsHeaders();
 };

@@ -2,7 +2,7 @@
 
 // VServ::VServ();
 
-VServ::VServ(VServConfig config, int maxClients): _maxClients(maxClients) {
+VServ::VServ(VServConfig config, int maxClients): _maxClients(maxClients), _root("www") {
 	// tmp
 	_port = config.getPort();
 	_host = config.getHost();
@@ -57,7 +57,7 @@ void	VServ::socketInit() {
 		throw (SocketException());
 	fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
 
-	int opt = 1; // member attribute ? need later ?
+	int opt = 1;
 	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
 		throw (SetSockOptException());
 
@@ -94,28 +94,102 @@ std::string	VServ::readRequest(const int fd)
 	}
 }
 
-void	VServ::processRequest(std::string rawRequest, int clientFd) {
-	HttpRequest rq(rawRequest);
+void	VServ::sendRequest(HttpRequest &request, int clientFd) {
+	std::string	rawResponse = request.makeRawResponse();
 
-	/* std::cout << rawRequest << std::endl;
-	std::cout << rq.getMethod() << std::endl;
-	std::cout << rq.getPath() << std::endl;
-	std::cout << rq.getVersion() << std::endl;
-	std::cout << rq.getHeader("Host") << std::endl; */
-
-	rq.makeReponse("Je suis la reponse. Je suis construit depuis HttpRequest::makeReponse et call dans VServ::processRequest");
-	std::string rawResponse = rq.makeRawResponse();
-
-	std::cout << rawResponse << std::endl;
+	std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
 
 	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
 	if (bytesSent == -1) {
 		throw SendException();
 	} else if (bytesSent < static_cast<ssize_t>(rawResponse.size())) {
     	throw SendPartiallyException();
-	} else { //request finialized
-		close(clientFd);
 	}
+}
+
+std::string	VServ::openFile(std::string &rootPath) {
+	std::vector<char> buffer(4096);
+
+	int fd = open(rootPath.c_str(), O_RDONLY);
+	if (fd < 0)
+		throw OpenFileException();
+
+	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
+	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
+	close(fd);
+	return (rawResponse);
+}
+
+void	VServ::processRequest(std::string rawRequest, int clientFd) {
+
+	HttpRequest request(rawRequest);
+	HttpRequest response;
+
+	struct stat path_stat;
+
+	//contruire la response ici en fonction la config/route etcc...
+
+	response.setDefaultsHeaders();
+
+	//DEFAULT CASE
+	std::string rootPath;
+	if (request.getPath() != "/")
+		rootPath = _root + request.getPath();
+	else
+		rootPath = _root;
+
+	std::cout << "ROOTPATH: " << rootPath << std::endl;
+
+	try {
+		if (stat(rootPath.c_str(), &path_stat) != 0)
+			throw FileNotExist();
+
+		if (S_ISREG(path_stat.st_mode)) { //ITS A FILE
+
+			std::cout << "ITS A FILE" << std::endl;
+
+			std::string file = openFile(rootPath);
+			response.setBody(file);
+
+		} else if (S_ISDIR(path_stat.st_mode)) { //ITS DIRECTORY
+
+			std::cout << "ITS A DIRECTORY" << std::endl;
+
+			DIR* dir = opendir(rootPath.c_str());
+			if (!dir)
+				throw OpenFolderException();
+
+			//try to get default pages.
+			//I put manually /index.html
+			std::string indexPath = rootPath + "/index.html";
+
+			if (stat(indexPath.c_str(), &path_stat) != 0 && S_ISREG(path_stat.st_mode))
+       			throw FileNotExist();
+
+			std::string file = openFile(indexPath);
+			response.setBody(file);
+
+			//if (_autoindex) {
+			//std::cout << "Directory contents of " << path << ":\n";
+			/* struct dirent* entry;
+			while ((entry = readdir(dir)) != NULL) {
+				std::cout << entry->d_name << "\n";
+			}
+			closedir(dir); */
+			//}
+
+		} else {
+			response.setResponseCode(502);
+		}
+	} catch (FileNotExist &e) {
+		response.setResponseCode(404);
+	} catch (OpenFileException &e) {
+		response.setResponseCode(502);
+	} catch (OpenFolderException &e) {
+		response.setResponseCode(502);
+	}
+
+	sendRequest(response, clientFd);
 }
 
 //EXCEPTION
@@ -151,6 +225,19 @@ const char*	VServ::SendException::what() const throw() {
 const char*	VServ::SendPartiallyException::what() const throw() {
 	return ("Failed to send entire request to the client");
 }
+
+const char*	VServ::FileNotExist::what() const throw() {
+	return ("Fail to get infos about the file");
+}
+
+const char*	VServ::OpenFileException::what() const throw() {
+	return ("Error to opening the root file");
+}
+
+const char*	VServ::OpenFolderException::what() const throw() {
+	return ("Error to opening the folder");
+}
+
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs) {
 	os	<< "----------- VSERV -----------" << std::endl

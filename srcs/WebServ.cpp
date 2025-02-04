@@ -74,6 +74,7 @@ WebServ::~WebServ() {
 
 // SETTERS
 
+
 void	WebServ::insertServerFd(int fd) {
 	_serverFds.insert(fd);
 }
@@ -174,41 +175,51 @@ bool WebServ::fdIsClient(int fd) {
 		return false;
 }
 
+void	WebServ::deleteFd(int fd) {
+	epollCtlDel(fd);
+	close(fd);
+	_clientFds.erase(fd);
+}
+
+void	WebServ::handleServerEvent(int fd) {
+	VServ* vserv = getRelatedServer(fd);
+	int clientFd = vserv->clientAccept();
+
+	fcntl(clientFd, F_SETFL, O_NONBLOCK);
+	insertClientFd(clientFd);
+	setServerToClientFd(clientFd, vserv);
+	setEvent(EPOLLIN | EPOLLET, clientFd);
+	epollCtlAdd(clientFd);
+
+	std::cout << "New client connection. FD: " << clientFd << std::endl; 
+}
+
+void	WebServ::handleClientEvent(int fd) {
+	std::cout << "Client request receieved. FD socket client: " << fd << std::endl;
+	VServ* clientVserv = getRelatedServer(fd); //assert: fd is client fd.
+	
+	std::string rawRequest = clientVserv->readRequest(fd);
+	std::cout << "REQUEST --------" << std::endl << rawRequest << std::endl;
+
+	if (rawRequest.empty()) {
+		std::cout << "Client close the request. FD: " << fd << " is close, ctldel and erase from the set." << std::endl;
+	} else
+		clientVserv->processRequest(rawRequest, fd);
+	
+	deleteFd(fd);
+}
+
+
 void	WebServ::listenEvents(void) {
 	while (true) {
+
 		int nbEvents = epollWait();
-
 		for (int i = 0; i < nbEvents; i++) {
-
 			int fd = _epollEvents[i].data.fd;
 			if (fdIsServer(fd)) {
-				
-				VServ* vserv = getRelatedServer(fd);
-				int clientFd = vserv->clientAccept();
-				fcntl(clientFd, F_SETFL, O_NONBLOCK); // setNonBlocking
-
-				insertClientFd(clientFd);
-				setServerToClientFd(clientFd, vserv);
-				
-				setEvent(EPOLLIN | EPOLLET, clientFd);
-				epollCtlAdd(clientFd);
-
-				std::cout << "New client connection. FD: " << clientFd << std::endl; 
-				
+				handleServerEvent(fd);
 			} else if (fdIsClient(fd)) {
-				std::cout << "Client request receieved. FD socket client: " << fd << std::endl;
-				VServ* clientVserv = getRelatedServer(fd); //assert: fd is client fd.
-				
-				std::string rawRequest = clientVserv->readRequest(fd);
-				if (rawRequest.empty()) {
-					std::cout << "Client close the request. FD: " << fd << " is close, ctldel and erase from the set." << std::endl;
-					epollCtlDel(fd);
-					close(fd);
-					_clientFds.erase(fd);
-					continue;
-				} else
-					clientVserv->processRequest(rawRequest, fd);
-
+				handleClientEvent(fd);
 			} else {
 				throw (UnknownFdException()); 
 			}
