@@ -79,8 +79,7 @@ int	VServ::clientAccept(void) {
 	return (clientFd);
 }
 
-std::string	VServ::readRequest(const int fd)
-{
+std::string	VServ::readRequest(const int fd) {
 	std::vector<char> buffer(4096);
 	int bytes_read = recv(fd, buffer.data(), buffer.size(), MSG_DONTWAIT);
 
@@ -115,9 +114,9 @@ std::string	VServ::openFile(std::string &rootPath) {
 		throw OpenFileException();
 
 	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
-	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
+	std::string fileData(buffer.begin(), buffer.begin() + bytesRead);
 	close(fd);
-	return (rawResponse);
+	return (fileData);
 }
 
 void	VServ::processRequest(std::string rawRequest, int clientFd) {
@@ -127,7 +126,17 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 
 	struct stat path_stat;
 
-	//contruire la response ici en fonction la config/route etcc...
+	//DEFINE IN THE CONFIG
+	//...
+	size_t client_max_body_size = 1000000; //in bytes ~1M
+	std::vector<std::string> defaultPages;
+	defaultPages.push_back("index");
+	defaultPages.push_back("index.html");
+	defaultPages.push_back("index.php");
+	bool _autoIndex = true;
+	//...
+	//END DEFINE IN CONFIG
+
 
 	response.setDefaultsHeaders();
 
@@ -141,6 +150,19 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	std::cout << "ROOTPATH: " << rootPath << std::endl;
 
 	try {
+
+		std::string contentLengthStr = request.getHeader("Content-Length");
+		if (!contentLengthStr.empty()) {
+			size_t contentBytes;
+			std::istringstream(contentLengthStr) >> contentBytes;
+			if (contentBytes > client_max_body_size)
+				throw EntityTooLarge();
+		} else {
+			std::string body = request.getBody();
+			if (body.size() * sizeof(std::string::value_type) > client_max_body_size)
+				throw EntityTooLarge(); 
+		}
+
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
 
@@ -159,38 +181,53 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 			if (!dir)
 				throw OpenFolderException();
 
-			//try to get default pages.
-			//I put manually /index.html
-			std::string indexPath = rootPath + "/index.html";
 
-			if (stat(indexPath.c_str(), &path_stat) != 0 && S_ISREG(path_stat.st_mode))
-       			throw FileNotExist();
+			if (_autoIndex) {
 
-			std::string file = openFile(indexPath);
-			response.setBody(file);
+				struct dirent* entry;
+				std::vector<std::string> fileNames;
 
-			//if (_autoindex) {
-			//std::cout << "Directory contents of " << path << ":\n";
-			/* struct dirent* entry;
-			while ((entry = readdir(dir)) != NULL) {
-				std::cout << entry->d_name << "\n";
+				while ((entry = readdir(dir)) != NULL) {
+					fileNames.push_back(entry->d_name);
+				}
+				closedir(dir);
+				response.generateIndexFile(fileNames);
+
+			} else {
+				
+				std::string file;
+
+				for (std::vector<std::string>::iterator it = defaultPages.begin(); it != defaultPages.end(); it++) {
+					std::string indexPath = rootPath + "/" + *it;
+					if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
+						file = openFile(indexPath);
+						break;
+					}
+				}
+
+				if (file.empty())
+					throw FileNotExist();
+				
+				response.setBody(file);
 			}
-			closedir(dir); */
-			//}
 
 		} else {
 			response.setResponseCode(502);
 		}
 	} catch (FileNotExist &e) {
-		response.setResponseCode(404);
+		response.makeError(HTTP_NOT_FOUND);
 	} catch (OpenFileException &e) {
-		response.setResponseCode(502);
+		response.makeError(HTTP_FORBIDDEN);
 	} catch (OpenFolderException &e) {
-		response.setResponseCode(502);
+		response.makeError(HTTP_FORBIDDEN);
+	} catch (EntityTooLarge &e) {
+		response.makeError(HTTP_PAYLOAD_TOO_LARGE);
 	}
 
 	sendRequest(response, clientFd);
 }
+
+
 
 //EXCEPTION
 
@@ -236,6 +273,10 @@ const char*	VServ::OpenFileException::what() const throw() {
 
 const char*	VServ::OpenFolderException::what() const throw() {
 	return ("Error to opening the folder");
+}
+
+const char*	VServ::EntityTooLarge::what() const throw() {
+	return ("Error, the entity is too lage. Change client_max_body_size in config");
 }
 
 

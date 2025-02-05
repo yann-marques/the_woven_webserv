@@ -9,6 +9,8 @@
 # include <unistd.h>
 # include <fcntl.h>
 # include <dirent.h>
+# include <sstream>
+# include <iostream>
 
 
 # include "Config.hpp"
@@ -91,6 +93,10 @@ class	VServ {
 				const char*	what() const throw();
 		};
 		class	OpenFolderException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	EntityTooLarge: public std::exception {
 			public:
 				const char*	what() const throw();
 		};

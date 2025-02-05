@@ -1,8 +1,11 @@
 #include "HTTPRequest.hpp"
 
-HttpRequest::HttpRequest() {}
+HttpRequest::HttpRequest() {
+    this->initReasons();
+}
 
 HttpRequest::HttpRequest(const std::string &rawRequest) {
+    this->initReasons();
     this->parse(rawRequest);
 } 
 
@@ -25,6 +28,18 @@ std::string HttpRequest::getVersion() const
     return this->_version;
 }
 
+std::string HttpRequest::getHeader(const std::string& key) const
+{
+    std::map<std::string, std::string>::const_iterator it = this->_headers.find(key);
+    return (it != this->_headers.end()) ? it->second : "";
+}
+
+std::string HttpRequest::getBody() const
+{ 
+    return this->_body;
+}
+
+
 //SETTERS
 
 void    HttpRequest::setMethod(std::string &method) {
@@ -45,18 +60,33 @@ void    HttpRequest::setHeaders(std::map<std::string, std::string> &headers) {
 
 void    HttpRequest::setBody(const std::string &body) {
     this->_body = body;
+    std::ostringstream oss;
+    oss << body.size() * sizeof(std::string::value_type);
+    _headers["Content-Length"] = oss.str();
 }
 
 
-std::string HttpRequest::getHeader(const std::string& key) const
-{
-    std::map<std::string, std::string>::const_iterator it = this->_headers.find(key);
-    return (it != this->_headers.end()) ? it->second : "";
-}
+//METHODS
 
-std::string HttpRequest::getBody() const
-{ 
-    return this->_body;
+void HttpRequest::initReasons(void) {
+    _reasonPhrases[HTTP_OK] = "OK";
+    _reasonPhrases[HTTP_CREATED] = "Created";
+    _reasonPhrases[HTTP_ACCEPTED] = "Accepted";
+
+    _reasonPhrases[HTTP_MOVED_PERMANENTLY] = "Moved Permanently";
+    _reasonPhrases[HTTP_TEMPORARY_REDIRECT] = "Temporary Redirect";
+    _reasonPhrases[HTTP_PERMANENT_REDIRECT] = "Permanent Redirect";
+
+    _reasonPhrases[HTTP_BAD_REQUEST] = "Bad Request";
+    _reasonPhrases[HTTP_FORBIDDEN] = "403 Forbidden";
+    _reasonPhrases[HTTP_NOT_FOUND] = "Not Found";
+    _reasonPhrases[HTTP_METHOD_NOT_ALLOWED] = "Method Not Allowed";
+    _reasonPhrases[HTTP_NOT_ACCEPTABLE] = "Not Acceptable";
+    _reasonPhrases[HTTP_PAYLOAD_TOO_LARGE] = "Payload Too Large";
+
+    _reasonPhrases[HTTP_INTERNAL_SERVER_ERROR] = "Internal Server Error";
+    _reasonPhrases[HTTP_BAD_GATEWAY] = "Bad Gateway";
+    _reasonPhrases[HTTP_SERVICE_UNAVAILABLE] = "Service Unavailable";
 }
 
 void    HttpRequest::parse(const std::string &rawRequest)
@@ -64,13 +94,11 @@ void    HttpRequest::parse(const std::string &rawRequest)
     std::istringstream stream(rawRequest);
     std::string line;
 
-    // Parse the request line
     if (std::getline(stream, line)) {
         std::istringstream requestLine(line);
         requestLine >> _method >> _path >> _version;
     }
 
-    //Parse HEADERS part
     while (std::getline(stream, line) && line != "\r") {
         size_t pos = line.find(": ");
         if (pos != std::string::npos) {
@@ -83,22 +111,45 @@ void    HttpRequest::parse(const std::string &rawRequest)
         }
     }
 
-     // Parse body (if any)
     while (std::getline(stream, line)) {
         _body += line + "\n";
     }
 }
 
+void    HttpRequest::makeError(int httpCode) {
+    std::vector<char> buffer(4096);
+
+    std::stringstream stream;
+    stream << "errors/" << httpCode << ".html";
+
+    std::string errorPagePath = stream.str();
+
+	int fd = open(errorPagePath.c_str(), O_RDONLY);
+	if (fd < 0)
+		throw OpenFileException();
+
+	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
+	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
+	close(fd);
+    setDefaultsHeaders();
+    setResponseCode(httpCode);
+    setBody(rawResponse);
+}
+
+void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {
+    std::string html = "<nav>\n  <ul>\n";
+    
+    for (std::vector<std::string>::const_iterator it = fileNames.begin(); it != fileNames.end(); it++) {
+        html += "    <li><a href=\"" + (*it) + "\">" + (*it) + "</a></li>\n";
+    }
+    html += "  </ul>\n</nav>\n";
+    setBody(html);
+}
+
 std::string HttpRequest::makeRawResponse(void) {
     std::ostringstream rawResponse;
 
-    std::map<int, std::string> reasonPhrase;
-
-    reasonPhrase[200] = "OK";
-    reasonPhrase[404] = "Not Found";
-    reasonPhrase[502] = "Bad Gateway";
-
-    rawResponse << _version << " " << _responseCode << " " << reasonPhrase[_responseCode] << "\r\n";
+    rawResponse << _version << " " << _responseCode << " " << _reasonPhrases[_responseCode] << "\r\n";
 
     std::map<std::string, std::string>::const_iterator it;
     for (it = _headers.begin(); it != _headers.end(); ++it) {
@@ -118,4 +169,11 @@ void HttpRequest::setDefaultsHeaders(void) {
     this->_headers.insert(std::pair<std::string, std::string>("Server", "TheWovenWebserver/0.0.1"));
     this->_headers.insert(std::pair<std::string, std::string>("Connection", "keep-alive"));
     this->_headers.insert(std::pair<std::string, std::string>("Content-Type", "text/html; charset=UTF-8"));
+}
+
+//EXCEPTIONS
+
+
+const char*	HttpRequest::OpenFileException::what() const throw() {
+	return ("Error to opening the file");
 }
