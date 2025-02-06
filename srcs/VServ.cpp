@@ -79,18 +79,46 @@ int	VServ::clientAccept(void) {
 	return (clientFd);
 }
 
-std::string	VServ::readRequest(const int fd) {
-	std::vector<char> buffer(4096);
-	int bytes_read = recv(fd, buffer.data(), buffer.size(), MSG_DONTWAIT);
+std::string VServ::openFile(std::string &rootPath) {
+    std::vector<char> buffer;
+    ssize_t bytesRead;
+    char tempBuffer[4096];
 
-	if (bytes_read > 0) {
-		std::string rawRequest(buffer.begin(), buffer.begin() + bytes_read);
-		return (rawRequest);
-	} else if (bytes_read == 0){
-		return "";
-	} else {
-		throw RecvException();
+    int fd = open(rootPath.c_str(), O_RDONLY);
+    if (fd < 0)
+        throw OpenFileException();
+
+    while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
+        buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
+    }
+
+    if (bytesRead < 0) {
+        close(fd);
+        throw OpenFileException();
+    }
+
+    close(fd);
+    return std::string(buffer.begin(), buffer.end());
+}
+
+
+std::string	VServ::readRequest(const int fd) {
+	std::vector<char> buffer;
+	ssize_t bytesRead;
+	char tempBuffer[4096];
+
+	while ((bytesRead = recv(fd, tempBuffer, sizeof(tempBuffer), MSG_DONTWAIT)) > 0) {
+		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
+
+	if (bytesRead == 0)
+		return ("");
+	if (bytesRead < 0) {
+        close(fd);
+        throw RecvException();
+    }
+
+	return std::string(buffer.begin(), buffer.end());
 }
 
 void	VServ::sendRequest(HttpRequest &request, int clientFd) {
@@ -106,121 +134,109 @@ void	VServ::sendRequest(HttpRequest &request, int clientFd) {
 	}
 }
 
-std::string	VServ::openFile(std::string &rootPath) {
-	std::vector<char> buffer(4096);
+void	VServ::handleBigRequest(HttpRequest &request) {
+	size_t client_max_body_size = 1000000; //in bytes ~1M IN CONFIG
 
-	int fd = open(rootPath.c_str(), O_RDONLY);
-	if (fd < 0)
-		throw OpenFileException();
+	std::string contentLengthStr = request.getHeader("Content-Length");
+	if (!contentLengthStr.empty()) {
+		size_t contentBytes;
+		std::istringstream(contentLengthStr) >> contentBytes;
+		if (contentBytes > client_max_body_size)
+			throw EntityTooLarge();
+	} else {
+		std::string body = request.getBody();
+		if (!body.empty() && (body.size() * sizeof(std::string::value_type) > client_max_body_size))
+			throw EntityTooLarge(); 
+	}
+}
 
-	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
-	std::string fileData(buffer.begin(), buffer.begin() + bytesRead);
-	close(fd);
-	return (fileData);
+void	VServ::openDefaultPages(std::string &rootPath, HttpRequest &response) {
+
+	//IN CONFIG !
+	std::vector<std::string> defaultPages;
+	defaultPages.push_back("index");
+	defaultPages.push_back("index.html");
+	defaultPages.push_back("index.php");
+	//END IN CONFIG !
+
+	std::string file;
+	for (std::vector<std::string>::iterator it = defaultPages.begin(); it != defaultPages.end(); it++) {
+		std::string indexPath = rootPath + "/" + *it;
+		struct stat path_stat;
+		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
+			std::cout << "test" << std::endl; 
+			file = openFile(indexPath);
+			std::cout << file << std::endl;
+			break;
+		}
+	}
+	if (file.empty())
+		throw FileNotExist();
+	response.setBody(file);
+}
+
+void	VServ::showDirectory(DIR* dir, HttpRequest &response) {
+	struct dirent* entry;
+	std::vector<std::string> filesName;
+
+	while ((entry = readdir(dir)) != NULL) {
+		filesName.push_back(entry->d_name);
+	}
+	closedir(dir);
+	response.generateIndexFile(filesName);
 }
 
 void	VServ::processRequest(std::string rawRequest, int clientFd) {
 
 	HttpRequest request(rawRequest);
 	HttpRequest response;
-
 	struct stat path_stat;
-
-	//DEFINE IN THE CONFIG
-	//...
-	size_t client_max_body_size = 1000000; //in bytes ~1M
-	std::vector<std::string> defaultPages;
-	defaultPages.push_back("index");
-	defaultPages.push_back("index.html");
-	defaultPages.push_back("index.php");
-	bool _autoIndex = true;
-	//...
-	//END DEFINE IN CONFIG
-
 
 	response.setDefaultsHeaders();
 
-	//DEFAULT CASE
+	//DEFINE IN THE CONFIG
+	//...
+	bool _autoIndex = false;
+	//...
+	//END DEFINE IN CONFIG
+
 	std::string rootPath;
 	if (request.getPath() != "/")
 		rootPath = _root + request.getPath();
 	else
 		rootPath = _root;
 
-	std::cout << "ROOTPATH: " << rootPath << std::endl;
-
 	try {
-
-		std::string contentLengthStr = request.getHeader("Content-Length");
-		if (!contentLengthStr.empty()) {
-			size_t contentBytes;
-			std::istringstream(contentLengthStr) >> contentBytes;
-			if (contentBytes > client_max_body_size)
-				throw EntityTooLarge();
-		} else {
-			std::string body = request.getBody();
-			if (body.size() * sizeof(std::string::value_type) > client_max_body_size)
-				throw EntityTooLarge(); 
-		}
+		handleBigRequest(request);
 
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
 
-		if (S_ISREG(path_stat.st_mode)) { //ITS A FILE
+		if (S_ISREG(path_stat.st_mode)) {
 
 			std::cout << "ITS A FILE" << std::endl;
-
 			std::string file = openFile(rootPath);
 			response.setBody(file);
 
-		} else if (S_ISDIR(path_stat.st_mode)) { //ITS DIRECTORY
-
-			std::cout << "ITS A DIRECTORY" << std::endl;
+		} else if (S_ISDIR(path_stat.st_mode)) {
 
 			DIR* dir = opendir(rootPath.c_str());
 			if (!dir)
 				throw OpenFolderException();
 
-
-			if (_autoIndex) {
-
-				struct dirent* entry;
-				std::vector<std::string> fileNames;
-
-				while ((entry = readdir(dir)) != NULL) {
-					fileNames.push_back(entry->d_name);
-				}
-				closedir(dir);
-				response.generateIndexFile(fileNames);
-
-			} else {
-				
-				std::string file;
-
-				for (std::vector<std::string>::iterator it = defaultPages.begin(); it != defaultPages.end(); it++) {
-					std::string indexPath = rootPath + "/" + *it;
-					if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
-						file = openFile(indexPath);
-						break;
-					}
-				}
-
-				if (file.empty())
-					throw FileNotExist();
-				
-				response.setBody(file);
-			}
+			_autoIndex ? showDirectory(dir, response) : openDefaultPages(rootPath, response);
 
 		} else {
 			response.setResponseCode(502);
 		}
-	} catch (FileNotExist &e) {
+
+	} catch (FileNotExist& e) {
 		response.makeError(HTTP_NOT_FOUND);
-	} catch (OpenFileException &e) {
+	} catch (OpenFileException& e) {
 		response.makeError(HTTP_FORBIDDEN);
-	} catch (OpenFolderException &e) {
+	} catch (OpenFolderException& e) {
 		response.makeError(HTTP_FORBIDDEN);
-	} catch (EntityTooLarge &e) {
+	} catch (EntityTooLarge& e) {
 		response.makeError(HTTP_PAYLOAD_TOO_LARGE);
 	}
 
@@ -261,6 +277,10 @@ const char*	VServ::SendException::what() const throw() {
 
 const char*	VServ::SendPartiallyException::what() const throw() {
 	return ("Failed to send entire request to the client");
+}
+
+const char*	VServ::ReadFileException::what() const throw() {
+	return ("Fail read the file");
 }
 
 const char*	VServ::FileNotExist::what() const throw() {

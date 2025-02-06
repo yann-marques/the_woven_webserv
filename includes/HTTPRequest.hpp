@@ -47,6 +47,7 @@ class HttpRequest {
         std::string                         _server;
         int                                 _responseCode;
         std::string                         _body;
+        std::string                         _rootPath;
 
         std::map<std::string, std::string> _headers;
         std::map<int, std::string>          _reasonPhrases;
@@ -72,6 +73,7 @@ class HttpRequest {
         void    setVersion(const std::string &str);
         void    setHeaders(std::map<std::string, std::string> &headers);
         void    setBody(const std::string &body);
+        void    setRootPath(std::string &root);
 
         //METHODS:
         std::string makeRawResponse(void);

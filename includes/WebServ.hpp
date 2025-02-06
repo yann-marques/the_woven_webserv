@@ -25,11 +25,6 @@ class	WebServ {
 		epoll_event						_event;
 		std::vector<struct epoll_event> _epollEvents;
 
-		/* OLD
-		std::vector<int>					_serverFds;
-		std::vector<int>					_clientFds;
-		*/
-
 		std::set<int>					_serverFds;
 		std::set<int>					_clientFds;
 
@@ -55,25 +50,20 @@ class	WebServ {
 		VServ*	getRelatedServer(int fd);
 		int	getEpollFd() const;
 
-		/* OLD
-		int	getServerFd(int i) const;
-		int	getClientFd(int i) const;
-		*/
-
 		std::set<int> getServersFd(void) const;
 		std::size_t	getServerNbr() const;
 
 		//METHODS
+		void	handleServerEvent(VServ* vserv);
+		void	handleClientEvent(int fd, VServ* vserv);
 		bool	fdIsServer(int fd);
 		bool	fdIsClient(int fd);
-		void	handleServerEvent(int fd);
-		void	handleClientEvent(int fd);
 		void	handleSignal(int signal);
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd);
 		void	epollCtlDel(int fd);
-		void	deleteFd(int fd);
+		void	deleteFd(int fd, std::set<int>& sets);
 		void	setEvent(uint32_t epoll_event, int fd);
 
 

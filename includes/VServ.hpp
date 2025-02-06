@@ -23,6 +23,7 @@ class	VServ {
 		int							_port;
 		int							_host;
 		std::string					_root;
+		std::string 				_configLine;
 		std::vector<std::string>	_defaultPages;
 		// ...
 		int							_fd;
@@ -50,6 +51,9 @@ class	VServ {
 		void		processRequest(std::string rawRequest, int clientFd);
 		void 		sendRequest(HttpRequest &request, int clientFd);
 		std::string	openFile(std::string &rootPath);
+		void		openDefaultPages(std::string &rootPath, HttpRequest &response);
+		void		showDirectory(DIR* dir, HttpRequest &response);
+		void		handleBigRequest(HttpRequest &request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -89,6 +93,10 @@ class	VServ {
 				const char*	what() const throw();
 		};
 		class	OpenFileException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	ReadFileException: public std::exception {
 			public:
 				const char*	what() const throw();
 		};

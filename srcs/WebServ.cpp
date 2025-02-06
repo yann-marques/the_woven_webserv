@@ -102,14 +102,6 @@ std::set<int>	WebServ::getServersFd(void) const {
 	return (_serverFds);
 }
 
-/* int	WebServ::getServerFd(int i) const { //DEPRECATED SINCE SET TYPE.
-	return (_serverFds[i]);
-} */
-
-/* int	WebServ::getClientFd(int i) const { //DEPRECATED SINCE SET TYPE.
-	return (_clientFds[i]);
-} */
-
 //Renvoie un VServ* associe au FD passe. Si c'est un FD client, ca renvoie le *VServ "attache" a ce client. Si c'est un FD Server, renvoie le *VServ.
 VServ*	WebServ::getRelatedServer(int fd) {
 
@@ -175,54 +167,70 @@ bool WebServ::fdIsClient(int fd) {
 		return false;
 }
 
-void	WebServ::deleteFd(int fd) {
+void	WebServ::deleteFd(int fd, std::set<int>& sets) {
 	epollCtlDel(fd);
 	close(fd);
-	_clientFds.erase(fd);
+	sets.erase(fd);
 }
 
-void	WebServ::handleServerEvent(int fd) {
-	VServ* vserv = getRelatedServer(fd);
+void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
-
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
 	insertClientFd(clientFd);
 	setServerToClientFd(clientFd, vserv);
 	setEvent(EPOLLIN | EPOLLET, clientFd);
 	epollCtlAdd(clientFd);
-
 	std::cout << "New client connection. FD: " << clientFd << std::endl; 
 }
 
-void	WebServ::handleClientEvent(int fd) {
-	std::cout << "Client request receieved. FD socket client: " << fd << std::endl;
-	VServ* clientVserv = getRelatedServer(fd); //assert: fd is client fd.
+void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
+	std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
-	std::string rawRequest = clientVserv->readRequest(fd);
+	std::string rawRequest = vserv->readRequest(clientFd);
 	std::cout << "REQUEST --------" << std::endl << rawRequest << std::endl;
 
 	if (rawRequest.empty()) {
-		std::cout << "Client close the request. FD: " << fd << " is close, ctldel and erase from the set." << std::endl;
+		std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
 	} else
-		clientVserv->processRequest(rawRequest, fd);
+		vserv->processRequest(rawRequest, clientFd);
 	
-	deleteFd(fd);
+	deleteFd(clientFd, _clientFds);
 }
-
 
 void	WebServ::listenEvents(void) {
 	while (true) {
+		int fd;
+		try {
+			int nbEvents = epollWait();
+			for (int i = 0; i < nbEvents; i++) {
+				fd = _epollEvents[i].data.fd;
 
-		int nbEvents = epollWait();
-		for (int i = 0; i < nbEvents; i++) {
-			int fd = _epollEvents[i].data.fd;
-			if (fdIsServer(fd)) {
-				handleServerEvent(fd);
-			} else if (fdIsClient(fd)) {
-				handleClientEvent(fd);
-			} else {
-				throw (UnknownFdException()); 
+				VServ *vserv = getRelatedServer(fd);
+				if (!vserv)
+					throw UnknownFdException();
+
+				if (fdIsServer(fd)) {
+					handleServerEvent(vserv);
+				} else if (fdIsClient(fd)) {
+					handleClientEvent(fd, vserv);
+				} else {
+					throw UnknownFdException(); 
+				}
 			}
+		} catch (UnknownFdException& e) {
+			deleteFd(fd, _serverFds);
+			std::cerr << "Fatal error: Unknown FD problem.";
+			break;
+		} catch (VServ::AcceptException& e) {
+			//break; ? On stop le VServ ?
+			//deleteFd(fd, _serverFds);
+		} catch (VServ::RecvException& e) {
+			//break; ? On stop le VServ ?
+			//deleteFd(fd, _serverFds);
+		} catch (VServ::SendPartiallyException& e) {
+			// Je sais pas trop... c'est dur
+		} catch (VServ::SendException& e) {
+			// Je sais toujours pas a ce stade... demande trop de mana.
 		}
 	}
 }
@@ -254,17 +262,6 @@ const char*	WebServ::UnknownFdException::what() const throw() {
 }
 
 std::ostream&	operator<<(std::ostream& os, WebServ& ws) {
-
-	/* OLD
-
-	size_t	size = ws.getServerNbr();
-
-	for (size_t i = 0; i < size; i++) {
-		os << *(ws.getServer(ws.getServerFd(i)));
-	}
-
-	*/
-
 	os	<< "////////// WEBSERV //////////" << std::endl
 		<< "\tepollFd = " << ws.getEpollFd() << std::endl;
 
