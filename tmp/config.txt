@@ -1,0 +1,25 @@
+
+
+server {
+	port: 80;
+	root: /bloblo;
+	location: lala {
+		root: hoho;
+	}
+	server_names: blob, blim;
+	allowed_methods: GET, POST;
+
+	max_body_bytes: 42;
+
+}
+
+server {
+	port: 81;
+
+	root: /popo;
+}
+
+server {
+	port: 80;
+	server_names: bloum;
+}
