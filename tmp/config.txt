@@ -2,15 +2,20 @@
 
 server {
 	port: 80;
+	server_names: blob, blim;
 	root: /bloblo;
 	location: lala {
 		root: hoho;
+		location: cococ {
+			root: blim;
+		}
 	}
-	server_names: blob, blim;
 	allowed_methods: GET, POST;
-
-	max_body_bytes: 42;
-
+	auto_index: true;
+	max_body_bytes: 4M10;
+	location: zouzou {
+		auto_index: false;
+	}
 }
 
 server {

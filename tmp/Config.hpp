@@ -11,10 +11,14 @@
 # include <map>
 # include <set>
 
+# include "StrException.hpp"
+# include "Rules.hpp"
+
 class	Config {
 	private:
 		std::vector< std::string >	_vServRawVec;
 	//	std::map< int, std::vector<std::string> >	_rawVServConfig; //
+		std::map< int, std::map< std::string, Rules* > >	_parsedConfig;
 	public:
 		Config();
 		Config(char* filename);
@@ -26,14 +30,19 @@ class	Config {
 		void	setVServRaw(std::string fileContent);
 		void	setArgsToFind(std::set< std::string >& vec);
 
-		void	parseVServRawStr(std::set< std::string > argsToFind, std::map< std::string, std::string >& argsToSet, std::string rawStr);
+		size_t	endOfScopeIndex(std::string str, size_t pos);
+		void	parseLine(std::set< std::string > argsToFind, std::multimap< std::string, std::string >& argsToSet, std::string line);
+		void	parseLocation(std::set< std::string > argsToFind, std::map< std::string, std::multimap< std::string, std::string > >& argToSet, t_range range);
+		void	setPort(std::map< std::string, Rules* >& toSet, std::multimap< std::string, std::string > args, std::map< std::string, std::multimap< std::string, std::string > > location);
+
+		void	parseVServRawStr(std::set< std::string > argsToFind, std::multimap< std::string, std::string >& argsToSet, std::string rawStr);
 		void	parseVServRawVec();
 
 		std::string	serverSubStr(std::string fileContent, size_t& pos);
 		size_t	scopeSubStr(std::string str, size_t pos);
 		bool	unclosedScope(std::string str, std::string limiter); //
 
-		void checkArgsFormat(std::map< std::string, std::string > args);
+		void checkArgsFormat(std::multimap< std::string, std::string > args);
 
 		~Config();
 
@@ -50,33 +59,38 @@ class	Config {
 			public:
 				const char*	what() const throw();
 		};
-		class	UnexpectedKeyException: public std::exception {
+		class	UnexpectedKeyException: public StrException {
 			private:
 				const std::string	_str;
 			public:
 				UnexpectedKeyException(std::string where);
-				~UnexpectedKeyException() throw(); //////
+				~UnexpectedKeyException() throw();
 
 				const char*	what() const throw();
 		};
-		class	DoubleArgException: public std::exception {
-			private:
-				const std::string	_str;
+
+		class	DoubleArgException: public StrException {
 			public:
 				DoubleArgException(std::string where);
 				~DoubleArgException() throw();
+
 				const char*	what() const throw();
 		};
+
 		class	MissingPortException: public std::exception {
 			public:
 				const char*	what() const throw();
 		};
-		class	UnexpectedValueException: public std::exception {
+		class	MultiplePortsException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	UnexpectedValueException: public StrException {
 			private:
 				const std::string	_str;
 			public:
 				UnexpectedValueException(std::string where);
-				~UnexpectedValueException() throw(); //////
+				~UnexpectedValueException() throw();
 
 				const char*	what() const throw();
 		};

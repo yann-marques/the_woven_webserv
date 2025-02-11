@@ -20,6 +20,8 @@ Config::Config(char* fileName) {
 		std::cerr << e.what() << std::endl;
 	} catch (MissingPortException& e) {
 		std::cerr << e.what() << std::endl;
+	} catch (MultiplePortsException& e) {
+		std::cerr << e.what() << std::endl;
 	} catch (UnexpectedValueException& e) {
 		std::cerr << e.what() << std::endl;
 	}
@@ -75,7 +77,26 @@ void	Config::setArgsToFind(std::set< std::string >& argsToFind) {
 	argsToFind.insert("upload");
 }
 
-void	Config::parseVServRawStr(std::set< std::string > argsToFind, std::map< std::string, std::string >& argsToSet, std::string rawStr) {
+size_t	Config::endOfScopeIndex(std::string str, size_t pos) {
+	std::string	brackets("{}");
+	pos = str.find(brackets[0], pos);
+	if (pos == std::string::npos)
+		return (0);
+	size_t	count = 1, i = 1;
+	while (str[pos + i] && count) {
+		while (str[pos + i] && brackets.find(str[pos + i], 0) == std::string::npos)
+			i++;
+		if (str[pos + i] == brackets[0])
+			count++;
+		else if (str[pos + i] == brackets[1])
+			count--;
+		i++;
+	}
+//	std::cout << "scope: " << str.substr(pos, i) << std::endl;
+	return (pos + i);
+}
+
+void	Config::parseVServRawStr(std::set< std::string > argsToFind, std::multimap< std::string, std::string >& argsToSet, std::string rawStr) {
 	std::istringstream	iss(rawStr);
 	std::string	word, newStr;
 
@@ -94,7 +115,8 @@ void	Config::parseVServRawStr(std::set< std::string > argsToFind, std::map< std:
 		}
 	}
 	// extract args
-	do {
+	parseLine(argsToFind, argsToSet, newStr);
+/*	do {
 		size_t	sepPos1 = newStr.find(':'), sepPos2;
 		if (sepPos1 == std::string::npos)
 			throw ConfigSyntaxException(); // details ?
@@ -105,7 +127,7 @@ void	Config::parseVServRawStr(std::set< std::string > argsToFind, std::map< std:
 		if (it == ite)
 			throw UnexpectedKeyException(key); // unexpected key
 		else if (*it == "location") {
-			sepPos2 = newStr.find('}');
+			sepPos2 = endOfScopeIndex(newStr, newStr.find('{')) - 1;
 		} else {
 			sepPos2 = newStr.find(';');
 		}
@@ -118,13 +140,15 @@ void	Config::parseVServRawStr(std::set< std::string > argsToFind, std::map< std:
 //			<< "newStr = |" << newStr << "|" << std::endl
 			<< "key = |" << key << "|" << std::endl
 			<< "value = |" << value << "|" << std::endl;
-		
-		if (argsToSet.count(key))
-			throw DoubleArgException(key);
-		argsToSet[key] = value;
+
+// Quels blocs de parametres peuvent etre en double ?
+		if (key != "location" && key != "error_pages" && argsToSet.count(key))
+			throw DoubleArgException(key); // location, error_pages peut etre en double. multimap ?
+		argsToSet.insert(make_pair(key, value)); ////
 		newStr.erase(0, sepPos2 + 1);
 //		std::cout << "newStr apres erase = |" << newStr << "|" << std::endl; 
 	} while (!newStr.empty()); //
+*/
 }
 
 void	Config::parseVServRawVec() {
@@ -134,7 +158,7 @@ void	Config::parseVServRawVec() {
 	std::set< std::string >	argsToFind;
 	setArgsToFind(argsToFind);
 
-	std::map< std::string, std::string >	argsToSet;
+	std::multimap< std::string, std::string >	argsToSet;
 
 	for (size_t i = 0, rawSize = _vServRawVec.size(); i < rawSize; i++) {
 	//	for (size_t j = 0, argSize = argsToFind.size(); i++)
@@ -143,17 +167,20 @@ void	Config::parseVServRawVec() {
 		checkArgsFormat(argsToSet);
 
 		// get port
-		int port = atoi(argsToSet["port"].c_str());
-		std::cout << "port: " << port << std::endl;
+		int port = std::atoi(argsToSet.find("port")->second.c_str());
+	//	std::cout << "PORT: " << port << std::endl;
 		// parse location // later
-/*		if (argsToSet.count("location")) {
-			std::set< std::string >	location = parseLocation(argsToSet["location"])
+		std::map< std::string, std::multimap< std::string, std::string > >	location;
+		if (argsToSet.count("location")) {
+			parseLocation(argsToFind, location, argsToSet.equal_range("location"));
+			argsToSet.erase("location"); ///////
 		}
-*/
+		// checker location.size() dans setPort
+		setPort(_parsedConfig[port], argsToSet, location);
 		// get server_names
 		// separate the rest
 	//	argsToSet.push_back();
-		break ;
+		break ; // test
 	}
 }
 
@@ -193,6 +220,7 @@ size_t	Config::scopeSubStr(std::string str, size_t pos) {
 			count--;
 		i++;
 	}
+//	std::cout << "scope: " << str.substr(pos, i) << std::endl;
 	return (i);
 }
 
@@ -213,47 +241,3 @@ bool	Config::unclosedScope(std::string str, std::string limiter) {
 }
 
 Config::~Config() {}
-
-// EXCEPTIONS
-
-const char*	Config::OpenFileException::what() const throw() {
-	return ("Cannot open file: ");
-}
-
-const char*	Config::UnclosedScopeException::what() const throw() {
-	return ("Syntax error: unclosed brackets {}.");
-}
-
-const char*	Config::ConfigSyntaxException::what() const throw() {
-	return ("Syntax error in configuration file. Run the program with --help for more details.");
-}
-
-Config::UnexpectedKeyException::UnexpectedKeyException(std::string where): _str("Unexpected key: " + where) {}
-
-Config::UnexpectedKeyException::~UnexpectedKeyException() throw() {}
-
-const char*	Config::UnexpectedKeyException::what() const throw() {
-	return (_str.c_str()); // to complete ?
-}
-
-Config::DoubleArgException::DoubleArgException(std::string where): _str("Argument found twice in a single scope: " + where) {}
-
-Config::DoubleArgException::~DoubleArgException() throw() {}
-
-const char*	Config::DoubleArgException::what() const throw() {
-	return (_str.c_str());
-}
-
-const char*	Config::MissingPortException::what() const throw() {
-	return ("Port not found in server scope.");
-}
-
-Config::UnexpectedValueException::UnexpectedValueException(std::string where): _str("Unexpected value: " + where) {}
-
-Config::UnexpectedValueException::~UnexpectedValueException() throw() {}
-
-const char*	Config::UnexpectedValueException::what() const throw() {
-//	std::string	str("Unexpected value: " + _where);
-	return (_str.c_str());
-//	return ("Unexpected value"); // to complete ?
-}
