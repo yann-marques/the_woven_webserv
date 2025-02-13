@@ -1,15 +1,13 @@
 #include "Config.hpp"
 
-static void	checkPortFormat(size_t count, t_range range) { // & ?
+static void	checkPortFormat(t_range range) {
 	if (!count)
-		throw Config::MissingPortException(); // set default value ?
+		throw Config::MissingPortException();
 	else if (count > 1)
 		throw Config::DoubleArgException("port");
 
-	t_multimap_it	mit = range.first; // ite = range.second;
+	t_multimap_it	mit = range.first;
 	std::string	str = mit->second;
-//	mit->second = "coucou";
-
 	std::string::iterator	it = str.begin(), ite = str.end();
 	ite--;
 	while (it != ite && isdigit(*it))
@@ -17,6 +15,13 @@ static void	checkPortFormat(size_t count, t_range range) { // & ?
 	if (it != ite)
 		throw Config::UnexpectedValueException(str);
 
+}
+/*
+static void	checkServerNames(std::multimap< std::stirng, std::string >& args, std::string key) {
+	t_multimap_it	mit = range.first;
+	if (!count)
+		mit->second = "DEFAULT"; /////
+	// else verification de caracteres speciaux ?
 }
 
 static void	checkAllowedMethodsFormat(size_t count, t_range range) {
@@ -90,19 +95,30 @@ static void	checkAutoIndex(size_t count, t_range range) {
 		&& str != "no" && str != "false" && str != "0")
 		throw Config::UnexpectedValueException(str);
 }
-
+*/
 // WARNING: tenter d'acceder a une value de key "key1" creera une value ""
 // a la key "key1", et donc map.count("key1") renverra 1
 
-void	Config::checkArgsFormat(std::multimap< std::string, std::string > args) {
-	// check port // if not a location ?
-	checkPortFormat(args.count("port"), args.equal_range("port"));
+void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
+	// set default values if there is none
+	std::set< std::string >::iterator	it = _argsToFind.begin(), ite = _argsToFind.end();
+	while (it != ite) {
+		std::string	argToFind = *it;
+		if (!args.count(argToFind)) {
+			if (argToFind == "port")
+				throw (MissingPortException());
+			args.insert(std::make_pair(argToFind, _defaultValues[argToFind]));
+		}
+		it++;
+	}
+//	printMultimap(_argsToFind, args);
 
+
+	checkPortFormat(args.equal_range("port"));
+/*
+//	checkServerNames(args.count("server_names"), args.equal_range("server_names"));
+	checkServerNames(args, "server_names");
 	// to print a multimap value
-/*	t_range	it = args.equal_range("port");
-	t_multimap_it	mit = it.first;
-	std::cout << "test = " << mit->second << std::endl;
-*/
 
 //	std::cout << "count = " << args.count("allowed_methods") << std::endl;
 
@@ -115,4 +131,5 @@ void	Config::checkArgsFormat(std::multimap< std::string, std::string > args) {
 
 	checkAutoIndex(args.count("auto_index"), args.equal_range("auto_index"));
 	// ...
+*/
 }

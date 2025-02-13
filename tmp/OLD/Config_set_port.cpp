@@ -19,6 +19,8 @@ void	Config::setPort(std::map< std::string, Rules* >& toSet, std::multimap< std:
 	getServerNames(serverNames, args.equal_range("server_names"));
 	for (size_t i = 0, size = serverNames.size(); i < size; i++) {
 	//	std::cout << i << ' ' << serverNames[i] << std::endl;
+		// parse location before setting Rules
+		
 		Rules*	rules = new Rules(args, location); //// hors de la boucle ?
 		delete rules;
 	}

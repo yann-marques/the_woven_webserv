@@ -116,39 +116,6 @@ void	Config::parseVServRawStr(std::set< std::string > argsToFind, std::multimap<
 	}
 	// extract args
 	parseLine(argsToFind, argsToSet, newStr);
-/*	do {
-		size_t	sepPos1 = newStr.find(':'), sepPos2;
-		if (sepPos1 == std::string::npos)
-			throw ConfigSyntaxException(); // details ?
-		std::string	key(newStr.substr(0, sepPos1));
-
-		// check if key is in reserved words
-		std::set< std::string >::iterator	it = argsToFind.find(key), ite = argsToFind.end();
-		if (it == ite)
-			throw UnexpectedKeyException(key); // unexpected key
-		else if (*it == "location") {
-			sepPos2 = endOfScopeIndex(newStr, newStr.find('{')) - 1;
-		} else {
-			sepPos2 = newStr.find(';');
-		}
-
-		if (sepPos2 == std::string::npos)
-			throw ConfigSyntaxException(); // details ?
-		std::string	value(newStr.substr(sepPos1 + 1, sepPos2 - sepPos1));
-
-		std::cout
-//			<< "newStr = |" << newStr << "|" << std::endl
-			<< "key = |" << key << "|" << std::endl
-			<< "value = |" << value << "|" << std::endl;
-
-// Quels blocs de parametres peuvent etre en double ?
-		if (key != "location" && key != "error_pages" && argsToSet.count(key))
-			throw DoubleArgException(key); // location, error_pages peut etre en double. multimap ?
-		argsToSet.insert(make_pair(key, value)); ////
-		newStr.erase(0, sepPos2 + 1);
-//		std::cout << "newStr apres erase = |" << newStr << "|" << std::endl; 
-	} while (!newStr.empty()); //
-*/
 }
 
 void	Config::parseVServRawVec() {
@@ -164,12 +131,13 @@ void	Config::parseVServRawVec() {
 	//	for (size_t j = 0, argSize = argsToFind.size(); i++)
 		parseVServRawStr(argsToFind, argsToSet, _vServRawVec[i]); //
 		// check args
-		checkArgsFormat(argsToSet);
+		checkArgsFormat(argsToFind, argsToSet); // CHECKPOINT
 
 		// get port
 		int port = std::atoi(argsToSet.find("port")->second.c_str());
 	//	std::cout << "PORT: " << port << std::endl;
 		// parse location // later
+		// keys a part. location = "simple" map
 		std::map< std::string, std::multimap< std::string, std::string > >	location;
 		if (argsToSet.count("location")) {
 			parseLocation(argsToFind, location, argsToSet.equal_range("location"));
@@ -180,7 +148,9 @@ void	Config::parseVServRawVec() {
 		// get server_names
 		// separate the rest
 	//	argsToSet.push_back();
-		break ; // test
+		argsToSet.clear();
+		location.clear();
+	//	break ; // test
 	}
 }
 
@@ -228,7 +198,7 @@ bool	Config::unclosedScope(std::string str, std::string limiter) {
 	if (limiter.size() != 2)
 		return (false);
 	size_t	count = 0, i = 0;
-	while (str[i] && count >= 0) {
+	while (str[i]) {
 		while (str[i] && limiter.find(str[i], 0) == std::string::npos)
 			i++;
 		if (str[i] == limiter[0])

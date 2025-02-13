@@ -42,7 +42,7 @@ class	Config {
 		size_t	scopeSubStr(std::string str, size_t pos);
 		bool	unclosedScope(std::string str, std::string limiter); //
 
-		void checkArgsFormat(std::multimap< std::string, std::string > args);
+		void checkArgsFormat(std::map< std::string, std::string > argsToFind, std::multimap< std::string, std::string >& argsToCheck);
 
 		~Config();
 
