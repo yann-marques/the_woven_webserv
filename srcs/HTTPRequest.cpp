@@ -120,7 +120,7 @@ void    HttpRequest::makeError(int httpCode) {
     std::vector<char> buffer(4096);
 
     std::stringstream stream;
-    stream << "errors/" << httpCode << ".html";
+    stream << "default/errors/" << httpCode << ".html";
 
     std::string errorPagePath = stream.str();
 

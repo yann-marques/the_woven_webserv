@@ -91,8 +91,8 @@ std::string VServ::openFile(std::string &rootPath) {
     while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
         buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
     }
-
-    if (bytesRead < 0) {
+	
+	if (bytesRead < 0 && buffer.empty()) {
         close(fd);
         throw OpenFileException();
     }
@@ -111,10 +111,11 @@ std::string	VServ::readRequest(const int fd) {
 		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
 
-	if (bytesRead == 0)
+	if (bytesRead == 0) {
 		return ("");
-	if (bytesRead < 0) {
-        close(fd);
+	}
+	if (bytesRead < 0 && buffer.empty()) {
+	    close(fd);
         throw RecvException();
     }
 
