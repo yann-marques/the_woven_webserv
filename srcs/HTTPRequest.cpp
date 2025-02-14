@@ -39,6 +39,10 @@ std::string HttpRequest::getBody() const
     return this->_body;
 }
 
+std::string HttpRequest::getRootPath() const {
+    return (this->_rootPath);
+}
+
 
 //SETTERS
 
@@ -65,6 +69,9 @@ void    HttpRequest::setBody(const std::string &body) {
     _headers["Content-Length"] = oss.str();
 }
 
+void    HttpRequest::setRootPath(std::string &rootPath) {
+    _rootPath = rootPath;
+}
 
 //METHODS
 
@@ -123,7 +130,6 @@ void    HttpRequest::makeError(int httpCode) {
     stream << "default/errors/" << httpCode << ".html";
 
     std::string errorPagePath = stream.str();
-
 	int fd = open(errorPagePath.c_str(), O_RDONLY);
 	if (fd < 0)
 		throw OpenFileException();

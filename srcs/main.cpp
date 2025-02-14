@@ -12,8 +12,11 @@ int main(void) {
 }
 */
 
-int main() {
-    WebServ ws("filename");
+int main(int argc, char **argv, char **env) 
+{
+    (void) argc;
+    (void) argv;
+    WebServ ws("filename", env);
 
     std::cout << ws;
     return (0);

@@ -35,7 +35,7 @@ class	WebServ {
 
 	public:
 		WebServ();
-		WebServ(std::string filename);
+		WebServ(std::string filename, char **env);
 		WebServ(const WebServ& rhs);
 		WebServ&	operator=(const WebServ& rhs);
 		~WebServ();

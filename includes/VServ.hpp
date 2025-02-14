@@ -25,13 +25,14 @@ class	VServ {
 		std::string					_root;
 		std::string 				_configLine;
 		std::vector<std::string>	_defaultPages;
+		std::vector<std::string>	_env;
 		// ...
 		int							_fd;
 		sockaddr_in					_address;
 
 	public:
 		VServ(): _maxClients(1024), _root("www") {}
-		VServ(VServConfig config, int maxClients);
+		VServ(VServConfig config, int maxClients, char **env);
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();
@@ -50,10 +51,12 @@ class	VServ {
 		std::string readRequest(const int fd);
 		void		processRequest(std::string rawRequest, int clientFd);
 		void 		sendRequest(HttpRequest &request, int clientFd);
-		std::string	openFile(std::string &rootPath);
-		void		openDefaultPages(std::string &rootPath, HttpRequest &response);
+		std::string	openFile(HttpRequest &request);
+		void		openDefaultPages(HttpRequest &request, HttpRequest &response);
 		void		showDirectory(DIR* dir, HttpRequest &response);
 		void		handleBigRequest(HttpRequest &request);
+		std::string makeRootPath(HttpRequest &request);
+		bool		fileIsCGI(HttpRequest &request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {

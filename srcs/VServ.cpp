@@ -2,13 +2,17 @@
 
 // VServ::VServ();
 
-VServ::VServ(VServConfig config, int maxClients): _maxClients(maxClients), _root("www") {
+VServ::VServ(VServConfig config, int maxClients, char **env): _maxClients(maxClients), _root("www") {
 	// tmp
 	_port = config.getPort();
 	_host = config.getHost();
 	// parse config ...
 	setAddress();
 	socketInit();
+	//env
+	for (size_t i = 0; i < sizeof(env); i++) {
+		this->_env.push_back(std::string(env[i]));
+	}
 }
 
 // VServ::VServ(const VServ& rhs);
@@ -79,14 +83,27 @@ int	VServ::clientAccept(void) {
 	return (clientFd);
 }
 
-std::string VServ::openFile(std::string &rootPath) {
+std::string	VServ::makeRootPath(HttpRequest &request) {
+	std::string rqRootPath = request.getRootPath();
+
+	if (!rqRootPath.empty())
+		return (rqRootPath);
+	if (request.getPath() != "/")
+		return(_root + request.getPath());
+	else
+		return(_root);
+}
+
+
+std::string VServ::openFile(HttpRequest &request) {
     std::vector<char> buffer;
     ssize_t bytesRead;
     char tempBuffer[4096];
 
+	std::string rootPath = makeRootPath(request);
     int fd = open(rootPath.c_str(), O_RDONLY);
     if (fd < 0)
-        throw OpenFileException();
+		throw OpenFileException();
 
     while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
         buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
@@ -151,7 +168,8 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 	}
 }
 
-void	VServ::openDefaultPages(std::string &rootPath, HttpRequest &response) {
+void	VServ::openDefaultPages(HttpRequest &request, HttpRequest &response) 
+{
 
 	//IN CONFIG !
 	std::vector<std::string> defaultPages;
@@ -162,12 +180,11 @@ void	VServ::openDefaultPages(std::string &rootPath, HttpRequest &response) {
 
 	std::string file;
 	for (std::vector<std::string>::iterator it = defaultPages.begin(); it != defaultPages.end(); it++) {
-		std::string indexPath = rootPath + "/" + *it;
+		std::string indexPath = makeRootPath(request) + "/" + *it;
 		struct stat path_stat;
 		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
-			std::cout << "test" << std::endl; 
-			file = openFile(indexPath);
-			std::cout << file << std::endl;
+			request.setRootPath(indexPath);
+			file = openFile(request);
 			break;
 		}
 	}
@@ -187,8 +204,22 @@ void	VServ::showDirectory(DIR* dir, HttpRequest &response) {
 	response.generateIndexFile(filesName);
 }
 
-void	VServ::processRequest(std::string rawRequest, int clientFd) {
+bool	VServ::fileIsCGI(HttpRequest &request) {
+	std::istringstream stream(request.getPath());
+	std::string segment;
 
+	while (std::getline(stream, segment, '/')) {
+		if (segment.find(".php") != std::string::npos)
+			return (true);		
+	}
+	return (false);	
+}
+
+void	VServ::handleCGI(HttpRequest &request, HttpRequest &response) {
+	
+}
+
+void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest request(rawRequest);
 	HttpRequest response;
 	struct stat path_stat;
@@ -201,22 +232,23 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	//...
 	//END DEFINE IN CONFIG
 
-	std::string rootPath;
-	if (request.getPath() != "/")
-		rootPath = _root + request.getPath();
-	else
-		rootPath = _root;
-
 	try {
 		handleBigRequest(request);
 
+		if (fileIsCGI(request)) {
+			std::cout << "File is CGI" << std::endl;
+			handleCGI(request, response);	
+			return ;
+		}
+
+		std::string rootPath = makeRootPath(request);
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
 
 		if (S_ISREG(path_stat.st_mode)) {
 
 			std::cout << "ITS A FILE" << std::endl;
-			std::string file = openFile(rootPath);
+			std::string file = openFile(request);
 			response.setBody(file);
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
@@ -225,10 +257,10 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 			if (!dir)
 				throw OpenFolderException();
 
-			_autoIndex ? showDirectory(dir, response) : openDefaultPages(rootPath, response);
+			_autoIndex ? showDirectory(dir, response) : openDefaultPages(request, response);
 
 		} else {
-			response.setResponseCode(502);
+			response.setResponseCode(HTTP_BAD_GATEWAY);
 		}
 
 	} catch (FileNotExist& e) {

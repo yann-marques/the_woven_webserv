@@ -2,7 +2,7 @@
 
 // WebServ::WebServ() {} // private ?
 
-WebServ::WebServ(std::string filename): _maxClients(1000), _maxEvents(1000), _config(filename) {
+WebServ::WebServ(std::string filename, char **env): _maxClients(1000), _maxEvents(1000), _config(filename) {
 //	signal(SIGINT, handleSignal); // in execution
 
 	try {
@@ -14,7 +14,7 @@ WebServ::WebServ(std::string filename): _maxClients(1000), _maxEvents(1000), _co
 		_serverNbr = _config.getServersNbr();
 		std::cout << "serverNbr = " << _serverNbr << std::endl;
 		for (size_t i = 0; i < _serverNbr; i++) { // c.serverConfig : container ? vector
-			VServ*	server = new VServ(_config.getServerConfig(i), _maxClients); // epoll ? epollFd en arg ?
+			VServ*	server = new VServ(_config.getServerConfig(i), _maxClients, env); // epoll ? epollFd en arg ?
 			int	sfd = server->getFd();
 
 			insertServerFd(sfd);

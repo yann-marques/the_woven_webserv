@@ -66,6 +66,7 @@ class HttpRequest {
         std::string getPath(void) const;
         std::string getHeader(const std::string &key) const;
         std::string getBody(void) const;
+        std::string getRootPath(void) const;
 
         //SETTERS
         void    setMethod(std::string &method);
@@ -73,7 +74,7 @@ class HttpRequest {
         void    setVersion(const std::string &str);
         void    setHeaders(std::map<std::string, std::string> &headers);
         void    setBody(const std::string &body);
-        void    setRootPath(std::string &root);
+        void    setRootPath(std::string &rootPath);
 
         //METHODS:
         std::string makeRawResponse(void);
