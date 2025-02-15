@@ -1,6 +1,6 @@
 #include "Config.hpp"
 
-static void	checkPortFormat(t_range range) {
+static void	checkPortFormat(size_t count, t_range range) {
 	if (!count)
 		throw Config::MissingPortException();
 	else if (count > 1)
@@ -101,12 +101,13 @@ static void	checkAutoIndex(size_t count, t_range range) {
 
 void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
 	// set default values if there is none
+	// do it in Rules() ? maybe better
 	std::set< std::string >::iterator	it = _argsToFind.begin(), ite = _argsToFind.end();
 	while (it != ite) {
 		std::string	argToFind = *it;
 		if (!args.count(argToFind)) {
-			if (argToFind == "port")
-				throw (MissingPortException());
+		//	if (argToFind == "port")
+		//		throw (MissingPortException());
 			args.insert(std::make_pair(argToFind, _defaultValues[argToFind]));
 		}
 		it++;
@@ -114,7 +115,7 @@ void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
 //	printMultimap(_argsToFind, args);
 
 
-	checkPortFormat(args.equal_range("port"));
+	checkPortFormat(args.count("port"), args.equal_range("port"));
 /*
 //	checkServerNames(args.count("server_names"), args.equal_range("server_names"));
 	checkServerNames(args, "server_names");

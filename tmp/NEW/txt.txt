@@ -12,9 +12,21 @@ server {
 	}
 	allowed_methods: GET, POST;
 	auto_index: true;
-	max_body_bytes: 4M10;
-	location: zouzou {
+	location: zouzou, bjr {
 		auto_index: false;
+	}
+	max_body_bytes: 4M10;
+	location: blib, bloumlll {
+		root: toto;
+		location: titi, kk {
+			root: mmmmm;
+			location: oui {
+				root: blo;
+				location: non {
+					root: rah;
+				}
+			}
+		}
 	}
 }
 
@@ -22,6 +34,7 @@ server {
 	port: 81;
 
 	root: /popo;
+
 }
 
 server {

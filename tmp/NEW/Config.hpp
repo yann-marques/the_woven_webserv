@@ -12,18 +12,28 @@
 # include <set>
 
 # include "StrException.hpp"
-//# include "Rules.hpp"
+
+class Rules;
 
 typedef std::multimap< std::string, std::string >::iterator t_multimap_it;
 typedef std::pair< t_multimap_it, t_multimap_it > t_range;
 
+void	printMultimap(std::set< std::string > keys, std::multimap< std::string, std::string > map);
+
 class	Config {
-	private:
+	protected:
 		std::set< std::string >					_argsToFind;
 		std::map< std::string, std::string >	_defaultValues;
+
+		std::set< int >	_ports;
+		std::multimap< int, std::string >	_serverNames;
+		std::map< int, std::map< std::string, Rules* > >	_parsedConfig;
 	public:
 		Config();
 		Config(char* fileName);
+
+	//	Config(const Config& rhs);
+	//	Config&	operator=(const Config& rhs);
 
 		void	setArgsToFind();
 		void	setDefaultValues();
@@ -36,7 +46,7 @@ class	Config {
 		std::multimap< std::string, std::string >	parseServerLine(std::string line);
 		void	checkArgsFormat(std::multimap< std::string, std::string >& args);
 
-		~Config();
+		virtual ~Config();
 
 		// EXCEPTIONS
 		class	OpenFileException: public std::exception {

@@ -1,4 +1,10 @@
 #include "Config.hpp"
+#include "Rules.hpp"
+
+Config::Config() {
+	setArgsToFind();
+	setDefaultValues();
+}
 
 Config::Config(char* fileName) {
 	try {
@@ -10,10 +16,37 @@ Config::Config(char* fileName) {
 
 		std::vector< std::string >	serverLines = splitLine(fileContent, "server");
 		for (size_t i = 0, n = serverLines.size(); i < n; i++) {
-//			std::cout << i << "\t" << serverLines[i] << std::endl;
 			std::cout << "////////////////////// SERVER " << i << std::endl;
 			std::multimap< std::string, std::string >	args = parseServerLine(serverLines[i]);
+			if (!args.count("port"))
+				throw (MissingPortException());
 			checkArgsFormat(args);
+//			printMultimap(_argsToFind, args);
+	//		std::map< std::string, Rules* >	location;
+//			parseLocation(args.equal_range("location"), location);
+//			Rules*	rules = makeRules(args);
+			int	port = std::atoi(args.equal_range("port").first->second.c_str());
+			if (!_ports.count(port)) { // pas de port en double. le premier serveur defini avec un port est le seul ?
+				_ports.insert(port);
+				Rules*	rules = new Rules(args);
+//				std::cout << "main: " << rules << std::endl;
+				std::cout << "SORTI DU CONSTRUCTEUR RULES" << std::endl;
+				rules->goDeep(1); //
+
+				t_range	range = args.equal_range("server_names");
+				t_multimap_it	mit = range.first, mite = range.second;
+				std::map< std::string, Rules* >	toSet;
+				while (mit != mite) {
+					_serverNames.insert(make_pair(port, mit->second));
+					toSet[mit->second] = rules;
+					mit++;
+				}
+				_parsedConfig[port] = toSet;
+			}
+
+//			delete rules;
+//			(void) rules;
+//			break ;
 		}
 	} catch (OpenFileException& e) {
 		std::cerr << e.what() << fileName << std::endl;
@@ -54,7 +87,7 @@ void	Config::setArgsToFind() {
 }
 
 void	Config::setDefaultValues() {
-	_defaultValues.insert(std::make_pair("location", "NULL"));
+	_defaultValues.insert(std::make_pair("location", "NONE"));
 	_defaultValues.insert(std::make_pair("port", "80")); // obligatoire
 	_defaultValues.insert(std::make_pair("server_names", "NULL"));
 	_defaultValues.insert(std::make_pair("root", "www/default.html")); // obligatoire ?
@@ -152,8 +185,10 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 		std::set< std::string >::iterator	it = _argsToFind.find(key), ite = _argsToFind.end();
 		if (it == ite)
 			throw UnexpectedKeyException(key);
-		else if (*it == "location")
+		else if (*it == "location") {
 			sepPos2 = endOfScopeIndex(line, line.find('{')) - 1;
+//			std::cerr << "location line: " << line.substr(0, sepPos2) << std::endl;
+		}
 		else
 			sepPos2 = line.find(';');
 
@@ -162,8 +197,9 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 
 		std::string	value(line.substr(sepPos1 + 1, sepPos2 - sepPos1));
 
-		args.insert(make_pair(key, value));
+//		std::cout << "///// " << key << " : " << value << std::endl;
 
+		args.insert(make_pair(key, value));
 		line.erase(0, sepPos2 + 1);
 	} while (!line.empty());
 	return (args);
@@ -180,4 +216,15 @@ std::multimap< std::string, std::string >	Config::parseServerLine(std::string li
 	return (parseLine(line));
 }
 
-Config::~Config() {}
+Config::~Config() {
+	std::set< int >::iterator	it = _ports.begin(), ite = _ports.end();
+	while (it != ite) { // penser au serveur name par default
+		std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	range = _serverNames.equal_range(*it);
+		std::multimap< int, std::string >::iterator	mit = range.first, mite = range.second;
+		while (mit != mite) {
+			delete _parsedConfig[*it][mit->second];
+			mit++;
+		}
+		it++;
+	}
+}
