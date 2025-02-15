@@ -12,7 +12,6 @@
 # include <sstream>
 # include <iostream>
 
-
 # include "Config.hpp"
 # include "HTTPRequest.hpp"
 
@@ -51,12 +50,14 @@ class	VServ {
 		std::string readRequest(const int fd);
 		void		processRequest(std::string rawRequest, int clientFd);
 		void 		sendRequest(HttpRequest &request, int clientFd);
-		std::string	openFile(HttpRequest &request);
-		void		openDefaultPages(HttpRequest &request, HttpRequest &response);
+		std::string	readFile(HttpRequest &request);
+		std::string	readDefaultPages(HttpRequest &request);
 		void		showDirectory(DIR* dir, HttpRequest &response);
 		void		handleBigRequest(HttpRequest &request);
 		std::string makeRootPath(HttpRequest &request);
 		bool		fileIsCGI(HttpRequest &request);
+		std::string	handleCGI(std::string &fileData, HttpRequest &request);
+		const char**	makeEnvp(HttpRequest &request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -108,6 +109,18 @@ class	VServ {
 				const char*	what() const throw();
 		};
 		class	EntityTooLarge: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	ExtensionNotFound: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	PipeException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	ForkException: public std::exception {
 			public:
 				const char*	what() const throw();
 		};

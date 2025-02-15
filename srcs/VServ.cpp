@@ -95,9 +95,10 @@ std::string	VServ::makeRootPath(HttpRequest &request) {
 }
 
 
-std::string VServ::openFile(HttpRequest &request) {
+std::string VServ::readFile(HttpRequest &request) {
     std::vector<char> buffer;
     ssize_t bytesRead;
+	std::string cgiContent;
     char tempBuffer[4096];
 
 	std::string rootPath = makeRootPath(request);
@@ -108,14 +109,20 @@ std::string VServ::openFile(HttpRequest &request) {
     while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
         buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
     }
-	
 	if (bytesRead < 0 && buffer.empty()) {
         close(fd);
         throw OpenFileException();
     }
-
     close(fd);
-    return std::string(buffer.begin(), buffer.end());
+	std::string fileData = std::string(buffer.begin(), buffer.end());
+
+	if (fileIsCGI(request)) {
+		cgiContent = handleCGI(fileData, request);
+		std::cout << cgiContent << std::endl;
+		return (cgiContent);
+	}
+
+    return (fileData);
 }
 
 
@@ -168,7 +175,7 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 	}
 }
 
-void	VServ::openDefaultPages(HttpRequest &request, HttpRequest &response) 
+std::string	VServ::readDefaultPages(HttpRequest &request) 
 {
 
 	//IN CONFIG !
@@ -184,13 +191,13 @@ void	VServ::openDefaultPages(HttpRequest &request, HttpRequest &response)
 		struct stat path_stat;
 		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
 			request.setRootPath(indexPath);
-			file = openFile(request);
+			file = readFile(request);
 			break;
 		}
 	}
 	if (file.empty())
 		throw FileNotExist();
-	response.setBody(file);
+	return (file);
 }
 
 void	VServ::showDirectory(DIR* dir, HttpRequest &response) {
@@ -215,8 +222,71 @@ bool	VServ::fileIsCGI(HttpRequest &request) {
 	return (false);	
 }
 
-void	VServ::handleCGI(HttpRequest &request, HttpRequest &response) {
+const char**	VServ::makeEnvp(HttpRequest &request) {
+	size_t startPos;
+	size_t endPos;
+
+	std::string ext = ".php";
+
+	std::string path = request.getPath();
+	if ((startPos = path.find(ext)) != std::string::npos) {
+		startPos += ext.size();
+		if ((endPos = path.find('?')) == std::string::npos)
+			endPos = path.size();
+	} else
+		throw ExtensionNotFound();
+
+	std::string path_info = "PATH_INFO=" + path.substr(startPos, endPos - startPos);
+	std::string query_string = "QUERY_STRING=" + path.substr(endPos); 
 	
+	const char** exec_envp = new const char*[3];
+	exec_envp[0] = path_info.c_str();
+	exec_envp[1] = query_string.c_str();
+	exec_envp[2] = NULL;
+
+	std::cout << exec_envp[1] << std::endl;
+	return (exec_envp);
+}
+
+
+
+std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
+	int			fd[2];
+	pid_t		pid;
+	const char	**envp;
+	std::string	result;
+
+	//TMP
+	std::string phpInterpeter = "/usr/bin/php-cgi";
+
+	if (pipe(fd) < 0)
+		throw PipeException();
+	if ((pid = fork()) < 0)
+		throw ForkException();
+
+	envp = makeEnvp(request);
+	(void) request;
+	if (pid == 0) {
+		write(STDIN_FILENO, fileData.c_str(), fileData.size());
+		dup2(STDOUT_FILENO, fd[1]);
+		close(fd[1]);
+		close(fd[0]);
+
+		char* argv[] = {
+			NULL
+		};
+		char* envp[] = {
+			NULL
+		};
+		execve(phpInterpeter.c_str(), argv, envp);
+
+	} else {
+		result = readRequest(fd[0]);
+		close(fd[1]);
+		close(fd[0]);	
+	}
+	
+	return (result);
 }
 
 void	VServ::processRequest(std::string rawRequest, int clientFd) {
@@ -235,12 +305,6 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	try {
 		handleBigRequest(request);
 
-		if (fileIsCGI(request)) {
-			std::cout << "File is CGI" << std::endl;
-			handleCGI(request, response);	
-			return ;
-		}
-
 		std::string rootPath = makeRootPath(request);
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
@@ -248,7 +312,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		if (S_ISREG(path_stat.st_mode)) {
 
 			std::cout << "ITS A FILE" << std::endl;
-			std::string file = openFile(request);
+			std::string file = readFile(request);
 			response.setBody(file);
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
@@ -257,7 +321,12 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 			if (!dir)
 				throw OpenFolderException();
 
-			_autoIndex ? showDirectory(dir, response) : openDefaultPages(request, response);
+			if (_autoIndex) {
+				showDirectory(dir, response);
+			} else {
+				std::string file = readDefaultPages(request);
+				response.setBody(file);
+			}
 
 		} else {
 			response.setResponseCode(HTTP_BAD_GATEWAY);
@@ -332,6 +401,17 @@ const char*	VServ::EntityTooLarge::what() const throw() {
 	return ("Error, the entity is too lage. Change client_max_body_size in config");
 }
 
+const char*	VServ::ExtensionNotFound::what() const throw() {
+	return ("Error, extension for the cgi is not found on request path");
+}
+
+const char*	VServ::PipeException::what() const throw() {
+	return ("Error, the pipe function make an excetion");
+}
+
+const char*	VServ::ForkException::what() const throw() {
+	return ("Error, the fork function make an exception");
+}
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs) {
 	os	<< "----------- VSERV -----------" << std::endl
