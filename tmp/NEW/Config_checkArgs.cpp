@@ -16,6 +16,31 @@ static void	checkPortFormat(size_t count, t_range range) {
 		throw Config::UnexpectedValueException(str);
 
 }
+
+static bool	isDigitString(std::string str) {
+	std::string::iterator	it = str.begin(), ite = str.end();
+	while (it != ite && isdigit(*it))
+		it++;
+	return (it == ite);
+}
+
+static void	checkErrorPages(t_range range) {
+	t_multimap_it	mit = range.first, mite = range.second;
+	while (mit != mite) {
+		std::string	str = mit->second;
+		if (str != "NULL") { // default value for error_pages
+			size_t	pos1 = str.find(':'), pos2 = str.find(';');
+			if (pos1 == std::string::npos || pos2 == std::string::npos)
+				throw(Config::ConfigSyntaxException());
+			std::string	key(str.substr(0, pos1)), value(str.substr(pos1 + 1, pos2 - pos1 - 1));
+			if (!isDigitString(key)) // + verification du format de value ?
+				throw (Config::UnexpectedKeyException(key));
+//			std::cout << "key: " << key << "\tvalue: " << value << std::endl;
+		}
+		mit++;
+	}
+}
+
 /*
 static void	checkServerNames(std::multimap< std::stirng, std::string >& args, std::string key) {
 	t_multimap_it	mit = range.first;
@@ -102,7 +127,7 @@ static void	checkAutoIndex(size_t count, t_range range) {
 void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
 	// set default values if there is none
 	// do it in Rules() ? maybe better
-	std::set< std::string >::iterator	it = _argsToFind.begin(), ite = _argsToFind.end();
+/*	std::set< std::string >::iterator	it = _argsToFind.begin(), ite = _argsToFind.end();
 	while (it != ite) {
 		std::string	argToFind = *it;
 		if (!args.count(argToFind)) {
@@ -112,6 +137,7 @@ void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
 		}
 		it++;
 	}
+*/
 //	printMultimap(_argsToFind, args);
 
 
@@ -120,7 +146,9 @@ void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
 //	checkServerNames(args.count("server_names"), args.equal_range("server_names"));
 	checkServerNames(args, "server_names");
 	// to print a multimap value
-
+*/
+	checkErrorPages(args.equal_range("error_pages"));
+/*
 //	std::cout << "count = " << args.count("allowed_methods") << std::endl;
 
 	checkAllowedMethodsFormat(args.count("allowed_methods"), args.equal_range("allowed_methods"));

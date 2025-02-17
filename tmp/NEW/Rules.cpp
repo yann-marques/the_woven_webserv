@@ -20,9 +20,11 @@ void	Rules::setAutoIndex(std::string str) {
 }
 
 void	Rules::setArgs(std::multimap< std::string, std::string > args) {
+	// set default values or previous (parent) values
 	_root = args.find("root")->second;
 	setVector(_defaultPages, args.equal_range("default_pages"), "default_pages");
 	// errorPages ?
+	setErrorPages(args.equal_range("error_pages"));
 	setAutoIndex(args.find("auto_index")->second);
 	setVector(_allowedMethods, args.equal_range("allowed_methods"), "allowed_methods");
 	_maxBodyBytes = parseMaxBodyBytes(args.find("max_body_bytes")->second);
@@ -46,12 +48,27 @@ void	Rules::inheritArgs(std::multimap< std::string, std::string >& args) {
 	}
 }
 
+void	Rules::setErrorPages(t_range range) {
+	t_multimap_it	mit = range.first, mite = range.second;
+	std::string	str = mit->second, defaultValue(_defaultValues["error_pages"]);
+	while (mit != mite && str != defaultValue) {
+		size_t	pos1 = str.find(':'), pos2 = str.find(';');
+		int	key = std::atoi(str.substr(0, pos1).c_str());
+		if (!_errorPages.count(key)) {
+			_errorKeys.insert(key);
+			_errorPages[key] = str.substr(pos1 + 1, pos2 - pos1 - 1);
+		}
+		mit++;
+		str = mit->second;
+	}
+}
+
 void	Rules::setLocation(t_range range) {
 	t_multimap_it	mit = range.first, mite = range.second;
 	while (mit != mite && mit->second != _defaultValues["location"]) {
 		std::multimap< std::string, std::string >	args = parseLocationLine(mit->second);
 		checkArgsFormat(args);
-	//	inheritArgs(args);
+		inheritArgs(args); // not good
 	//	printMultimap(_argsToFind, args);
 	//	std::cout << args.equal_range("root").first->second << std::endl;
 
@@ -97,8 +114,8 @@ std::multimap< std::string, std::string >	Rules::parseLocationLine(std::string l
 	}
 //	std::cout << "line after: " << line << std::endl;
 //	std::cout << "//////// location keys in " << this << std::endl;
-	for (size_t i = 0, n = _locationKeys.size(); i < n; i++)
-		std::cout << _locationKeys[i] << std::endl;
+//	for (size_t i = 0, n = _locationKeys.size(); i < n; i++)
+//		std::cout << _locationKeys[i] << std::endl;
 	args = parseLine(line);
 	return (args);
 }
@@ -157,12 +174,12 @@ void	Rules::goDeep(size_t i) {
 }
 
 Rules::~Rules() {
-	std::cout << "RULES DESTRUCTOR CALLED" << std::endl;
+//	std::cout << "RULES DESTRUCTOR CALLED" << std::endl;
 //	std::cout << "sizeof(Rules): " << sizeof(*this) << std::endl;
 	if (!_location.size())
 		return ;
 	for (size_t i = 0, n = _locationKeys.size(); i < n; i++) {
-		std::cout << this << " destructs : " << _location[_locationKeys[i]] << std::endl;
+//		std::cout << this << " destructs : " << _location[_locationKeys[i]] << std::endl;
 //		destruct(_location[_locationKeys[i]]);
 		delete _location[_locationKeys[i]];
 	}
@@ -173,16 +190,47 @@ Rules::~Rules() {
 	_locationKeys.clear();
 	_location.clear();
 }
-/*	// to do
-std::ostream&	operator<<(std::ostream& os, const Rules& rhs) {
-	std::cout	<< "root:\t" << _root << std::endl
-				<< "defaultPages:\t" << _defaultPages << std::endl
-				<< "errorPages:\t" << _errorPages << std::endl
-				<< "autoIndex:\t" << _autoIndex << std::endl
-				<< "allowedMethods:\t" << _allowedMethods << std::endl
-				<< "maxBodyBytes:\t" << _maxBodyBytes << std::endl
-				<< "cgiPaths:\t" << _cgiPaths << std::endl
-				<< "redirect:\t" << _redirect << std::endl
-				<< "upload:\t" << _upload << std::endl;	
+
+template< typename T >
+static void	printVec(const std::vector< T >& vec) {
+	for (size_t i = 0, n = vec.size(); i < n; i++)
+		std::cout << "\t" << vec[i] << std::endl;
 }
-*/
+
+template< typename T, typename U >
+static void	printMap(std::set< T > keys, const std::map< T, U >& map) {
+	typename std::set< T >::iterator	keyIt = keys.begin(), keyIte = keys.end();
+	while (keyIt != keyIte) {
+		std::cout << "\t" << *keyIt << ":\t" << map.at(*keyIt) << std::endl;
+		keyIt++;
+	}
+}
+
+static void	printLocation(std::vector< std::string > keys, std::map< std::string, Rules* > loc) {
+	std::vector< std::string >::iterator	keyIt = keys.begin(), keyIte = keys.end();
+	while (keyIt != keyIte) {
+		std::cout << "////////// " << *keyIt << std::endl << *(loc.at(*keyIt)) << std::endl;
+		keyIt++;
+	}
+}
+
+	// to do
+std::ostream&	operator<<(std::ostream& os, const Rules& rhs) {
+
+	std::cout	<< "root:\t" << rhs.getRoot() << std::endl
+				<< "autoIndex:\t" << rhs.getAutoIndex() << std::endl
+				<< "maxBodyBytes:\t" << rhs.getMaxBodyBytes() << std::endl
+				<< "redirect:\t" << rhs.getRedirect() << std::endl
+				<< "upload:\t" << rhs.getUpload() << std::endl
+				<< "defaultPages:" << std::endl;
+	printVec(rhs.getDefaultPages());
+	std::cout	<< "allowedMethods:" << std::endl;
+	printVec(rhs.getAllowedMethods());
+	std::cout	<< "cgiPaths:" << std::endl;
+	printVec(rhs.getCgiPaths());
+	std::cout	<< "errorPages:" << std::endl;
+	printMap(rhs.getErrorKeys(), rhs.getErrorPages());
+	printLocation(rhs.getLocationKeys(), rhs.getLocation());
+//	count = 0;
+	return (os);
+}

@@ -7,6 +7,7 @@
 # include <istream>
 # include <fstream>
 # include <cstring>
+# include <cstddef>
 # include <vector>
 # include <map>
 # include <set>
@@ -45,6 +46,12 @@ class	Config {
 		std::multimap< std::string, std::string >	parseLine(std::string line);
 		std::multimap< std::string, std::string >	parseServerLine(std::string line);
 		void	checkArgsFormat(std::multimap< std::string, std::string >& args);
+
+		// GETTERS
+
+		const std::set< int >&	getPorts() const;
+		const std::multimap< int, std::string >&	getServerNames() const;
+		const std::map< int, std::map< std::string, Rules* > >&	getParsedConfig() const;
 
 		virtual ~Config();
 
@@ -99,5 +106,7 @@ class	Config {
 				const char*	what() const throw();
 		};
 };
+
+std::ostream&	operator<<(std::ostream& os, const Config& rhs);
 
 #endif

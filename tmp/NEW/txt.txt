@@ -35,6 +35,11 @@ server {
 
 	root: /popo;
 
+	error_pages {
+		404: 404.html;
+		402: 402.html;
+		405: 405.html;
+	}
 }
 
 server {

@@ -30,8 +30,8 @@ Config::Config(char* fileName) {
 				_ports.insert(port);
 				Rules*	rules = new Rules(args);
 //				std::cout << "main: " << rules << std::endl;
-				std::cout << "SORTI DU CONSTRUCTEUR RULES" << std::endl;
-				rules->goDeep(1); //
+//				std::cout << "SORTI DU CONSTRUCTEUR RULES" << std::endl;
+//				rules->goDeep(1); //
 
 				t_range	range = args.equal_range("server_names");
 				t_multimap_it	mit = range.first, mite = range.second;
@@ -176,8 +176,11 @@ std::vector< std::string >	Config::splitLine(std::string fileContent, std::strin
 
 std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 	std::multimap< std::string, std::string >	args;
+	std::string	errorPagesStr("error_pages");
 	do {
-		size_t	sepPos1 = line.find(':'), sepPos2;
+		size_t	sepPos1 = line.find('{'), sepPos2;
+		if (line.compare(0, sepPos1, errorPagesStr))
+			sepPos1 = line.find(':');
 		if (sepPos1 == std::string::npos)
 			throw ConfigSyntaxException();
 		std::string	key(line.substr(0, sepPos1));
@@ -185,10 +188,8 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 		std::set< std::string >::iterator	it = _argsToFind.find(key), ite = _argsToFind.end();
 		if (it == ite)
 			throw UnexpectedKeyException(key);
-		else if (*it == "location") {
+		else if (*it == "location" || *it == "error_pages")
 			sepPos2 = endOfScopeIndex(line, line.find('{')) - 1;
-//			std::cerr << "location line: " << line.substr(0, sepPos2) << std::endl;
-		}
 		else
 			sepPos2 = line.find(';');
 
@@ -196,11 +197,23 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 			throw ConfigSyntaxException();
 
 		std::string	value(line.substr(sepPos1 + 1, sepPos2 - sepPos1));
+		if (!key.compare(errorPagesStr)) {
+			value.erase(value.size() - 1);
+			while (!value.empty()) {
+				size_t	pos = value.find(';');
+				if (pos == std::string::npos)
+					throw (ConfigSyntaxException());
+				std::string	errorPagesValue = value.substr(0, pos + 1);
+	//			std::cout << "errorPages: " << key << " : " << errorPagesValue << " // " << value << std::endl;
+				args.insert(make_pair(key, errorPagesValue));
+				value.erase(0, pos + 1);
+			}
 
-//		std::cout << "///// " << key << " : " << value << std::endl;
-
-		args.insert(make_pair(key, value));
-		line.erase(0, sepPos2 + 1);
+		} else {
+//			std::cout << "///// " << key << " : " << value << std::endl;
+			args.insert(make_pair(key, value));
+		}
+			line.erase(0, sepPos2 + 1);
 	} while (!line.empty());
 	return (args);
 }
@@ -227,4 +240,22 @@ Config::~Config() {
 		}
 		it++;
 	}
+}
+
+std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
+	std::cout	<< "//////////////////// CONFIG" << std::endl << std::endl;
+	std::set< int >::iterator	portIt = rhs.getPorts().begin(), portIte = rhs.getPorts().end();
+	while (portIt != portIte) {
+		std::cout << "/////////////// PORT " << *portIt << std::endl;
+		std::multimap< int, std::string >	serverNamesCopy = rhs.getServerNames();
+		std::pair< std::multimap< int, std::string >::iterator,
+				std::multimap< int, std::string >::iterator >	range = serverNamesCopy.equal_range(*portIt);
+		std::multimap< int, std::string >::iterator	serverNamesIt = range.first, serverNamesIte = range.second;
+		while (serverNamesIt != serverNamesIte) {
+			std::cout << *(rhs.getParsedConfig().at(*portIt).at(serverNamesIt->second)) << std::endl;
+			serverNamesIt++;
+		}
+		portIt++;
+	}
+	return (os);
 }
