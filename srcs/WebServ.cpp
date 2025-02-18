@@ -186,7 +186,7 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
-	std::string rawRequest = vserv->readRequest(clientFd);
+	std::string rawRequest = vserv->readSocketFD(clientFd);
 	std::cout << "REQUEST --------" << std::endl << rawRequest << std::endl;
 
 	if (rawRequest.empty()) {

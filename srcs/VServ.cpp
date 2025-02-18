@@ -85,17 +85,19 @@ int	VServ::clientAccept(void) {
 
 std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqRootPath = request.getRootPath();
+	std::string rqPath = request.getPath();
 
 	if (!rqRootPath.empty())
 		return (rqRootPath);
-	if (request.getPath() != "/")
-		return(_root + request.getPath());
+	if (rqPath != "/") {
+		return (_root + getPagePath(request));
+	}
 	else
 		return(_root);
 }
 
 
-std::string VServ::readFile(HttpRequest &request) {
+std::string VServ::readRequest(HttpRequest &request) {
     std::vector<char> buffer;
     ssize_t bytesRead;
 	std::string cgiContent;
@@ -118,7 +120,6 @@ std::string VServ::readFile(HttpRequest &request) {
 
 	if (fileIsCGI(request)) {
 		cgiContent = handleCGI(fileData, request);
-		std::cout << cgiContent << std::endl;
 		return (cgiContent);
 	}
 
@@ -126,7 +127,7 @@ std::string VServ::readFile(HttpRequest &request) {
 }
 
 
-std::string	VServ::readRequest(const int fd) {
+std::string	VServ::readSocketFD(const int fd) {
 	std::vector<char> buffer;
 	ssize_t bytesRead;
 	char tempBuffer[4096];
@@ -135,9 +136,25 @@ std::string	VServ::readRequest(const int fd) {
 		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
 
-	if (bytesRead == 0) {
-		return ("");
+	if (bytesRead < 0 && buffer.empty()) {
+	    close(fd);
+        throw RecvException();
+    }
+
+	return std::string(buffer.begin(), buffer.end());
+}
+
+std::string VServ::readFile(int fd) {
+	std::vector<char> buffer;
+	ssize_t bytesRead;
+	char tempBuffer[4096];
+
+	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer)))) {
+		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
+
+	std::cout << "Read file bytes read: " << bytesRead << std::endl;
+
 	if (bytesRead < 0 && buffer.empty()) {
 	    close(fd);
         throw RecvException();
@@ -191,7 +208,7 @@ std::string	VServ::readDefaultPages(HttpRequest &request)
 		struct stat path_stat;
 		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
 			request.setRootPath(indexPath);
-			file = readFile(request);
+			file = readRequest(request);
 			break;
 		}
 	}
@@ -222,11 +239,36 @@ bool	VServ::fileIsCGI(HttpRequest &request) {
 	return (false);	
 }
 
+std::string VServ::getPagePath(HttpRequest &request) {
+	std::size_t	startDelPos;
+	std::string	path;
+	std::vector<std::string> delimiters;
+
+	delimiters.push_back(".html");
+	delimiters.push_back(".php");
+	delimiters.push_back(".py");
+	delimiters.push_back(".pl");
+	delimiters.push_back("?");
+	delimiters.push_back("#");
+
+	path = request.getPath();
+	for (std::size_t i = 0, n = delimiters.size(); i < n; i++) {
+		std::string del = delimiters[i];
+		if ((startDelPos = path.find(del)) != std::string::npos) {
+			if (del == "?" || del == "#")
+				return (path.substr(0, startDelPos - del.size()));
+			else	
+				return (path.substr(0, startDelPos + del.size()));
+		}
+	}
+	return (path);
+}
+
 const char**	VServ::makeEnvp(HttpRequest &request) {
 	size_t startPos;
 	size_t endPos;
 
-	std::string ext = ".php";
+	std::string ext = ".php"; //tmp, getfrom config
 
 	std::string path = request.getPath();
 	if ((startPos = path.find(ext)) != std::string::npos) {
@@ -251,39 +293,65 @@ const char**	VServ::makeEnvp(HttpRequest &request) {
 
 
 std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
-	int			fd[2];
+	int			parentToChild[2], childToParent[2];
 	pid_t		pid;
-	const char	**envp;
+	//const char	**envp;
 	std::string	result;
+	int 		status;
 
 	//TMP
-	std::string phpInterpeter = "/usr/bin/php-cgi";
+	std::string phpInterpreter = "/usr/bin/php-cgi";
 
-	if (pipe(fd) < 0)
+	if (pipe(parentToChild) < 0 || pipe(childToParent) < 0)
 		throw PipeException();
 	if ((pid = fork()) < 0)
 		throw ForkException();
 
-	envp = makeEnvp(request);
+	
 	(void) request;
 	if (pid == 0) {
-		write(STDIN_FILENO, fileData.c_str(), fileData.size());
-		dup2(STDOUT_FILENO, fd[1]);
-		close(fd[1]);
-		close(fd[0]);
+		close(childToParent[0]);
+		close(parentToChild[1]);
 
+		fcntl(childToParent[1], F_SETFL, O_NONBLOCK);
+		
+		if (dup2(childToParent[1], STDOUT_FILENO) < 0)
+			std::cerr << "dup2 failed" << std::endl;
+		close(childToParent[1]);
+
+		if (dup2(parentToChild[0], STDIN_FILENO) < 0)
+			std::cerr << "dup2 failed" << std::endl;
+		close(parentToChild[0]);
+		
 		char* argv[] = {
+			const_cast<char*>(phpInterpreter.c_str()),
 			NULL
 		};
 		char* envp[] = {
 			NULL
 		};
-		execve(phpInterpeter.c_str(), argv, envp);
 
+		//envp = makeEnvp(request);
+		if (execve(phpInterpreter.c_str(), argv, envp) < 0) {
+			std::cout << strerror( errno ) << std::endl;
+			return ("OHHHH ?");
+		}
+		
 	} else {
-		result = readRequest(fd[0]);
-		close(fd[1]);
-		close(fd[0]);	
+		close(parentToChild[0]);
+		close(childToParent[1]);
+
+		if (write(parentToChild[1], fileData.c_str(), fileData.size() + 1) < 0)
+			std::cerr << "Fail to write into parentToChild pipe" << std::endl;
+		close(parentToChild[1]);
+
+		waitpid(pid, &status, 0);
+		if (WIFEXITED(status))
+			std::cout << "Fork exited ok. status: " << WEXITSTATUS(status) << std::endl;
+
+		result = readFile(childToParent[0]);
+		std::cout << "Result:" << result << std::endl;
+		close(childToParent[0]);
 	}
 	
 	return (result);
@@ -306,13 +374,15 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
+		std::cout << "RootPath: " << rootPath << std::endl;
+		
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
 
 		if (S_ISREG(path_stat.st_mode)) {
 
 			std::cout << "ITS A FILE" << std::endl;
-			std::string file = readFile(request);
+			std::string file = readRequest(request);
 			response.setBody(file);
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
@@ -333,13 +403,20 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		}
 
 	} catch (FileNotExist& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_NOT_FOUND);
 	} catch (OpenFileException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_FORBIDDEN);
 	} catch (OpenFolderException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_FORBIDDEN);
 	} catch (EntityTooLarge& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_PAYLOAD_TOO_LARGE);
+	} catch (RecvException& e) {
+		std::cerr << e.what() << std::endl;
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	}
 
 	sendRequest(response, clientFd);

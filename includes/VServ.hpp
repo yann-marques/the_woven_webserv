@@ -11,6 +11,9 @@
 # include <dirent.h>
 # include <sstream>
 # include <iostream>
+# include <sys/wait.h>
+# include <errno.h>
+# include <cstring>
 
 # include "Config.hpp"
 # include "HTTPRequest.hpp"
@@ -47,10 +50,11 @@ class	VServ {
 		// METHODS
 		void		socketInit();
 		int			clientAccept(void);
-		std::string readRequest(const int fd);
+		std::string readSocketFD(const int fd);
+		std::string readFile(int fd);
 		void		processRequest(std::string rawRequest, int clientFd);
 		void 		sendRequest(HttpRequest &request, int clientFd);
-		std::string	readFile(HttpRequest &request);
+		std::string	readRequest(HttpRequest &request);
 		std::string	readDefaultPages(HttpRequest &request);
 		void		showDirectory(DIR* dir, HttpRequest &response);
 		void		handleBigRequest(HttpRequest &request);
@@ -58,6 +62,7 @@ class	VServ {
 		bool		fileIsCGI(HttpRequest &request);
 		std::string	handleCGI(std::string &fileData, HttpRequest &request);
 		const char**	makeEnvp(HttpRequest &request);
+		std::string		getPagePath(HttpRequest &request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
