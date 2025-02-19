@@ -11,12 +11,16 @@
 # include <map>
 # include <set>
 # include <algorithm>
+# include <cstring>
+# include <vector>
+# include <set>
 
 # include "Config.hpp"
 # include "VServ.hpp"
 
 class	WebServ {
 	private:
+		bool							_debug;
 		int const						_maxClients; 
 		int const						_maxEvents;
 		Config							_config;	// parsed config file
@@ -32,10 +36,13 @@ class	WebServ {
 
 		std::map<int, VServ*>			_serversFdToServer;
 		std::map<int, VServ*>			_clientsFdToServer;
+		
+		std::set<std::string>			_envp;
+		std::set<std::string>			_argv;
 
 	public:
 		WebServ();
-		WebServ(std::string filename, char **env);
+		WebServ(std::string filename, char **argv, char **envp);
 		WebServ(const WebServ& rhs);
 		WebServ&	operator=(const WebServ& rhs);
 		~WebServ();
@@ -81,7 +88,7 @@ class	WebServ {
 				const char*	what() const throw();
 		};
 		class	EpollCtlAddException: public std::exception {
-			public:
+	public:
 				const char*	what() const throw();
 		};
 		class	EpollCtlDelException: public std::exception {

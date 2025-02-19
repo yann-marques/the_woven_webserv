@@ -14,9 +14,11 @@
 # include <sys/wait.h>
 # include <errno.h>
 # include <cstring>
+# include <set>
 
 # include "Config.hpp"
 # include "HTTPRequest.hpp"
+
 
 class	VServ {
 	private:
@@ -27,14 +29,16 @@ class	VServ {
 		std::string					_root;
 		std::string 				_configLine;
 		std::vector<std::string>	_defaultPages;
-		std::vector<std::string>	_env;
+		std::set<std::string>		_envp;
+		std::set<std::string>		_argv;
 		// ...
 		int							_fd;
 		sockaddr_in					_address;
+		bool						_debug;
 
 	public:
-		VServ(): _maxClients(1024), _root("www") {}
-		VServ(VServConfig config, int maxClients, char **env);
+		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
+		VServ(VServConfig config, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();

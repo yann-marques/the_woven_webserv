@@ -2,7 +2,7 @@
 
 // WebServ::WebServ() {} // private ?
 
-WebServ::WebServ(std::string filename, char **env): _maxClients(1000), _maxEvents(1000), _config(filename) {
+WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000), _config(filename) {
 //	signal(SIGINT, handleSignal); // in execution
 
 	try {
@@ -11,10 +11,29 @@ WebServ::WebServ(std::string filename, char **env): _maxClients(1000), _maxEvent
 		if (_epollFd == -1)
 			throw EpollCreateException();
 
+		//parse envp and argv:
+		std::set<std::string> arg;
+		std::set<std::string> env;
+
+		for (size_t i = 0, n = sizeof(argv); i < n; i++) {
+			if (argv[i])
+				arg.insert(argv[i]);
+		}
+		for (size_t i = 0, n = sizeof(envp); i < n; i++) {
+			if (envp[i])
+				env.insert(envp[i]);
+		}
+
+		this->_argv = arg;
+		this->_envp = env;
+		this->_debug = false;
+		if (arg.find("--debug=yes") != arg.end())
+			this->_debug = true;
+
 		_serverNbr = _config.getServersNbr();
 		std::cout << "serverNbr = " << _serverNbr << std::endl;
 		for (size_t i = 0; i < _serverNbr; i++) { // c.serverConfig : container ? vector
-			VServ*	server = new VServ(_config.getServerConfig(i), _maxClients, env); // epoll ? epollFd en arg ?
+			VServ*	server = new VServ(_config.getServerConfig(i), _maxClients, _argv, _envp); // epoll ? epollFd en arg ?
 			int	sfd = server->getFd();
 
 			insertServerFd(sfd);
@@ -180,17 +199,20 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	setServerToClientFd(clientFd, vserv);
 	setEvent(EPOLLIN | EPOLLET, clientFd);
 	epollCtlAdd(clientFd);
-	std::cout << "New client connection. FD: " << clientFd << std::endl; 
+
+	if (_debug)
+		std::cout << "New client connection. FD: " << clientFd << std::endl; 
 }
 
 void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
-	std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
+
+	if (_debug)
+		std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
 	std::string rawRequest = vserv->readSocketFD(clientFd);
-	std::cout << "REQUEST --------" << std::endl << rawRequest << std::endl;
-
 	if (rawRequest.empty()) {
-		std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
+		if (_debug)
+			std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
 	} else
 		vserv->processRequest(rawRequest, clientFd);
 	

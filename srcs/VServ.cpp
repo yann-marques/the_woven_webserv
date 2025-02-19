@@ -2,17 +2,19 @@
 
 // VServ::VServ();
 
-VServ::VServ(VServConfig config, int maxClients, char **env): _maxClients(maxClients), _root("www") {
+VServ::VServ(VServConfig config, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients), _root("www") {
 	// tmp
 	_port = config.getPort();
 	_host = config.getHost();
 	// parse config ...
 	setAddress();
 	socketInit();
-	//env
-	for (size_t i = 0; i < sizeof(env); i++) {
-		this->_env.push_back(std::string(env[i]));
-	}
+	//
+	this->_argv = argv;
+	this->_envp = envp;
+	this->_debug = false;
+	if (argv.find("--debug=yes") != argv.end())
+		this->_debug = true;
 }
 
 // VServ::VServ(const VServ& rhs);
@@ -141,6 +143,9 @@ std::string	VServ::readSocketFD(const int fd) {
         throw RecvException();
     }
 
+	if (_debug)
+		std::cout << "RESPONSE ----- " << std::endl << buffer.data() << std::endl;
+
 	return std::string(buffer.begin(), buffer.end());
 }
 
@@ -153,8 +158,6 @@ std::string VServ::readFile(int fd) {
 		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
 
-	std::cout << "Read file bytes read: " << bytesRead << std::endl;
-
 	if (bytesRead < 0 && buffer.empty()) {
 	    close(fd);
         throw RecvException();
@@ -163,10 +166,11 @@ std::string VServ::readFile(int fd) {
 	return std::string(buffer.begin(), buffer.end());
 }
 
-void	VServ::sendRequest(HttpRequest &request, int clientFd) {
-	std::string	rawResponse = request.makeRawResponse();
+void	VServ::sendRequest(HttpRequest &response, int clientFd) {
+	std::string	rawResponse = response.makeRawResponse();
 
-	std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
+	if (_debug)
+		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
 
 	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
 	if (bytesSent == -1) {
@@ -286,7 +290,11 @@ const char**	VServ::makeEnvp(HttpRequest &request) {
 	exec_envp[1] = query_string.c_str();
 	exec_envp[2] = NULL;
 
-	std::cout << exec_envp[1] << std::endl;
+	if (_debug) {
+		std::cout << exec_envp[0] << std::endl;
+		std::cout << exec_envp[1] << std::endl;
+	}
+
 	return (exec_envp);
 }
 
@@ -295,20 +303,18 @@ const char**	VServ::makeEnvp(HttpRequest &request) {
 std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 	int			parentToChild[2], childToParent[2];
 	pid_t		pid;
-	//const char	**envp;
+	const char	**envp;
 	std::string	result;
 	int 		status;
 
 	//TMP
-	std::string phpInterpreter = "/usr/bin/php-cgi";
+	std::string interpreter = "/usr/bin/php-cgi";
 
 	if (pipe(parentToChild) < 0 || pipe(childToParent) < 0)
 		throw PipeException();
 	if ((pid = fork()) < 0)
 		throw ForkException();
 
-	
-	(void) request;
 	if (pid == 0) {
 		close(childToParent[0]);
 		close(parentToChild[1]);
@@ -324,17 +330,14 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 		close(parentToChild[0]);
 		
 		char* argv[] = {
-			const_cast<char*>(phpInterpreter.c_str()),
-			NULL
-		};
-		char* envp[] = {
+			const_cast<char*>(interpreter.c_str()),
 			NULL
 		};
 
-		//envp = makeEnvp(request);
-		if (execve(phpInterpreter.c_str(), argv, envp) < 0) {
+		envp = makeEnvp(request);
+		if (execve(interpreter.c_str(), argv, const_cast<char *const *>(envp)) < 0) {
 			std::cout << strerror( errno ) << std::endl;
-			return ("OHHHH ?");
+			//return ("OHHHH ?");
 		}
 		
 	} else {
@@ -346,11 +349,11 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 		close(parentToChild[1]);
 
 		waitpid(pid, &status, 0);
-		if (WIFEXITED(status))
-			std::cout << "Fork exited ok. status: " << WEXITSTATUS(status) << std::endl;
-
-		result = readFile(childToParent[0]);
-		std::cout << "Result:" << result << std::endl;
+		if (WIFEXITED(status)) {
+			result = readFile(childToParent[0]);
+		} else {
+			result = "";
+		}
 		close(childToParent[0]);
 	}
 	
@@ -362,7 +365,6 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest response;
 	struct stat path_stat;
 
-	response.setDefaultsHeaders();
 
 	//DEFINE IN THE CONFIG
 	//...
@@ -374,16 +376,16 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
-		std::cout << "RootPath: " << rootPath << std::endl;
-		
+		if (_debug)
+			std::cout << rootPath << std::endl;
+
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
 
 		if (S_ISREG(path_stat.st_mode)) {
 
-			std::cout << "ITS A FILE" << std::endl;
-			std::string file = readRequest(request);
-			response.setBody(file);
+			std::string rawResponse = readRequest(request);
+			response = HttpRequest(rawResponse);			
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
 
@@ -394,8 +396,8 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 			if (_autoIndex) {
 				showDirectory(dir, response);
 			} else {
-				std::string file = readDefaultPages(request);
-				response.setBody(file);
+				std::string rawResponse = readDefaultPages(request);
+				response = HttpRequest(rawResponse);			
 			}
 
 		} else {

@@ -49,7 +49,7 @@ class HttpRequest {
         std::string                         _body;
         std::string                         _rootPath;
 
-        std::map<std::string, std::string> _headers;
+        std::map<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
 
         //METHODS
