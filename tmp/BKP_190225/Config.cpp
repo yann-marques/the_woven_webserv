@@ -37,12 +37,10 @@ Config::Config(char* fileName) {
 				t_multimap_it	mit = range.first, mite = range.second;
 				std::map< std::string, Rules* >	toSet;
 				while (mit != mite) {
-	//				Rules*	rules = new Rules(args, _defaultValues);
-					Rules	r;
-					Rules*	rules = new Rules(args, r);
+					Rules*	rules = new Rules(args, _defaultValues);
 					_serverNames.insert(make_pair(port, mit->second));
 					toSet[mit->second] = rules;
-					toSet[mit->second]->goDeep(0, mit->second); //
+					toSet[mit->second]->goDeep(0); //
 					mit++;
 				}
 				_parsedConfig[port] = toSet;
@@ -188,10 +186,10 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 	std::multimap< std::string, std::string >	args;
 	do {
 		size_t	sepPos1 = line.find('{'), sepPos2;
-		if (line.compare(0, sepPos1, "error_pages") && line.compare(0, sepPos1, "cgi_path"))
+		if (line.compare(0, sepPos1, "error_pages"))
 			sepPos1 = line.find(':');
 		if (sepPos1 == std::string::npos) {
-	//		std::cout << "HERE" << std::endl;
+//			std::cout << "HERE" << std::endl;
 			throw ConfigSyntaxException();
 		}
 		std::string	key(line.substr(0, sepPos1));
@@ -199,13 +197,13 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 		std::set< std::string >::iterator	it = _argsToFind.find(key), ite = _argsToFind.end();
 		if (it == ite)
 			throw UnexpectedKeyException(key);
-		else if (*it == "location" || *it == "error_pages" || *it == "cgi_path")
+		else if (*it == "location" || *it == "error_pages")
 			sepPos2 = endOfScopeIndex(line, line.find('{')) - 1;
 		else
 			sepPos2 = line.find(';');
 
 		if (sepPos2 == std::string::npos) {
-		//	std::cout << "HERE" << std::endl;
+//			std::cout << "HERE" << std::endl;
 			throw ConfigSyntaxException();
 		}
 
@@ -224,20 +222,15 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 				value.erase(0, pos + 1);
 			}
 */		else {
-	//		std::cout << "value: " << value << std::endl;
-			int	errCmp = key.compare("error_pages");
-			if (errCmp)
-				errCmp = key.compare("cgi_path"); /////
+			int	errCmp = key.compare("error_pages") && key.compare("cgi_path"); /////
 			if (!errCmp)
 				value.erase(value.size() - 1);
 			while (!value.empty()) {
 				size_t	pos;
 				if (!errCmp) {
 					pos = value.find(';');
-					if (pos == std::string::npos) {
-				//		std::cerr << "HERE ; value: " << value << std::endl;
+					if (pos == std::string::npos)
 						throw (ConfigSyntaxException());
-					}
 				//	pos++;
 				} else {
 					pos = value.find(',');

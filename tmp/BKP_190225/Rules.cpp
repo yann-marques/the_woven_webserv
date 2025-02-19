@@ -4,36 +4,12 @@ Rules::Rules() {
 //	_root = "www/default.html";
 	_autoIndex = true;
 	_maxBodyBytes = 1024;
-	_root = "www/default.html";
-	_defaultPages.push_back("index");
-	_errorKeys.insert(404);
-	_errorPages[404] = "404.html";
-	_allowedMethods.push_back("GET");
-	_allowedMethods.push_back("POST");
-	_allowedMethods.push_back("DELETE");
-	_cgiKeys.insert(".default");
-	_cgiPath[".default"] = "path_to_default";
-	_redirect = "redirect";
-	_upload = "upload";
-	// no location
-}
-
-Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs): Config() { // heritage foireux
-	_args = args;
-//	_inherit = inherit;
-//	setInheritArgs(_args); // heritage apres set? // probleme avec les arguments pas encore parsés (error_page, cgi)
-	setArgs(_args);
-	*this != rhs;
-	// location
-//	t_range	range = args.equal_range("location");
-	if (args.count("location"))
-		setLocation(args.equal_range("location"));
 }
 
 Rules::Rules(std::multimap< std::string, std::string > args, std::multimap< std::string, std::string > inherit): Config() { // heritage foireux
 	_args = args;
 	_inherit = inherit;
-	setInheritArgs(_args); // heritage apres set? // probleme avec les arguments pas encore parsés (error_page, cgi)
+	setInheritArgs(_args);
 	setArgs(_args);
 	// location
 //	t_range	range = args.equal_range("location");
@@ -48,27 +24,17 @@ void	Rules::setAutoIndex(std::string str) {
 
 void	Rules::setArgs(std::multimap< std::string, std::string > args) {
 	// set default values or previous (parent) values
-	if (args.count("root"))
-		_root = args.find("root")->second;
-	if (args.count("default_pages"))
-		setVector(_defaultPages, args.equal_range("default_pages"));
+	_root = args.find("root")->second;
+	setVector(_defaultPages, args.equal_range("default_pages"));
 	// errorPages ?
-	if (args.count("error_pages"))
-		setErrorPages(args.equal_range("error_pages"));
-	if (args.count("cgi_path"))
-		setCgiPath(args.equal_range("cgi_path"));
-	if (args.count("auto_index"))
-		setAutoIndex(args.find("auto_index")->second);
-	if (args.count("allowed_methods"))
-		setVector(_allowedMethods, args.equal_range("allowed_methods"));
-	if (args.count("max_body_bytes"))
-		_maxBodyBytes = parseMaxBodyBytes(args.find("max_body_bytes")->second);
+	setErrorPages(args.equal_range("error_pages"));
+	setAutoIndex(args.find("auto_index")->second);
+	setVector(_allowedMethods, args.equal_range("allowed_methods"));
+	_maxBodyBytes = parseMaxBodyBytes(args.find("max_body_bytes")->second);
 //	_cgiPath = args.find("cgi_path")->second;
-//	setVector(_cgiPath, args.equal_range("cgi_paths"));
-	if (args.count("redirect"))
-		_redirect = args.find("redirect")->second;
-	if (args.count("upload"))
-		_upload = args.find("upload")->second; // set default ?
+	setVector(_cgiPath, args.equal_range("cgi_paths"));
+	_redirect = args.find("redirect")->second;
+	_upload = args.find("upload")->second; // set default ?
 }
 
 void	Rules::setInheritArgs(std::multimap< std::string, std::string >& args) {
@@ -101,21 +67,6 @@ void	Rules::setErrorPages(t_range range) {
 	}
 }
 
-void	Rules::setCgiPath(t_range range) {
-	t_multimap_it	mmIt = range.first, mmIte = range.second;
-	std::string	str = mmIt->second;
-	while (mmIt != mmIte) {
-		size_t	pos1 = str.find(':'), pos2 = str.find(';');
-		std::string	key = str.substr(0, pos1);
-		if (!_cgiPath.count(key)) {
-			_cgiKeys.insert(key);
-			_cgiPath[key] = str.substr(pos1 + 1, pos2 - pos1 - 1);
-		}
-		mmIt++;
-		str = mmIt->second;
-	}
-}
-
 void	Rules::setLocation(t_range range) {
 	t_multimap_it	mit = range.first, mite = range.second;
 	while (mit != mite) {
@@ -129,8 +80,7 @@ void	Rules::setLocation(t_range range) {
 			return ;
 		for (size_t i = 0, n = _locationKeys.size(); i < n; i++) {
 			if (!_location.count(_locationKeys[i])) {
-	//			Rules*	rules = new Rules(args, _args);
-				Rules*	rules = new Rules(args, *this); //
+				Rules*	rules = new Rules(args, _args);
 //				std::cout << this << " creates : " << rules << std::endl;
 //				std::cout << "\tkey: " << _locationKeys[i] << "\tRules addr: " << rules << std::endl;
 				_location[_locationKeys[i]] = rules;
@@ -259,13 +209,15 @@ static void	printLocation(std::vector< std::string > keys, std::map< std::string
 }
 
 
-void	Rules::goDeep(size_t i, std::string name) {
+void	Rules::goDeep(size_t i) {
 //	(void) i;
 //	std::cout << "///////////////////////////////////////////////////////// i = " << i << std::endl;
 	std::string	slashes(i * 8, '/');
 	std::string	tabs(i, '\t');
 	for (size_t pos = 0, n = _locationKeys.size(); pos < n; pos++) {
-		std::cout	<< slashes << " GODEEP " << i << " : " << name << " " << this << " " << " contains " << _locationKeys[pos] << " " << _location[_locationKeys[pos]] << std::endl
+//		for (size_t j = 0; j < i; j++)
+//			std::cout << '\t';
+		std::cout	<< slashes << "GODEEP " << i << " : " << this << " " << " contains " << _locationKeys[pos] << _location[_locationKeys[pos]] << std::endl
 					<< tabs << "root:\t" << getRoot() << std::endl
 					<< tabs << "autoIndex:\t" << getAutoIndex() << std::endl
 					<< tabs << "maxBodyBytes:\t" << getMaxBodyBytes() << std::endl
@@ -273,15 +225,14 @@ void	Rules::goDeep(size_t i, std::string name) {
 					<< tabs << "upload:\t" << getUpload() << std::endl
 					<< tabs << "defaultPages:" << std::endl;
 		printVec(getDefaultPages(), tabs);
-		std::cout	<< tabs << "allowedMethods:" << std::endl;
+		std::cout	<< "allowedMethods:" << std::endl;
 		printVec(getAllowedMethods(), tabs);
-		std::cout	<< tabs << "cgiPaths:" << std::endl;
-	//	printVec(getCgiPaths(), tabs);
-		printMap(getCgiKeys(), getCgiPath(), tabs);
-		std::cout	<< tabs << "errorPages:" << std::endl;
+		std::cout	<< "cgiPaths:" << std::endl;
+		printVec(getCgiPaths(), tabs);
+		std::cout	<< "errorPages:" << std::endl;
 		printMap(getErrorKeys(), getErrorPages(), tabs);
 		std::cout << std::endl;
-		_location[_locationKeys[pos]]->goDeep(i + 1, _locationKeys[pos]);
+		_location[_locationKeys[pos]]->goDeep(i + 1);
 	}
 }
 
@@ -298,61 +249,10 @@ std::ostream&	operator<<(std::ostream& os, const Rules& rhs) {
 	std::cout	<< "allowedMethods:" << std::endl;
 	printVec(rhs.getAllowedMethods(), tabs);
 	std::cout	<< "cgiPaths:" << std::endl;
-//	printVec(rhs.getCgiPaths(), tabs);
-	printMap(rhs.getCgiKeys(), rhs.getCgiPath(), tabs);
+	printVec(rhs.getCgiPaths(), tabs);
 	std::cout	<< "errorPages:" << std::endl;
 	printMap(rhs.getErrorKeys(), rhs.getErrorPages(), tabs);
 	printLocation(rhs.getLocationKeys(), rhs.getLocation());
 //	count = 0;
 	return (os);
-}
-
-Rules&	Rules::operator!=(const Rules& rhs) {
-	if (!_args.count("root"))
-		_root = rhs.getRoot();
-	if (!_args.count("default_pages"))
-		_defaultPages = rhs.getDefaultPages();
-	//	setVector(defaultPages, args.equal_range("default_pages"));
-	// errorPages ?
-
-//	if (!_args.count("error_pages")) { //// logique differente (append)
-//		setErrorPages(args.equal_range("error_pages"));
-	std::set< int >::iterator	setItA = rhs.getErrorKeys().begin(), setIteA = rhs.getErrorKeys().end();
-	while (setItA != setIteA) {
-		if (!_errorKeys.count(*setItA))
-			_errorKeys.insert(*setItA);
-		_errorPages[*setItA] = rhs.getErrorPages().at(*setItA);
-		setItA++;
-	}
-//	}
-	
-//	if (!_args.count("cgi_path")) { ///// logique differente (append)
-//		setCgiPath(args.equal_range("cgi_path"));
-	std::set< std::string >::iterator	setItB = rhs.getCgiKeys().begin(), setIteB = rhs.getCgiKeys().end();
-	while (setItB != setIteB) {
-		if (!_cgiKeys.count(*setItB))
-			_cgiKeys.insert(*setItB);
-		_cgiPath[*setItB] = rhs.getCgiPath().at(*setItB);
-		setItB++;
-	}
-//	}
-
-	if (!_args.count("auto_index"))
-		_autoIndex = rhs.getAutoIndex();
-//		setAutoIndex(args.find("auto_index")->second);
-	if (!_args.count("allowed_methods"))
-		_allowedMethods = rhs.getAllowedMethods();
-//		setVector(_allowedMethods, args.equal_range("allowed_methods"));
-	if (!_args.count("max_body_bytes"))
-		_maxBodyBytes = rhs.getMaxBodyBytes();
-//		_maxBodyBytes = parseMaxBodyBytes(args.find("max_body_bytes")->second);
-//	_cgiPath = args.find("cgi_path")->second;
-//	setVector(_cgiPath, args.equal_range("cgi_paths"));
-	if (!_args.count("redirect"))
-		_redirect = rhs.getRedirect();
-//		_redirect = args.find("redirect")->second;
-	if (!_args.count("upload"))
-		_upload = rhs.getUpload();
-//		_upload = args.find("upload")->second; // set default ?
-	return (*this);
 }

@@ -28,11 +28,7 @@ const size_t&	Rules::getMaxBodyBytes() const {
 	return (_maxBodyBytes);
 }
 
-const std::set< std::string >&	Rules::getCgiKeys() const {
-	return (_cgiKeys);
-}
-
-const std::map< std::string, std::string >&	Rules::getCgiPath() const {
+const std::vector< std::string >&	Rules::getCgiPaths() const {
 	return (_cgiPath);
 }
 

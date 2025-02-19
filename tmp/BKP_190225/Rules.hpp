@@ -29,9 +29,7 @@ class	Rules: public Config {
 		bool							_autoIndex; // default = true
 		std::vector< std::string >		_allowedMethods;
 		size_t							_maxBodyBytes;
-
-		std::set< std::string >			_cgiKeys;
-		std::map< std::string, std::string >	_cgiPath; // map ?
+		std::vector< std::string >		_cgiPath; // map ?
 		std::string						_redirect;
 		std::string						_upload;
 
@@ -39,7 +37,6 @@ class	Rules: public Config {
 		std::map< std::string, Rules* >	_location; // ?
 	public:
 		Rules();
-		Rules(std::multimap< std::string, std::string > args, const Rules& rhs);
 		Rules(std::multimap< std::string, std::string > args, std::multimap< std::string, std::string > inherit);
 //		Rules(std::multimap< std::string, std::string > args, Rules* parent);
 	//	Rules(const Rules& rhs);
@@ -50,7 +47,6 @@ class	Rules: public Config {
 //		void	setArgs(std::multimap< std::string, std::string > args, Rules* parent);
 		void	setInheritArgs(std::multimap< std::string, std::string >& args);
 		void	setErrorPages(t_range range);
-		void	setCgiPath(t_range range);
 		void	setLocation(t_range range);
 		void	setLocationKey(std::string str);
 		std::multimap< std::string, std::string >	parseLocationLine(std::string line);
@@ -66,18 +62,15 @@ class	Rules: public Config {
 		const bool&	getAutoIndex() const;
 		const std::vector< std::string >&	getAllowedMethods() const;
 		const size_t&	getMaxBodyBytes() const;
-		const std::set< std::string >&	getCgiKeys() const;
-		const std::map< std::string, std::string >&	getCgiPath() const;
+		const std::vector< std::string >&	getCgiPaths() const;
 		const std::string&	getRedirect() const;
 		const std::string&	getUpload() const;
 		const std::vector< std::string >&	getLocationKeys() const;
 		const std::map< std::string, Rules* >&	getLocation() const;
 
-		void	goDeep(size_t i, std::string name);
+		void	goDeep(size_t i);
 
 		~Rules();
-
-		Rules&	operator!=(const Rules& rhs);
 };
 // to do
 std::ostream&	operator<<(std::ostream& os, const Rules& rhs);
