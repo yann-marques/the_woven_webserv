@@ -1,7 +1,6 @@
 #include "Rules.hpp"
 
 Rules::Rules() {
-//	_root = "www/default.html";
 	_autoIndex = true;
 	_maxBodyBytes = 1024;
 	_root = "www/default.html";
@@ -15,28 +14,12 @@ Rules::Rules() {
 	_cgiPath[".default"] = "path_to_default";
 	_redirect = "redirect";
 	_upload = "upload";
-	// no location
 }
 
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs): Config() { // heritage foireux
 	_args = args;
-//	_inherit = inherit;
-//	setInheritArgs(_args); // heritage apres set? // probleme avec les arguments pas encore parsés (error_page, cgi)
 	setArgs(_args);
-	*this != rhs;
-	// location
-//	t_range	range = args.equal_range("location");
-	if (args.count("location"))
-		setLocation(args.equal_range("location"));
-}
-
-Rules::Rules(std::multimap< std::string, std::string > args, std::multimap< std::string, std::string > inherit): Config() { // heritage foireux
-	_args = args;
-	_inherit = inherit;
-	setInheritArgs(_args); // heritage apres set? // probleme avec les arguments pas encore parsés (error_page, cgi)
-	setArgs(_args);
-	// location
-//	t_range	range = args.equal_range("location");
+	*this |= rhs;
 	if (args.count("location"))
 		setLocation(args.equal_range("location"));
 }
@@ -285,7 +268,6 @@ void	Rules::goDeep(size_t i, std::string name) {
 	}
 }
 
-	// to do
 std::ostream&	operator<<(std::ostream& os, const Rules& rhs) {
 	std::string	tabs('\t', 1);
 	os	<< "root:\t" << rhs.getRoot() << std::endl
@@ -298,25 +280,29 @@ std::ostream&	operator<<(std::ostream& os, const Rules& rhs) {
 	std::cout	<< "allowedMethods:" << std::endl;
 	printVec(rhs.getAllowedMethods(), tabs);
 	std::cout	<< "cgiPaths:" << std::endl;
-//	printVec(rhs.getCgiPaths(), tabs);
 	printMap(rhs.getCgiKeys(), rhs.getCgiPath(), tabs);
 	std::cout	<< "errorPages:" << std::endl;
 	printMap(rhs.getErrorKeys(), rhs.getErrorPages(), tabs);
 	printLocation(rhs.getLocationKeys(), rhs.getLocation());
-//	count = 0;
 	return (os);
 }
 
-Rules&	Rules::operator!=(const Rules& rhs) {
+Rules&	Rules::operator|=(const Rules& rhs) {
 	if (!_args.count("root"))
 		_root = rhs.getRoot();
 	if (!_args.count("default_pages"))
 		_defaultPages = rhs.getDefaultPages();
-	//	setVector(defaultPages, args.equal_range("default_pages"));
-	// errorPages ?
+	if (!_args.count("auto_index"))
+		_autoIndex = rhs.getAutoIndex();
+	if (!_args.count("allowed_methods"))
+		_allowedMethods = rhs.getAllowedMethods();
+	if (!_args.count("max_body_bytes"))
+		_maxBodyBytes = rhs.getMaxBodyBytes();
+	if (!_args.count("redirect"))
+		_redirect = rhs.getRedirect();
+	if (!_args.count("upload"))
+		_upload = rhs.getUpload();
 
-//	if (!_args.count("error_pages")) { //// logique differente (append)
-//		setErrorPages(args.equal_range("error_pages"));
 	std::set< int >::iterator	setItA = rhs.getErrorKeys().begin(), setIteA = rhs.getErrorKeys().end();
 	while (setItA != setIteA) {
 		if (!_errorKeys.count(*setItA))
@@ -324,10 +310,6 @@ Rules&	Rules::operator!=(const Rules& rhs) {
 		_errorPages[*setItA] = rhs.getErrorPages().at(*setItA);
 		setItA++;
 	}
-//	}
-	
-//	if (!_args.count("cgi_path")) { ///// logique differente (append)
-//		setCgiPath(args.equal_range("cgi_path"));
 	std::set< std::string >::iterator	setItB = rhs.getCgiKeys().begin(), setIteB = rhs.getCgiKeys().end();
 	while (setItB != setIteB) {
 		if (!_cgiKeys.count(*setItB))
@@ -335,24 +317,6 @@ Rules&	Rules::operator!=(const Rules& rhs) {
 		_cgiPath[*setItB] = rhs.getCgiPath().at(*setItB);
 		setItB++;
 	}
-//	}
 
-	if (!_args.count("auto_index"))
-		_autoIndex = rhs.getAutoIndex();
-//		setAutoIndex(args.find("auto_index")->second);
-	if (!_args.count("allowed_methods"))
-		_allowedMethods = rhs.getAllowedMethods();
-//		setVector(_allowedMethods, args.equal_range("allowed_methods"));
-	if (!_args.count("max_body_bytes"))
-		_maxBodyBytes = rhs.getMaxBodyBytes();
-//		_maxBodyBytes = parseMaxBodyBytes(args.find("max_body_bytes")->second);
-//	_cgiPath = args.find("cgi_path")->second;
-//	setVector(_cgiPath, args.equal_range("cgi_paths"));
-	if (!_args.count("redirect"))
-		_redirect = rhs.getRedirect();
-//		_redirect = args.find("redirect")->second;
-	if (!_args.count("upload"))
-		_upload = rhs.getUpload();
-//		_upload = args.find("upload")->second; // set default ?
 	return (*this);
 }

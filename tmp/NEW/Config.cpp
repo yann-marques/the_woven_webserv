@@ -17,40 +17,24 @@ Config::Config(char* fileName) {
 
 		std::vector< std::string >	serverLines = splitLine(fileContent, "server");
 		for (size_t i = 0, n = serverLines.size(); i < n; i++) {
-			std::cout << "////////////////////// SERVER " << i << std::endl;
 			std::multimap< std::string, std::string >	args = parseServerLine(serverLines[i]);
-//			if (!args.count("port"))
-//				throw (MissingPortException());
 			checkArgsFormat(args);
-//			printMultimap(_argsToFind, args);
-	//		std::map< std::string, Rules* >	location;
-//			parseLocation(args.equal_range("location"), location);
-//			Rules*	rules = makeRules(args);
 			int	port = std::atoi(args.equal_range("port").first->second.c_str());
 			if (!_ports.count(port)) { // pas de port en double. le premier serveur defini avec un port est le seul ? // non
 				_ports.insert(port);
-//				std::cout << "main: " << rules << std::endl;
-//				std::cout << "SORTI DU CONSTRUCTEUR RULES" << std::endl;
-//				rules->goDeep(1); //
-
 				t_range	range = args.equal_range("server_names");
 				t_multimap_it	mit = range.first, mite = range.second;
 				std::map< std::string, Rules* >	toSet;
 				while (mit != mite) {
-	//				Rules*	rules = new Rules(args, _defaultValues);
-					Rules	r;
-					Rules*	rules = new Rules(args, r);
+					Rules	defaultRules;
+					Rules*	rules = new Rules(args, defaultRules);
 					_serverNames.insert(make_pair(port, mit->second));
 					toSet[mit->second] = rules;
-					toSet[mit->second]->goDeep(0, mit->second); //
+			//		toSet[mit->second]->goDeep(0, mit->second);
 					mit++;
 				}
 				_parsedConfig[port] = toSet;
 			}
-
-//			delete rules;
-//			(void) rules;
-//			break ;
 		}
 	} catch (OpenFileException& e) {
 		std::cerr << e.what() << fileName << std::endl;
@@ -60,7 +44,7 @@ Config::Config(char* fileName) {
 		std::cerr << e.what() << std::endl;
 	} catch (ConfigSyntaxException& e) {
 		std::cerr << e.what() << std::endl;
-	} catch (UnexpectedKeyException& e) { // to complete ?
+	} catch (UnexpectedKeyException& e) {
 		std::cerr << e.what() << std::endl;
 	} catch (DoubleArgException& e) {
 		std::cerr << e.what() << std::endl;

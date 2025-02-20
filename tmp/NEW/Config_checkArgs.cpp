@@ -18,8 +18,7 @@ static void	deleteSemicolon(std::set< std::string > keys, std::multimap< std::st
 
 static void	checkPortFormat(size_t count, t_range range) {
 	if (!count)
-		return ;
-//		throw Config::MissingPortException();
+		throw Config::MissingPortException();
 	else if (count > 1)
 		throw Config::DoubleArgException("port");
 

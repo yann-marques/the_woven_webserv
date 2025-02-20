@@ -1,5 +1,4 @@
 server {
-  port: 8080;
   server_names: example.com, www.example.com;
   root: /var/www/html/;
   default_pages: index.html, home.html;
@@ -25,6 +24,9 @@ server {
     location: /v1 {
       root: /var/www/api/v1/;
       allowed_methods: GET;
+	  cgi_path {
+		.toto: path_to_toto;
+	  }
       location: /users {
         root: /var/www/api/v1/users/;
         allowed_methods: GET, POST;

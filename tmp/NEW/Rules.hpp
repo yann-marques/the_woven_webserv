@@ -40,10 +40,10 @@ class	Rules: public Config {
 	public:
 		Rules();
 		Rules(std::multimap< std::string, std::string > args, const Rules& rhs);
-		Rules(std::multimap< std::string, std::string > args, std::multimap< std::string, std::string > inherit);
 //		Rules(std::multimap< std::string, std::string > args, Rules* parent);
-	//	Rules(const Rules& rhs);
-	//	Rules&	operator=(const Rules& rhs);
+		Rules(const Rules& rhs);
+		Rules&	operator=(const Rules& rhs);
+		Rules&	operator|=(const Rules& rhs);
 
 		void	setAutoIndex(std::string str);
 		void	setArgs(std::multimap< std::string, std::string > args);
@@ -77,7 +77,6 @@ class	Rules: public Config {
 
 		~Rules();
 
-		Rules&	operator!=(const Rules& rhs);
 };
 // to do
 std::ostream&	operator<<(std::ostream& os, const Rules& rhs);
