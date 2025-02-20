@@ -34,6 +34,16 @@ std::string HttpRequest::getHeader(const std::string& key) const
     return (it != this->_headers.end()) ? it->second : "";
 }
 
+std::string HttpRequest::getFullHeaders(void) const {
+    std::string fullHeaders;
+
+    for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); it != _headers.end(); it++) {
+        fullHeaders += (it->first + ": " + it->second + '\n'); 
+    }
+
+    return (fullHeaders);
+}
+
 std::string HttpRequest::getBody() const
 { 
     return this->_body;
@@ -91,6 +101,15 @@ void HttpRequest::initReasons(void) {
     _reasonPhrases[HTTP_INTERNAL_SERVER_ERROR] = "Internal Server Error";
     _reasonPhrases[HTTP_BAD_GATEWAY] = "Bad Gateway";
     _reasonPhrases[HTTP_SERVICE_UNAVAILABLE] = "Service Unavailable";
+}
+
+void    HttpRequest::log(void) {
+    std::string userAgent;
+
+    userAgent = getHeader("User-Agent");  
+    std::cout << '"' << this->_method << ' ' << this->_path << ' ' << this->_version << '"' << ' ';
+    if (!userAgent.empty())
+        std::cout << userAgent << std::endl;
 }
 
 void    HttpRequest::parse(const std::string &rawRequest)

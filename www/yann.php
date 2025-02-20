@@ -1,10 +1,21 @@
 <?php
 
-// Affiche toutes les informations, comme le ferait INFO_ALL
-phpinfo();
+// file properties
+$file = $_FILES['image']['tmp_name'];
 
-// Affiche uniquement le module d'information.
-// phpinfo(8) fournirait les mêmes informations.
-phpinfo(INFO_MODULES);
+if (!isset($file))
+  echo "Please select a profile pic";
+else
+{
+  $image = addslashes(file_get_content($_FILES['image']['tmp_name']));
+  $image_name = addslashes($FILES['image']['name']);
+  $image_size = getimagesize($_FILES['image']['tmp_name']);
 
+  if ($image_size==FALSE)
+    echo "That isn't a image.";
+  else
+  {
+    echo($image_size);
+  }
+}
 ?>

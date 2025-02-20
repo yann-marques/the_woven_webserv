@@ -76,12 +76,26 @@ void	VServ::socketInit() {
 	// catch in WebServ constructor
 }
 
+std::string    ip_convert(uint32_t n) {
+    std::ostringstream    oss;
+    std::string    str;
+
+    oss << (n >> 24 & 0xFF) << '.'
+        << (n >> 16 & 0xFF) << '.'
+        << (n >> 8 & 0xFF) << '.'
+        << (n & 0xFF);
+    str = oss.str();
+    return (str);
+}
+
 int	VServ::clientAccept(void) {
 	sockaddr_in clientAddress;
 	socklen_t clientAddressLength = sizeof(clientAddress);
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
 	if (clientFd == -1)
 		throw (AcceptException());
+	
+	std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
 	return (clientFd);
 }
 
@@ -181,7 +195,7 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 }
 
 void	VServ::handleBigRequest(HttpRequest &request) {
-	size_t client_max_body_size = 1000000; //in bytes ~1M IN CONFIG
+	size_t client_max_body_size = 20 * pow(10, 6);  //in bytes ~10Mo
 
 	std::string contentLengthStr = request.getHeader("Content-Length");
 	if (!contentLengthStr.empty()) {
@@ -290,11 +304,6 @@ const char**	VServ::makeEnvp(HttpRequest &request) {
 	exec_envp[1] = query_string.c_str();
 	exec_envp[2] = NULL;
 
-	if (_debug) {
-		std::cout << exec_envp[0] << std::endl;
-		std::cout << exec_envp[1] << std::endl;
-	}
-
 	return (exec_envp);
 }
 
@@ -336,14 +345,17 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 
 		envp = makeEnvp(request);
 		if (execve(interpreter.c_str(), argv, const_cast<char *const *>(envp)) < 0) {
-			std::cout << strerror( errno ) << std::endl;
-			//return ("OHHHH ?");
+			throw ExecveException();
 		}
 		
 	} else {
 		close(parentToChild[0]);
 		close(childToParent[1]);
 
+		fileData = request.getFullHeaders() + '\r' + fileData;
+
+		std::cerr << fileData << std::endl;
+		
 		if (write(parentToChild[1], fileData.c_str(), fileData.size() + 1) < 0)
 			std::cerr << "Fail to write into parentToChild pipe" << std::endl;
 		close(parentToChild[1]);
@@ -365,6 +377,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest response;
 	struct stat path_stat;
 
+	request.log();
 
 	//DEFINE IN THE CONFIG
 	//...
@@ -405,19 +418,14 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		}
 
 	} catch (FileNotExist& e) {
-		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_NOT_FOUND);
 	} catch (OpenFileException& e) {
-		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_FORBIDDEN);
 	} catch (OpenFolderException& e) {
-		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_FORBIDDEN);
 	} catch (EntityTooLarge& e) {
-		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_PAYLOAD_TOO_LARGE);
 	} catch (RecvException& e) {
-		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	}
 
@@ -490,6 +498,10 @@ const char*	VServ::PipeException::what() const throw() {
 
 const char*	VServ::ForkException::what() const throw() {
 	return ("Error, the fork function make an exception");
+}
+
+const char* VServ::ExecveException::what() const throw() {
+	return ("Execve error. Can't execute the binary cgi");
 }
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs) {

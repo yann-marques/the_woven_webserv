@@ -67,6 +67,7 @@ class HttpRequest {
         std::string getHeader(const std::string &key) const;
         std::string getBody(void) const;
         std::string getRootPath(void) const;
+        std::string getFullHeaders(void) const;
 
         //SETTERS
         void    setMethod(std::string &method);
@@ -82,6 +83,7 @@ class HttpRequest {
         void        initReasons(void);
         void        makeError(int httpCode);
         void        generateIndexFile(const std::vector<std::string>& fileNames);
+        void        log(void);
 
         //EXCETPIONS
         class	OpenFileException: public std::exception {

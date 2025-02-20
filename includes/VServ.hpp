@@ -15,6 +15,9 @@
 # include <errno.h>
 # include <cstring>
 # include <set>
+# include <arpa/inet.h>
+# include <math.h>
+
 
 # include "Config.hpp"
 # include "HTTPRequest.hpp"
@@ -132,6 +135,10 @@ class	VServ {
 		class	ForkException: public std::exception {
 			public:
 				const char*	what() const throw();
+		};
+		class	ExecveException: public std::exception {
+			public:
+				const char* what() const throw();
 		};
 };
 
