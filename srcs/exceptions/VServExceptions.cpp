@@ -1,0 +1,69 @@
+#include "VServ.hpp"
+
+const char*	VServ::SocketException::what() const throw() {
+	return ("Failed to create socket.");
+}
+
+const char*	VServ::SetSockOptException::what() const throw() {
+	return ("Failed to set socket opt.");
+}
+
+const char*	VServ::BindException::what() const throw() {
+	return ("Failed to bind socket.");
+}
+
+const char*	VServ::ListenException::what() const throw() {
+	return ("Failed to listen.");
+}
+
+const char*	VServ::AcceptException::what() const throw() {
+	return ("Failed accept connection on socket.");
+}
+
+const char*	VServ::RecvException::what() const throw() {
+	return ("Failed to read the request in the buffer.");
+}
+
+const char*	VServ::SendException::what() const throw() {
+	return ("Failed to send the request to the clientfd");
+}
+
+const char*	VServ::SendPartiallyException::what() const throw() {
+	return ("Failed to send entire request to the client");
+}
+
+const char*	VServ::ReadFileException::what() const throw() {
+	return ("Fail read the file");
+}
+
+const char*	VServ::FileNotExist::what() const throw() {
+	return ("Fail to get infos about the file");
+}
+
+const char*	VServ::OpenFileException::what() const throw() {
+	return ("Error to opening the root file");
+}
+
+const char*	VServ::OpenFolderException::what() const throw() {
+	return ("Error to opening the folder");
+}
+
+const char*	VServ::EntityTooLarge::what() const throw() {
+	return ("Error, the entity is too lage. Change client_max_body_size in config");
+}
+
+const char*	VServ::ExtensionNotFound::what() const throw() {
+	return ("Error, extension for the cgi is not found on request path");
+}
+
+const char*	VServ::PipeException::what() const throw() {
+	return ("Error, the pipe function make an excetion");
+}
+
+const char*	VServ::ForkException::what() const throw() {
+	return ("Error, the fork function make an exception");
+}
+
+const char* VServ::ExecveException::what() const throw() {
+	return ("Execve error. Can't execute the binary cgi");
+}

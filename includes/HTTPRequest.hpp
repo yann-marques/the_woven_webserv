@@ -67,7 +67,8 @@ class HttpRequest {
         std::string getHeader(const std::string &key) const;
         std::string getBody(void) const;
         std::string getRootPath(void) const;
-        std::string getFullHeaders(void) const;
+        std::string getRawHeaders(void) const;
+        std::map<std::string, std::string> getHeaders(void) const;
 
         //SETTERS
         void    setMethod(std::string &method);

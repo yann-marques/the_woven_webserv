@@ -34,7 +34,7 @@ std::string HttpRequest::getHeader(const std::string& key) const
     return (it != this->_headers.end()) ? it->second : "";
 }
 
-std::string HttpRequest::getFullHeaders(void) const {
+std::string HttpRequest::getRawHeaders(void) const {
     std::string fullHeaders;
 
     for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); it != _headers.end(); it++) {
@@ -42,6 +42,10 @@ std::string HttpRequest::getFullHeaders(void) const {
     }
 
     return (fullHeaders);
+}
+
+std::map<std::string, std::string>  HttpRequest::getHeaders(void) const {
+    return (this->_headers);
 }
 
 std::string HttpRequest::getBody() const
@@ -195,11 +199,4 @@ void HttpRequest::setDefaultsHeaders(void) {
     this->setResponseCode(200);
     this->_headers.insert(std::pair<std::string, std::string>("Server", "TheWovenWebserver/0.0.1"));
     this->_headers.insert(std::pair<std::string, std::string>("Connection", "keep-alive"));
-}
-
-//EXCEPTIONS
-
-
-const char*	HttpRequest::OpenFileException::what() const throw() {
-	return ("Error to opening the file");
 }

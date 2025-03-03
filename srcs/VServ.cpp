@@ -158,7 +158,7 @@ std::string	VServ::readSocketFD(const int fd) {
     }
 
 	if (_debug)
-		std::cout << "RESPONSE ----- " << std::endl << buffer.data() << std::endl;
+		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl;
 
 	return std::string(buffer.begin(), buffer.end());
 }
@@ -262,12 +262,15 @@ std::string VServ::getPagePath(HttpRequest &request) {
 	std::string	path;
 	std::vector<std::string> delimiters;
 
+
+	//IN CONFIG
 	delimiters.push_back(".html");
 	delimiters.push_back(".php");
 	delimiters.push_back(".py");
 	delimiters.push_back(".pl");
 	delimiters.push_back("?");
 	delimiters.push_back("#");
+	//END IN CONFIG
 
 	path = request.getPath();
 	for (std::size_t i = 0, n = delimiters.size(); i < n; i++) {
@@ -282,11 +285,14 @@ std::string VServ::getPagePath(HttpRequest &request) {
 	return (path);
 }
 
-const char**	VServ::makeEnvp(HttpRequest &request) {
+std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	size_t startPos;
 	size_t endPos;
+	std::vector<char*> env;
 
-	std::string ext = ".php"; //tmp, getfrom config
+	//CONFIG
+	std::string ext = ".php";
+	//END CONFIG
 
 	std::string path = request.getPath();
 	if ((startPos = path.find(ext)) != std::string::npos) {
@@ -297,24 +303,41 @@ const char**	VServ::makeEnvp(HttpRequest &request) {
 		throw ExtensionNotFound();
 
 	std::string path_info = "PATH_INFO=" + path.substr(startPos, endPos - startPos);
-	std::string query_string = "QUERY_STRING=" + path.substr(endPos); 
+	std::string query_string = "QUERY_STRING=" + path.substr(endPos);
 	
-	const char** exec_envp = new const char*[3];
-	exec_envp[0] = path_info.c_str();
-	exec_envp[1] = query_string.c_str();
-	exec_envp[2] = NULL;
+    // Add standard CGI environment variables
+    env.push_back( strdup(("REQUEST_METHOD=" + request.getMethod()).c_str()) );
+	std::string rootPath = makeRootPath(request);
+    env.push_back( strdup(("SCRIPT_FILENAME=" + rootPath).c_str()) );
 
-	return (exec_envp);
+	//ADD REQUEST HEADERS
+	std::map<std::string, std::string> headers = request.getHeaders();
+	for (std::map<std::string, std::string>::iterator header = headers.begin(); header != headers.end(); header++) {
+        std::string envVar = "HTTP_" + header->first;
+        for (std::string::iterator it = envVar.begin(); it != envVar.end(); it++) *it = toupper(*it);
+        std::replace(envVar.begin(), envVar.end(), '-', '_');
+        std::string envValue = envVar + "=" + header->second;
+        env.push_back(strdup(envValue.c_str()));
+    }
+	
+	//https://stackoverflow.com/questions/24378472/what-is-php-serverredirect-status
+	env.push_back(strdup("REDIRECT_STATUS=CGI"));
+	
+	env.push_back(strdup(path_info.c_str()));
+	env.push_back(strdup(query_string.c_str()));
+
+	env.push_back(NULL);
+	return (env);
 }
 
 
 
 std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
-	int			parentToChild[2], childToParent[2];
-	pid_t		pid;
-	const char	**envp;
-	std::string	result;
-	int 		status;
+	int					parentToChild[2], childToParent[2];
+	pid_t				pid;
+	std::vector<char*>	env;
+	std::string			result;
+	int 				status;
 
 	//TMP
 	std::string interpreter = "/usr/bin/php-cgi";
@@ -343,8 +366,11 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 			NULL
 		};
 
-		envp = makeEnvp(request);
-		if (execve(interpreter.c_str(), argv, const_cast<char *const *>(envp)) < 0) {
+		env = makeEnvp(request);
+
+		for (std::vector<char *>::iterator it = env.begin(); it != env.end(); it++) { std::cerr << *it << std::endl; };
+
+		if (execve(interpreter.c_str(), argv, env.data()) < 0) {
 			throw ExecveException();
 		}
 		
@@ -352,10 +378,6 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 		close(parentToChild[0]);
 		close(childToParent[1]);
 
-		fileData = request.getFullHeaders() + '\r' + fileData;
-
-		std::cerr << fileData << std::endl;
-		
 		if (write(parentToChild[1], fileData.c_str(), fileData.size() + 1) < 0)
 			std::cerr << "Fail to write into parentToChild pipe" << std::endl;
 		close(parentToChild[1]);
@@ -430,78 +452,6 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	}
 
 	sendRequest(response, clientFd);
-}
-
-
-
-//EXCEPTION
-
-const char*	VServ::SocketException::what() const throw() {
-	return ("Failed to create socket.");
-}
-
-const char*	VServ::SetSockOptException::what() const throw() {
-	return ("Failed to set socket opt.");
-}
-
-const char*	VServ::BindException::what() const throw() {
-	return ("Failed to bind socket.");
-}
-
-const char*	VServ::ListenException::what() const throw() {
-	return ("Failed to listen.");
-}
-
-const char*	VServ::AcceptException::what() const throw() {
-	return ("Failed accept connection on socket.");
-}
-
-const char*	VServ::RecvException::what() const throw() {
-	return ("Failed to read the request in the buffer.");
-}
-
-const char*	VServ::SendException::what() const throw() {
-	return ("Failed to send the request to the clientfd");
-}
-
-const char*	VServ::SendPartiallyException::what() const throw() {
-	return ("Failed to send entire request to the client");
-}
-
-const char*	VServ::ReadFileException::what() const throw() {
-	return ("Fail read the file");
-}
-
-const char*	VServ::FileNotExist::what() const throw() {
-	return ("Fail to get infos about the file");
-}
-
-const char*	VServ::OpenFileException::what() const throw() {
-	return ("Error to opening the root file");
-}
-
-const char*	VServ::OpenFolderException::what() const throw() {
-	return ("Error to opening the folder");
-}
-
-const char*	VServ::EntityTooLarge::what() const throw() {
-	return ("Error, the entity is too lage. Change client_max_body_size in config");
-}
-
-const char*	VServ::ExtensionNotFound::what() const throw() {
-	return ("Error, extension for the cgi is not found on request path");
-}
-
-const char*	VServ::PipeException::what() const throw() {
-	return ("Error, the pipe function make an excetion");
-}
-
-const char*	VServ::ForkException::what() const throw() {
-	return ("Error, the fork function make an exception");
-}
-
-const char* VServ::ExecveException::what() const throw() {
-	return ("Execve error. Can't execute the binary cgi");
 }
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs) {

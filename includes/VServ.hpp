@@ -1,6 +1,7 @@
 #pragma once
 
 # include <exception>
+# include <algorithm>
 # include <sys/socket.h>
 # include <sys/epoll.h>
 # include <sys/types.h>
@@ -55,21 +56,21 @@ class	VServ {
 		int	getFd() const;
 
 		// METHODS
-		void		socketInit();
-		int			clientAccept(void);
-		std::string readSocketFD(const int fd);
-		std::string readFile(int fd);
-		void		processRequest(std::string rawRequest, int clientFd);
-		void 		sendRequest(HttpRequest &request, int clientFd);
-		std::string	readRequest(HttpRequest &request);
-		std::string	readDefaultPages(HttpRequest &request);
-		void		showDirectory(DIR* dir, HttpRequest &response);
-		void		handleBigRequest(HttpRequest &request);
-		std::string makeRootPath(HttpRequest &request);
-		bool		fileIsCGI(HttpRequest &request);
-		std::string	handleCGI(std::string &fileData, HttpRequest &request);
-		const char**	makeEnvp(HttpRequest &request);
-		std::string		getPagePath(HttpRequest &request);
+		void				socketInit();
+		int					clientAccept(void);
+		std::string 		readSocketFD(const int fd);
+		std::string 		readFile(int fd);
+		void				processRequest(std::string rawRequest, int clientFd);
+		void 				sendRequest(HttpRequest &request, int clientFd);
+		std::string			readRequest(HttpRequest &request);
+		std::string			readDefaultPages(HttpRequest &request);
+		void				showDirectory(DIR* dir, HttpRequest &response);
+		void				handleBigRequest(HttpRequest &request);
+		std::string 		makeRootPath(HttpRequest &request);
+		bool				fileIsCGI(HttpRequest &request);
+		std::string			handleCGI(std::string &fileData, HttpRequest &request);
+		std::vector<char*>	makeEnvp(HttpRequest &request);
+		std::string			getPagePath(HttpRequest &request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {

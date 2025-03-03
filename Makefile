@@ -5,7 +5,7 @@ DIR_SRCS=srcs
 DIR_OBJS=objects
 DIR_INCS=includes
 
-LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp HTTPRequest.cpp
+LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp HTTPRequest.cpp exceptions/HTTPReqExceptions.cpp exceptions/VServExceptions.cpp exceptions/WebServExceptions.cpp
 LST_OBJS=$(LST_SRCS:.cpp=.o)
 LST_INCS=Config.hpp HTTPRequest.hpp VServ.hpp WebServ.hpp
 
@@ -15,6 +15,7 @@ INCS=$(addprefix $(DIR_INCS)/, $(LST_INCS))
 
 $(DIR_OBJS)/%.o: $(DIR_SRCS)/%.cpp
 	@mkdir -p $(DIR_OBJS)
+	@mkdir -p $(DIR_OBJS)/exceptions
 	@$(CC) $(FLAGS) -I $(DIR_INCS) -c $< -o $@
 	@echo -n '.'
 
