@@ -19,6 +19,7 @@ INCS=$(addprefix $(DIR_INCS)/, $(LST_INCS))
 
 $(DIR_OBJS)/%.o: $(DIR_SRCS)/%.cpp
 	@mkdir -p $(DIR_OBJS)
+	@mkdir -p $(DIR_OBJS)/exceptions
 	@$(CC) $(FLAGS) -I $(DIR_INCS) -c $< -o $@
 	@echo -n '.'
 

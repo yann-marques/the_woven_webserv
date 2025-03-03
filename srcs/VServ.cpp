@@ -2,17 +2,19 @@
 
 // VServ::VServ();
 
-VServ::VServ(VServConfig config, int maxClients, char **env): _maxClients(maxClients), _root("www") {
+VServ::VServ(VServConfig config, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients), _root("www") {
 	// tmp
 	_port = config.getPort();
 	_host = config.getHost();
 	// parse config ...
 	setAddress();
 	socketInit();
-	//env
-	for (size_t i = 0; i < sizeof(env); i++) {
-		this->_env.push_back(std::string(env[i]));
-	}
+	//
+	this->_argv = argv;
+	this->_envp = envp;
+	this->_debug = false;
+	if (argv.find("--debug=yes") != argv.end())
+		this->_debug = true;
 }
 
 // VServ::VServ(const VServ& rhs);
@@ -74,28 +76,44 @@ void	VServ::socketInit() {
 	// catch in WebServ constructor
 }
 
+std::string    ip_convert(uint32_t n) {
+    std::ostringstream    oss;
+    std::string    str;
+
+    oss << (n >> 24 & 0xFF) << '.'
+        << (n >> 16 & 0xFF) << '.'
+        << (n >> 8 & 0xFF) << '.'
+        << (n & 0xFF);
+    str = oss.str();
+    return (str);
+}
+
 int	VServ::clientAccept(void) {
 	sockaddr_in clientAddress;
 	socklen_t clientAddressLength = sizeof(clientAddress);
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
 	if (clientFd == -1)
 		throw (AcceptException());
+	
+	std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
 	return (clientFd);
 }
 
 std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqRootPath = request.getRootPath();
+	std::string rqPath = request.getPath();
 
 	if (!rqRootPath.empty())
 		return (rqRootPath);
-	if (request.getPath() != "/")
-		return(_root + request.getPath());
+	if (rqPath != "/") {
+		return (_root + getPagePath(request));
+	}
 	else
 		return(_root);
 }
 
 
-std::string VServ::readFile(HttpRequest &request) {
+std::string VServ::readRequest(HttpRequest &request) {
     std::vector<char> buffer;
     ssize_t bytesRead;
 	std::string cgiContent;
@@ -118,7 +136,6 @@ std::string VServ::readFile(HttpRequest &request) {
 
 	if (fileIsCGI(request)) {
 		cgiContent = handleCGI(fileData, request);
-		std::cout << cgiContent << std::endl;
 		return (cgiContent);
 	}
 
@@ -126,7 +143,7 @@ std::string VServ::readFile(HttpRequest &request) {
 }
 
 
-std::string	VServ::readRequest(const int fd) {
+std::string	VServ::readSocketFD(const int fd) {
 	std::vector<char> buffer;
 	ssize_t bytesRead;
 	char tempBuffer[4096];
@@ -135,9 +152,26 @@ std::string	VServ::readRequest(const int fd) {
 		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
 
-	if (bytesRead == 0) {
-		return ("");
+	if (bytesRead < 0 && buffer.empty()) {
+	    close(fd);
+        throw RecvException();
+    }
+
+	if (_debug)
+		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl;
+
+	return std::string(buffer.begin(), buffer.end());
+}
+
+std::string VServ::readFile(int fd) {
+	std::vector<char> buffer;
+	ssize_t bytesRead;
+	char tempBuffer[4096];
+
+	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer)))) {
+		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
 	}
+
 	if (bytesRead < 0 && buffer.empty()) {
 	    close(fd);
         throw RecvException();
@@ -146,10 +180,11 @@ std::string	VServ::readRequest(const int fd) {
 	return std::string(buffer.begin(), buffer.end());
 }
 
-void	VServ::sendRequest(HttpRequest &request, int clientFd) {
-	std::string	rawResponse = request.makeRawResponse();
+void	VServ::sendRequest(HttpRequest &response, int clientFd) {
+	std::string	rawResponse = response.makeRawResponse();
 
-	std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
+	if (_debug)
+		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
 
 	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
 	if (bytesSent == -1) {
@@ -160,7 +195,7 @@ void	VServ::sendRequest(HttpRequest &request, int clientFd) {
 }
 
 void	VServ::handleBigRequest(HttpRequest &request) {
-	size_t client_max_body_size = 1000000; //in bytes ~1M IN CONFIG
+	size_t client_max_body_size = 20 * pow(10, 6);  //in bytes ~10Mo
 
 	std::string contentLengthStr = request.getHeader("Content-Length");
 	if (!contentLengthStr.empty()) {
@@ -191,7 +226,7 @@ std::string	VServ::readDefaultPages(HttpRequest &request)
 		struct stat path_stat;
 		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
 			request.setRootPath(indexPath);
-			file = readFile(request);
+			file = readRequest(request);
 			break;
 		}
 	}
@@ -222,11 +257,42 @@ bool	VServ::fileIsCGI(HttpRequest &request) {
 	return (false);	
 }
 
-const char**	VServ::makeEnvp(HttpRequest &request) {
+std::string VServ::getPagePath(HttpRequest &request) {
+	std::size_t	startDelPos;
+	std::string	path;
+	std::vector<std::string> delimiters;
+
+
+	//IN CONFIG
+	delimiters.push_back(".html");
+	delimiters.push_back(".php");
+	delimiters.push_back(".py");
+	delimiters.push_back(".pl");
+	delimiters.push_back("?");
+	delimiters.push_back("#");
+	//END IN CONFIG
+
+	path = request.getPath();
+	for (std::size_t i = 0, n = delimiters.size(); i < n; i++) {
+		std::string del = delimiters[i];
+		if ((startDelPos = path.find(del)) != std::string::npos) {
+			if (del == "?" || del == "#")
+				return (path.substr(0, startDelPos - del.size()));
+			else	
+				return (path.substr(0, startDelPos + del.size()));
+		}
+	}
+	return (path);
+}
+
+std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	size_t startPos;
 	size_t endPos;
+	std::vector<char*> env;
 
+	//CONFIG
 	std::string ext = ".php";
+	//END CONFIG
 
 	std::string path = request.getPath();
 	if ((startPos = path.find(ext)) != std::string::npos) {
@@ -237,53 +303,92 @@ const char**	VServ::makeEnvp(HttpRequest &request) {
 		throw ExtensionNotFound();
 
 	std::string path_info = "PATH_INFO=" + path.substr(startPos, endPos - startPos);
-	std::string query_string = "QUERY_STRING=" + path.substr(endPos); 
+	std::string query_string = "QUERY_STRING=" + path.substr(endPos);
 	
-	const char** exec_envp = new const char*[3];
-	exec_envp[0] = path_info.c_str();
-	exec_envp[1] = query_string.c_str();
-	exec_envp[2] = NULL;
+    // Add standard CGI environment variables
+    env.push_back( strdup(("REQUEST_METHOD=" + request.getMethod()).c_str()) );
+	std::string rootPath = makeRootPath(request);
+    env.push_back( strdup(("SCRIPT_FILENAME=" + rootPath).c_str()) );
 
-	std::cout << exec_envp[1] << std::endl;
-	return (exec_envp);
+	//ADD REQUEST HEADERS
+	std::map<std::string, std::string> headers = request.getHeaders();
+	for (std::map<std::string, std::string>::iterator header = headers.begin(); header != headers.end(); header++) {
+        std::string envVar = "HTTP_" + header->first;
+        for (std::string::iterator it = envVar.begin(); it != envVar.end(); it++) *it = toupper(*it);
+        std::replace(envVar.begin(), envVar.end(), '-', '_');
+        std::string envValue = envVar + "=" + header->second;
+        env.push_back(strdup(envValue.c_str()));
+    }
+	
+	//https://stackoverflow.com/questions/24378472/what-is-php-serverredirect-status
+	env.push_back(strdup("REDIRECT_STATUS=CGI"));
+	
+	env.push_back(strdup(path_info.c_str()));
+	env.push_back(strdup(query_string.c_str()));
+
+	env.push_back(NULL);
+	return (env);
 }
 
 
 
 std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
-	int			fd[2];
-	pid_t		pid;
-	const char	**envp;
-	std::string	result;
+	int					parentToChild[2], childToParent[2];
+	pid_t				pid;
+	std::vector<char*>	env;
+	std::string			result;
+	int 				status;
 
 	//TMP
-	std::string phpInterpeter = "/usr/bin/php-cgi";
+	std::string interpreter = "/usr/bin/php-cgi";
 
-	if (pipe(fd) < 0)
+	if (pipe(parentToChild) < 0 || pipe(childToParent) < 0)
 		throw PipeException();
 	if ((pid = fork()) < 0)
 		throw ForkException();
 
-	envp = makeEnvp(request);
-	(void) request;
 	if (pid == 0) {
-		write(STDIN_FILENO, fileData.c_str(), fileData.size());
-		dup2(STDOUT_FILENO, fd[1]);
-		close(fd[1]);
-		close(fd[0]);
+		close(childToParent[0]);
+		close(parentToChild[1]);
 
+		fcntl(childToParent[1], F_SETFL, O_NONBLOCK);
+		
+		if (dup2(childToParent[1], STDOUT_FILENO) < 0)
+			std::cerr << "dup2 failed" << std::endl;
+		close(childToParent[1]);
+
+		if (dup2(parentToChild[0], STDIN_FILENO) < 0)
+			std::cerr << "dup2 failed" << std::endl;
+		close(parentToChild[0]);
+		
 		char* argv[] = {
+			const_cast<char*>(interpreter.c_str()),
 			NULL
 		};
-		char* envp[] = {
-			NULL
-		};
-		execve(phpInterpeter.c_str(), argv, envp);
 
+		env = makeEnvp(request);
+
+		for (std::vector<char *>::iterator it = env.begin(); it != env.end(); it++) { std::cerr << *it << std::endl; };
+
+		if (execve(interpreter.c_str(), argv, env.data()) < 0) {
+			throw ExecveException();
+		}
+		
 	} else {
-		result = readRequest(fd[0]);
-		close(fd[1]);
-		close(fd[0]);	
+		close(parentToChild[0]);
+		close(childToParent[1]);
+
+		if (write(parentToChild[1], fileData.c_str(), fileData.size() + 1) < 0)
+			std::cerr << "Fail to write into parentToChild pipe" << std::endl;
+		close(parentToChild[1]);
+
+		waitpid(pid, &status, 0);
+		if (WIFEXITED(status)) {
+			result = readFile(childToParent[0]);
+		} else {
+			result = "";
+		}
+		close(childToParent[0]);
 	}
 	
 	return (result);
@@ -294,7 +399,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest response;
 	struct stat path_stat;
 
-	response.setDefaultsHeaders();
+	request.log();
 
 	//DEFINE IN THE CONFIG
 	//...
@@ -306,14 +411,16 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
+		if (_debug)
+			std::cout << rootPath << std::endl;
+
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
 
 		if (S_ISREG(path_stat.st_mode)) {
 
-			std::cout << "ITS A FILE" << std::endl;
-			std::string file = readFile(request);
-			response.setBody(file);
+			std::string rawResponse = readRequest(request);
+			response = HttpRequest(rawResponse);			
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
 
@@ -324,8 +431,8 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 			if (_autoIndex) {
 				showDirectory(dir, response);
 			} else {
-				std::string file = readDefaultPages(request);
-				response.setBody(file);
+				std::string rawResponse = readDefaultPages(request);
+				response = HttpRequest(rawResponse);			
 			}
 
 		} else {
@@ -340,77 +447,11 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		response.makeError(HTTP_FORBIDDEN);
 	} catch (EntityTooLarge& e) {
 		response.makeError(HTTP_PAYLOAD_TOO_LARGE);
+	} catch (RecvException& e) {
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	}
 
 	sendRequest(response, clientFd);
-}
-
-
-
-//EXCEPTION
-
-const char*	VServ::SocketException::what() const throw() {
-	return ("Failed to create socket.");
-}
-
-const char*	VServ::SetSockOptException::what() const throw() {
-	return ("Failed to set socket opt.");
-}
-
-const char*	VServ::BindException::what() const throw() {
-	return ("Failed to bind socket.");
-}
-
-const char*	VServ::ListenException::what() const throw() {
-	return ("Failed to listen.");
-}
-
-const char*	VServ::AcceptException::what() const throw() {
-	return ("Failed accept connection on socket.");
-}
-
-const char*	VServ::RecvException::what() const throw() {
-	return ("Failed to read the request in the buffer.");
-}
-
-const char*	VServ::SendException::what() const throw() {
-	return ("Failed to send the request to the clientfd");
-}
-
-const char*	VServ::SendPartiallyException::what() const throw() {
-	return ("Failed to send entire request to the client");
-}
-
-const char*	VServ::ReadFileException::what() const throw() {
-	return ("Fail read the file");
-}
-
-const char*	VServ::FileNotExist::what() const throw() {
-	return ("Fail to get infos about the file");
-}
-
-const char*	VServ::OpenFileException::what() const throw() {
-	return ("Error to opening the root file");
-}
-
-const char*	VServ::OpenFolderException::what() const throw() {
-	return ("Error to opening the folder");
-}
-
-const char*	VServ::EntityTooLarge::what() const throw() {
-	return ("Error, the entity is too lage. Change client_max_body_size in config");
-}
-
-const char*	VServ::ExtensionNotFound::what() const throw() {
-	return ("Error, extension for the cgi is not found on request path");
-}
-
-const char*	VServ::PipeException::what() const throw() {
-	return ("Error, the pipe function make an excetion");
-}
-
-const char*	VServ::ForkException::what() const throw() {
-	return ("Error, the fork function make an exception");
 }
 
 std::ostream&	operator<<(std::ostream& os, const VServ& vs) {

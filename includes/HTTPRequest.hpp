@@ -49,7 +49,7 @@ class HttpRequest {
         std::string                         _body;
         std::string                         _rootPath;
 
-        std::map<std::string, std::string> _headers;
+        std::map<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
 
         //METHODS
@@ -67,6 +67,8 @@ class HttpRequest {
         std::string getHeader(const std::string &key) const;
         std::string getBody(void) const;
         std::string getRootPath(void) const;
+        std::string getRawHeaders(void) const;
+        std::map<std::string, std::string> getHeaders(void) const;
 
         //SETTERS
         void    setMethod(std::string &method);
@@ -82,6 +84,7 @@ class HttpRequest {
         void        initReasons(void);
         void        makeError(int httpCode);
         void        generateIndexFile(const std::vector<std::string>& fileNames);
+        void        log(void);
 
         //EXCETPIONS
         class	OpenFileException: public std::exception {

@@ -34,6 +34,20 @@ std::string HttpRequest::getHeader(const std::string& key) const
     return (it != this->_headers.end()) ? it->second : "";
 }
 
+std::string HttpRequest::getRawHeaders(void) const {
+    std::string fullHeaders;
+
+    for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); it != _headers.end(); it++) {
+        fullHeaders += (it->first + ": " + it->second + '\n'); 
+    }
+
+    return (fullHeaders);
+}
+
+std::map<std::string, std::string>  HttpRequest::getHeaders(void) const {
+    return (this->_headers);
+}
+
 std::string HttpRequest::getBody() const
 { 
     return this->_body;
@@ -64,9 +78,6 @@ void    HttpRequest::setHeaders(std::map<std::string, std::string> &headers) {
 
 void    HttpRequest::setBody(const std::string &body) {
     this->_body = body;
-    std::ostringstream oss;
-    oss << body.size() * sizeof(std::string::value_type);
-    _headers["Content-Length"] = oss.str();
 }
 
 void    HttpRequest::setRootPath(std::string &rootPath) {
@@ -96,31 +107,45 @@ void HttpRequest::initReasons(void) {
     _reasonPhrases[HTTP_SERVICE_UNAVAILABLE] = "Service Unavailable";
 }
 
+void    HttpRequest::log(void) {
+    std::string userAgent;
+
+    userAgent = getHeader("User-Agent");  
+    std::cout << '"' << this->_method << ' ' << this->_path << ' ' << this->_version << '"' << ' ';
+    if (!userAgent.empty())
+        std::cout << userAgent << std::endl;
+}
+
 void    HttpRequest::parse(const std::string &rawRequest)
 {
     std::istringstream stream(rawRequest);
     std::string line;
 
-    if (std::getline(stream, line)) {
+    std::getline(stream, line);
+    if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
         std::istringstream requestLine(line);
         requestLine >> _method >> _path >> _version;
     }
 
-    while (std::getline(stream, line) && line != "\r") {
-        size_t pos = line.find(": ");
-        if (pos != std::string::npos) {
-            std::string key = line.substr(0, pos);
-            std::string value = line.substr(pos + 2); // Skip ": "
-            if (!value.empty() && value[value.size() - 1] == '\r') {
-                value.erase(value.size() - 1);
+    if (!line.empty() && (line.find('\r') != std::string::npos)) {
+        while (std::getline(stream, line) && line != "\r") {
+            size_t pos = line.find(": ");
+            if (pos != std::string::npos) {
+                std::string key = line.substr(0, pos);
+                std::string value = line.substr(pos + 2); // Skip ": "
+                if (!value.empty() && value[value.size() - 1] == '\r') {
+                    value.erase(value.size() - 1);
+                }
+                _headers[key] = value;
             }
-            _headers[key] = value;
         }
     }
 
     while (std::getline(stream, line)) {
         _body += line + "\n";
     }
+
+    setDefaultsHeaders();
 }
 
 void    HttpRequest::makeError(int httpCode) {
@@ -174,12 +199,4 @@ void HttpRequest::setDefaultsHeaders(void) {
     this->setResponseCode(200);
     this->_headers.insert(std::pair<std::string, std::string>("Server", "TheWovenWebserver/0.0.1"));
     this->_headers.insert(std::pair<std::string, std::string>("Connection", "keep-alive"));
-    this->_headers.insert(std::pair<std::string, std::string>("Content-Type", "text/html; charset=UTF-8"));
-}
-
-//EXCEPTIONS
-
-
-const char*	HttpRequest::OpenFileException::what() const throw() {
-	return ("Error to opening the file");
 }
