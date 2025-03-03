@@ -1,49 +1,71 @@
-#ifndef WEBSERV_HPP
-# define WEBSERV_HPP
+#pragma once
 
 # include <sys/socket.h>
 # include <sys/epoll.h>
 # include <unistd.h>
 # include <signal.h>
 # include <iostream>
+# include <sstream>
 # include <exception>
 # include <vector>
 # include <map>
+# include <set>
+# include <algorithm>
+
 # include "Config.hpp"
 # include "VServ.hpp"
 
 class	WebServ {
 	private:
-		static int const		_maxClients = 1000; // defined in config file ?
-		static int const		_maxEvents = 1000; // defined in config file ?
-		Config			_config;	// parsed config file
+		int const						_maxClients; 
+		int const						_maxEvents;
+		Config							_config;	// parsed config file
 
-		int						_epollFd;
+		int								_epollFd;
+		epoll_event						_event;
+		std::vector<struct epoll_event> _epollEvents;
 
-		std::vector<int>		_serverFds;
-		std::size_t				_serverNbr;
-		std::map<int, VServ*>	_servers;
+		std::set<int>					_serverFds;
+		std::set<int>					_clientFds;
 
-		std::vector<int>		_clientFds;
+		std::size_t						_serverNbr;
+
+		std::map<int, VServ*>			_serversFdToServer;
+		std::map<int, VServ*>			_clientsFdToServer;
 
 	public:
 		WebServ();
-		WebServ(std::string filename);
+		WebServ(std::string filename, char **env);
 		WebServ(const WebServ& rhs);
 		WebServ&	operator=(const WebServ& rhs);
 		~WebServ();
 
-		void	setServerFd(int fd);
-		void	setServer(int fd, VServ* rhs);
-		void	setClientFd(int i, int fd);
+		//SETTERS
+		void	insertServerFd(int fd);
+		void	insertClientFd(int fd);
+		void	setServerToServerFd(int fd, VServ* rhs);
+		void	setServerToClientFd(int fd, VServ* rhs);
 
+		//GETTERS
+		VServ*	getRelatedServer(int fd);
 		int	getEpollFd() const;
-		int	getServerFd(int i) const;
-		VServ*	getServer(int fd);
-		int	getClientFd(int i) const;
+
+		std::set<int> getServersFd(void) const;
 		std::size_t	getServerNbr() const;
 
+		//METHODS
+		void	handleServerEvent(VServ* vserv);
+		void	handleClientEvent(int fd, VServ* vserv);
+		bool	fdIsServer(int fd);
+		bool	fdIsClient(int fd);
 		void	handleSignal(int signal);
+		void	listenEvents(void);
+		int		epollWait(void);
+		void	epollCtlAdd(int fd);
+		void	epollCtlDel(int fd);
+		void	deleteFd(int fd, std::set<int>& sets);
+		void	setEvent(uint32_t epoll_event, int fd);
+
 
 		// EXCEPTIONS
 		class	SIGINTException: public std::exception {
@@ -54,8 +76,22 @@ class	WebServ {
 			public:
 				const char*	what() const throw();
 		};
+		class	EpollWaitException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	EpollCtlAddException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	EpollCtlDelException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		class	UnknownFdException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
 };
 
 std::ostream&	operator<<(std::ostream& os, WebServ& ws);
-
-#endif

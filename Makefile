@@ -11,7 +11,7 @@ LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp \
 	parsing/Config_Exceptions.cpp  parsing/Config_parseLocation.cpp  parsing/Rules_getters.cpp
 
 LST_OBJS=$(LST_SRCS:.cpp=.o)
-LST_INCS=
+LST_INCS=Config.hpp HTTPRequest.hpp VServ.hpp WebServ.hpp
 
 SRCS=$(addprefix $(DIR_SRCS)/, $(LST_SRCS))
 OBJS=$(addprefix $(DIR_OBJS)/, $(LST_OBJS))
