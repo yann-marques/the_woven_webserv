@@ -2,11 +2,25 @@
 
 // VServ::VServ();
 
-VServ::VServ(VServConfig config, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients), _root("www") {
+Rules*	VServ::getTargetRules(std::string serverName, std::string location) {
+	Rules*	ptr = _rules[serverName];
+	// std::vector vec = split path '/'
+	// example: (louis.fr) /popo/tata/yoyo/lala/mumu/nini.html
+	// popo tata yoyo
+	for (size_t i = 0, n = vec.size(); i < n; i++) {
+		if (!ptr->_location.count(vec[i])) // location not found
+			// renvoyer la page d'erreur associee
+		else
+			ptr = ptr->_location[vec[i]];
+	}
+}
+
+VServ::VServ(int port, std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients), _root("www") {
 	// tmp
-	_port = config.getPort();
-	_host = config.getHost();
+	_port = port;
+//	_host = config.getHost();
 	// parse config ...
+	_rules = rules;
 	setAddress();
 	socketInit();
 	//
@@ -397,7 +411,9 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest request(rawRequest);
 	HttpRequest response;
-	struct stat path_stat;
+	struct stat path_stat;	
+
+	//setRules : appel a getTargetRules(request.getHost(), request.getPath());
 
 	request.log();
 

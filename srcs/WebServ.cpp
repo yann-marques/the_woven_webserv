@@ -30,6 +30,22 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		if (arg.find("--debug=yes") != arg.end())
 			this->_debug = true;
 
+		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
+		while (portIt != portIte) {
+			VServ*	server = new VServ(*portIt, _config.getParsedConfig().at(*portIt), maxClients, _argv, _envp);
+			//////
+			int	sfd = server->getFd();
+
+			insertServerFd(sfd);
+			setServerToServerFd(sfd, server);
+
+			// set the event for sfd then epoll ctl the server fd
+			setEvent(EPOLLIN, sfd);
+			epollCtlAdd(sfd);
+
+			portIt++;
+		}
+/*	
 		_serverNbr = _config.getServersNbr();
 		std::cout << "serverNbr = " << _serverNbr << std::endl;
 		for (size_t i = 0; i < _serverNbr; i++) { // c.serverConfig : container ? vector
@@ -43,7 +59,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 			setEvent(EPOLLIN, sfd);
 			epollCtlAdd(sfd);
 		}
-
+*/
 		_epollEvents.resize(_maxEvents);
 		listenEvents();
 

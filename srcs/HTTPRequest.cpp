@@ -7,6 +7,7 @@ HttpRequest::HttpRequest() {
 HttpRequest::HttpRequest(const std::string &rawRequest) {
     this->initReasons();
     this->parse(rawRequest);
+    // rules = NULL;
 } 
 
 HttpRequest::~HttpRequest(void) {};

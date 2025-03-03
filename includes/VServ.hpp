@@ -29,10 +29,14 @@ class	VServ {
 		const int					_maxClients; // defined in config file ?
 		// config
 		int							_port;
-		int							_host;
-		std::string					_root;
-		std::string 				_configLine;
-		std::vector<std::string>	_defaultPages;
+	//	int							_host;
+
+	//	std::string					_root;
+
+	//	std::vector<std::string>	_defaultPages;
+
+		std::map< std::string, Rules* >	_rules;
+
 		std::set<std::string>		_envp;
 		std::set<std::string>		_argv;
 		// ...
