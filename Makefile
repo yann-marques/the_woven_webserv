@@ -5,7 +5,11 @@ DIR_SRCS=srcs
 DIR_OBJS=objects
 DIR_INCS=includes
 
-LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp
+LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp \
+	parsing/Config_checkArgs.cpp   parsing/Config_getters.cpp        parsing/multimap_print.cpp \
+	parsing/Config.cpp             parsing/Config_makeRules.cpp      parsing/Rules.cpp \
+	parsing/Config_Exceptions.cpp  parsing/Config_parseLocation.cpp  parsing/Rules_getters.cpp
+
 LST_OBJS=$(LST_SRCS:.cpp=.o)
 LST_INCS=
 

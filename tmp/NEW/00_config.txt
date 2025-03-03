@@ -10,7 +10,9 @@ server {
   auto_index: false;
   allowed_methods: GET, POST;
   max_body_bytes: 2048;
-  cgi_path: /usr/local/cgi-bin/;
+  cgi_path {
+    .php: /usr/local/cgi-bin/;
+  }
   redirect: /new-location/;
   upload: /uploads/;
   location: /api, /admin {

@@ -13,7 +13,7 @@ server {
   redirect: /new-location/;
   upload: /uploads/;
   cgi_path {
-    .popo: path_to_popo;
+    .py: path_to_popo;
   }
 
   location: /api, /admin {
@@ -27,7 +27,7 @@ server {
       location: /toto {
         location: /titi {
           cgi_path {
-            .toto: path_to_toto;
+            .pl: path_to_toto;
           }
           location: /bla {
             auto_index: false;

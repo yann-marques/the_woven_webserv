@@ -1,0 +1,66 @@
+server {
+  port: 80;
+  server_names: site1.com, www.site1.com;
+  root: /var/www/site1/;
+  default_pages: index.html, home.html;
+  error_pages {
+    404: not_found.html;
+    500: internal_error.html;
+  }
+  auto_index: true;
+  allowed_methods: GET, POST, DELETE;
+  max_body_bytes: 4096;
+  cgi_path {
+    .php: /usr/bin/php-cgi;
+  }
+  redirect: /welcome/;
+  upload: /uploads/;
+  location: /admin {
+    root: /var/www/site1/admin/;
+    allowed_methods: GET, POST;
+  }
+}
+
+server {
+  port: 8080;
+  server_names: site2.com, www.site2.com;
+  root: /var/www/site2/;
+  default_pages: main.html;
+  error_pages {
+    403: forbidden.html;
+  }
+  auto_index: false;
+  allowed_methods: GET;
+  max_body_bytes: 2048;
+  cgi_path {
+    .py: /usr/bin/python3;
+  }
+  redirect: /home/;
+  upload: /files/;
+  location: /api {
+    root: /var/www/site2/api/;
+    allowed_methods: GET, DELETE;
+    location: /v2 {
+      root: /var/www/site2/api/v2/;
+      allowed_methods: GET;
+    }
+  }
+}
+
+server {
+  port: 80;
+  server_names: site3.com;
+  root: /var/www/site3/;
+  default_pages: landing.html;
+  error_pages {
+    404: missing.html;
+  }
+  auto_index: no;
+  allowed_methods: GET, POST;
+  max_body_bytes: 1024;
+  cgi_path {
+    .pl: /usr/bin/perl;
+  }
+  redirect: /start/;
+  upload: /data/;
+}
