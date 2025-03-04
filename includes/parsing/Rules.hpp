@@ -9,7 +9,7 @@
 # include <string>
 # include <cstddef>
 
-# include "Config.hpp"
+# include "parsing/Config.hpp"
 
 typedef std::multimap< std::string, std::string >::iterator t_multimap_it;
 typedef std::pair< t_multimap_it, t_multimap_it > t_range;
@@ -17,6 +17,8 @@ typedef std::pair< t_multimap_it, t_multimap_it > t_range;
 class	Rules: public Config {
 	private:
 		std::multimap<std::string, std::string >	_args;
+
+		std::string						_locationPath;
 
 		bool							_autoIndex;
 		size_t							_maxBodyBytes;
@@ -37,7 +39,7 @@ class	Rules: public Config {
 		std::map< std::string, Rules* >	_location;
 	public:
 		Rules();
-		Rules(std::multimap< std::string, std::string > args, const Rules& rhs);
+		Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath);
 		Rules(const Rules& rhs);
 		Rules&	operator=(const Rules& rhs);
 		Rules&	operator|=(const Rules& rhs);
@@ -54,6 +56,7 @@ class	Rules: public Config {
 
 		// GETTERS
 
+		const std::string&	getLocationPath() const;
 		const std::string&	getRoot() const;
 		const std::vector< std::string >&	getDefaultPages() const;
 		const std::set< int >&	getErrorKeys() const;

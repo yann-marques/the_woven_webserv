@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include "parsing/Config.hpp"
 
 const std::set< int >&	Config::getPorts() const {
 	return (_ports);

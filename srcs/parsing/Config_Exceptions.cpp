@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include "parsing/Config.hpp"
 
 const char*	Config::OpenFileException::what() const throw() {
 	return ("Cannot open file: ");

@@ -20,7 +20,7 @@
 # include <math.h>
 
 
-# include "Config.hpp"
+# include "parsing/Config.hpp"
 # include "HTTPRequest.hpp"
 
 
@@ -45,8 +45,9 @@ class	VServ {
 		bool						_debug;
 
 	public:
-		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
-		VServ(VServConfig config, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+//		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
+		VServ(): _maxClients(1024) {}
+		VServ(int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();
@@ -55,8 +56,8 @@ class	VServ {
 		void	setAddress();
 
 		// GETTERS
-		int	getPort() const;
-		int	getHost() const;
+//		int	getPort() const;
+//		int	getHost() const;
 		int	getFd() const;
 
 		// METHODS
@@ -146,5 +147,3 @@ class	VServ {
 				const char* what() const throw();
 		};
 };
-
-std::ostream&	operator<<(std::ostream& os, const VServ& vs);

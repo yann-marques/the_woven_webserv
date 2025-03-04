@@ -2,10 +2,10 @@
 
 int main(int argc, char **argv, char **envp) 
 {
-    (void) argc;
+    if (argc == 2) {
+        WebServ ws(argv[1], argv, envp);
+    }
 
-    WebServ ws("filename", argv, envp);
 
-    std::cout << ws;
     return (0);
 }

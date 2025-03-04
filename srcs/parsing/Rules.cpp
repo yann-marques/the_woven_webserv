@@ -1,6 +1,8 @@
-#include "Rules.hpp"
+#include "parsing/Rules.hpp"
 
 Rules::Rules() {
+//	_locationPath = "";
+
 	_autoIndex = true;
 	_maxBodyBytes = 1024;
 	_root = "www/default.html";
@@ -21,9 +23,10 @@ Rules::Rules() {
 */
 }
 
-Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs): Config() {
+Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): Config() {
 	_args = args;
 	setArgs(_args);
+	_locationPath = locationPath; // '/'
 	*this |= rhs;
 	if (args.count("location"))
 		setLocation(args.equal_range("location"));
@@ -100,7 +103,12 @@ void	Rules::setLocation(t_range range) {
 			return ;
 		for (size_t i = 0, n = _locationKeys.size(); i < n; i++) {
 			if (!_location.count(_locationKeys[i])) {
-				Rules*	rules = new Rules(args, *this);
+				std::string	newLocPath;
+				if (_locationPath == "/")
+					newLocPath = _locationKeys[i];
+				else
+					newLocPath = _locationPath + _locationKeys[i];
+				Rules*	rules = new Rules(args, *this, newLocPath);
 				_location[_locationKeys[i]] = rules;
 			}
 		}
@@ -204,6 +212,7 @@ void	Rules::printDeep(size_t i, std::string name) {
 	std::string	slashes(i * 8, '/');
 	std::string	tabs(i, '\t');
 	std::cout	<< slashes << " PRINTDEEP " << i << " : " << name << " " << this << std::endl
+				<< tabs << "locationPath:\t" << getLocationPath() << std::endl
 				<< tabs << "root:\t" << getRoot() << std::endl
 				<< tabs << "autoIndex:\t" << getAutoIndex() << std::endl
 				<< tabs << "maxBodyBytes:\t" << getMaxBodyBytes() << std::endl

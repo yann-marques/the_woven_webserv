@@ -30,14 +30,14 @@ class	Config {
 		std::map< int, std::map< std::string, Rules* > >	_parsedConfig;
 	public:
 		Config();
-		Config(char* fileName);
+		Config(const char* fileName);
 
 	//	Config(const Config& rhs);
 	//	Config&	operator=(const Config& rhs);
 
 		void	setArgsToFind();
 
-		std::string	extractFileContent(char* fileName);
+		std::string	extractFileContent(const char* fileName);
 		bool	bracketsAreClosed(std::string str);
 		size_t	endOfScopeIndex(std::string str, size_t pos);
 		std::vector< std::string >	splitLine(std::string fileContent, std::string sep);

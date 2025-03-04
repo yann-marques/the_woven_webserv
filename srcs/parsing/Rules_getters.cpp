@@ -1,4 +1,8 @@
-#include "Rules.hpp"
+#include "parsing/Rules.hpp"
+
+const std::string&	Rules::getLocationPath() const {
+	return (_locationPath);
+}
 
 const std::string&	Rules::getRoot() const {
 	return (_root);

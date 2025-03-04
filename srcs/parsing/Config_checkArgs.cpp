@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include "parsing/Config.hpp"
 
 void	Config::checkPortFormat(size_t count, t_range range) {
 	if (!count)
@@ -16,8 +16,6 @@ void	Config::checkPortFormat(size_t count, t_range range) {
 		throw Config::UnexpectedValueException(str);
 
 }
-
-void	Config::checkServerNames(size_t count, t_range )
 
 static void	deleteSemicolon(std::set< std::string > keys, std::multimap< std::string, std::string >& args) {
 	std::set< std::string >::iterator	setIt = keys.begin(), setIte = keys.end();

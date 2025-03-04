@@ -15,7 +15,7 @@
 # include <vector>
 # include <set>
 
-# include "Config.hpp"
+# include "parsing/Rules.hpp"
 # include "VServ.hpp"
 
 class	WebServ {
@@ -100,5 +100,3 @@ class	WebServ {
 				const char*	what() const throw();
 		};
 };
-
-std::ostream&	operator<<(std::ostream& os, WebServ& ws);

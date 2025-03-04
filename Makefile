@@ -5,10 +5,11 @@ DIR_SRCS=srcs
 DIR_OBJS=objects
 DIR_INCS=includes
 
-LST_SRCS=main.cpp Config.cpp WebServ.cpp VServ.cpp \
+LST_SRCS=main.cpp WebServ.cpp VServ.cpp HTTPRequest.cpp \
 	parsing/Config_checkArgs.cpp   parsing/Config_getters.cpp        parsing/multimap_print.cpp \
 	parsing/Config.cpp             parsing/Config_makeRules.cpp      parsing/Rules.cpp \
-	parsing/Config_Exceptions.cpp  parsing/Config_parseLocation.cpp  parsing/Rules_getters.cpp
+	parsing/Config_Exceptions.cpp  parsing/Config_parseLocation.cpp  parsing/Rules_getters.cpp \
+	exceptions/HTTPReqExceptions.cpp  exceptions/VServExceptions.cpp  exceptions/WebServExceptions.cpp
 
 LST_OBJS=$(LST_SRCS:.cpp=.o)
 LST_INCS=Config.hpp HTTPRequest.hpp VServ.hpp WebServ.hpp
@@ -20,6 +21,7 @@ INCS=$(addprefix $(DIR_INCS)/, $(LST_INCS))
 $(DIR_OBJS)/%.o: $(DIR_SRCS)/%.cpp
 	@mkdir -p $(DIR_OBJS)
 	@mkdir -p $(DIR_OBJS)/exceptions
+	@mkdir -p $(DIR_OBJS)/parsing
 	@$(CC) $(FLAGS) -I $(DIR_INCS) -c $< -o $@
 	@echo -n '.'
 

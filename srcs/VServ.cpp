@@ -1,7 +1,7 @@
 #include "VServ.hpp"
 
 // VServ::VServ();
-
+/*
 Rules*	VServ::getTargetRules(std::string serverName, std::string location) {
 	Rules*	ptr = _rules[serverName];
 	// std::vector vec = split path '/'
@@ -14,8 +14,8 @@ Rules*	VServ::getTargetRules(std::string serverName, std::string location) {
 			ptr = ptr->_location[vec[i]];
 	}
 }
-
-VServ::VServ(int port, std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients), _root("www") {
+*/
+VServ::VServ(int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
 	// tmp
 	_port = port;
 //	_host = config.getHost();
@@ -34,8 +34,8 @@ VServ::VServ(int port, std::map< std::string, Rules* >& rules, int maxClients, s
 // VServ::VServ(const VServ& rhs);
 
 VServ&	VServ::operator=(const VServ& rhs) {
-	_port = rhs.getPort();
-	_host = rhs.getHost();
+//	_port = rhs.getPort();
+//	_host = rhs.getHost();
 	_fd = rhs.getFd();
 	setAddress();
 //	std::cout << "address port = " << _address.sin_port << std::endl;
@@ -56,7 +56,7 @@ void	VServ::setAddress() {
 }
 
 // GETTERS
-
+/*
 int	VServ::getPort() const {
 	return (_port);
 }
@@ -64,7 +64,7 @@ int	VServ::getPort() const {
 int	VServ::getHost() const {
 	return (_host);
 }
-
+*/
 int	VServ::getFd() const {
 	return (_fd);
 }
@@ -120,10 +120,10 @@ std::string	VServ::makeRootPath(HttpRequest &request) {
 	if (!rqRootPath.empty())
 		return (rqRootPath);
 	if (rqPath != "/") {
-		return (_root + getPagePath(request));
+		return ("" + getPagePath(request)); /////
 	}
 	else
-		return(_root);
+		return(""); /////
 }
 
 
@@ -468,13 +468,4 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	}
 
 	sendRequest(response, clientFd);
-}
-
-std::ostream&	operator<<(std::ostream& os, const VServ& vs) {
-	os	<< "----------- VSERV -----------" << std::endl
-		<< "\tport:\t" << vs.getPort() << std::endl
-		<< "\thost:\t" << vs.getHost() << std::endl
-		<< "\tfd:\t" << vs.getFd() << std::endl;
-	// ...
-	return (os);
 }

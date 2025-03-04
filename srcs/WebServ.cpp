@@ -2,15 +2,17 @@
 
 // WebServ::WebServ() {} // private ?
 
-WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000), _config(filename) {
+WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) {
 //	signal(SIGINT, handleSignal); // in execution
 
 	try {
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
-			throw EpollCreateException();
-
+		throw EpollCreateException();
+	
+		_config = Config(filename.c_str());
+		
 		//parse envp and argv:
 		std::set<std::string> arg;
 		std::set<std::string> env;
@@ -32,7 +34,8 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 
 		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
 		while (portIt != portIte) {
-			VServ*	server = new VServ(*portIt, _config.getParsedConfig().at(*portIt), maxClients, _argv, _envp);
+			VServ*	server = new VServ(*portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+
 			//////
 			int	sfd = server->getFd();
 
@@ -78,6 +81,26 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 	} catch (VServ::BindException& e) {
 		std::cerr << e.what() << std::endl;
 	} catch (VServ::ListenException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::OpenFileException& e) {
+		std::cerr << e.what() << filename << std::endl;
+	} catch (Config::ArgOutsideServerScopeException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::UnclosedScopeException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::ConfigSyntaxException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::UnexpectedKeyException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::DoubleArgException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::MissingPortException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::MultiplePortsException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::UnexpectedValueException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Rules::RedefinedArgException& e) {
 		std::cerr << e.what() << std::endl;
 	}
 }
@@ -271,16 +294,4 @@ void	WebServ::listenEvents(void) {
 			// Je sais toujours pas a ce stade... demande trop de mana.
 		}
 	}
-}
-
-std::ostream&	operator<<(std::ostream& os, WebServ& ws) {
-	os	<< "////////// WEBSERV //////////" << std::endl
-		<< "\tepollFd = " << ws.getEpollFd() << std::endl;
-
-	std::set<int> serverFds = ws.getServersFd();
-
-	for (std::set<int>::iterator it = serverFds.begin(); it != serverFds.end(); ++it) {
-        os << *(ws.getRelatedServer(*it));
-    }
-	return (os);
 }

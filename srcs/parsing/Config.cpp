@@ -1,5 +1,5 @@
-#include "Config.hpp"
-#include "Rules.hpp"
+#include "parsing/Config.hpp"
+#include "parsing/Rules.hpp"
 
 Config::Config() {
 	setArgsToFind();
@@ -13,74 +13,53 @@ static bool	isInRange(std::string str, std::pair< std::multimap< int, std::strin
 	return (mmIt != mmIte);
 }
 
-Config::Config(char* fileName) {
-	try {
-		setArgsToFind();
+Config::Config(const char* fileName) {
+	setArgsToFind();
 
-		std::string	fileContent = extractFileContent(fileName);
-		if (!bracketsAreClosed(fileContent))
-			throw UnclosedScopeException();
+	std::string	fileContent = extractFileContent(fileName);
+	if (!bracketsAreClosed(fileContent))
+		throw UnclosedScopeException();
 
-		std::vector< std::string >	serverLines = splitLine(fileContent, "server");
-		for (size_t i = 0, n = serverLines.size(); i < n; i++) {
-			std::multimap< std::string, std::string >	args = parseServerLine(serverLines[i]);
-			checkPortFormat(args.count("port"), args.equal_range("port"));
-			if (!args.count("server_names"))
-				args.insert(std::make_pair("server_names", "localhost"));
-			checkArgsFormat(args);
-			int	port = std::atoi(args.equal_range("port").first->second.c_str());
-			args.erase("port");
+	std::vector< std::string >	serverLines = splitLine(fileContent, "server");
+	for (size_t i = 0, n = serverLines.size(); i < n; i++) {
+		std::multimap< std::string, std::string >	args = parseServerLine(serverLines[i]);
+		checkPortFormat(args.count("port"), args.equal_range("port"));
+		if (!args.count("server_names"))
+			args.insert(std::make_pair("server_names", "localhost"));
+		checkArgsFormat(args);
+		int	port = std::atoi(args.equal_range("port").first->second.c_str());
+		args.erase("port");
 
-			_ports.insert(port);
+		_ports.insert(port);
 
-			t_range	range = args.equal_range("server_names");
-			t_multimap_it	mit = range.first, mite = range.second;
-			std::map< std::string, Rules* >	toSet;
-			while (mit != mite) {
-				if (!isInRange(mit->second, _serverNames.equal_range(port))) //
-					_serverNames.insert(make_pair(port, mit->second));
-				mit++;
-			}
-			args.erase("server_names");
-
-			std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	serverNamesRange = _serverNames.equal_range(port);
-			std::multimap< int, std::string >::iterator	mmIt = serverNamesRange.first, mmIte = serverNamesRange.second;
-			while (mmIt != mmIte) {
-				if (!isInRange(mit->second, _serverNames.equal_range(port))) {
-					Rules	defaultRules;
-					Rules*	rules = new Rules(args, defaultRules);
-					toSet[mmIt->second] = rules;
-					if (!_parsedConfig.count(port))
-						_parsedConfig[port] = toSet;
-					else if (!_parsedConfig[port].count(mmIt->second))
-						_parsedConfig[port][mmIt->second] = toSet[mmIt->second];
-					else
-						delete rules;
-				}
-				mmIt++;
-			}
+		t_range	range = args.equal_range("server_names");
+		t_multimap_it	mit = range.first, mite = range.second;
+		std::map< std::string, Rules* >	toSet;
+		while (mit != mite) {
+			if (!isInRange(mit->second, _serverNames.equal_range(port))) //
+				_serverNames.insert(make_pair(port, mit->second));
+			mit++;
 		}
-	} catch (OpenFileException& e) {
-		std::cerr << e.what() << fileName << std::endl;
-	} catch (ArgOutsideServerScopeException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (UnclosedScopeException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (ConfigSyntaxException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (UnexpectedKeyException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (DoubleArgException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (MissingPortException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (MultiplePortsException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (UnexpectedValueException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Rules::RedefinedArgException& e) {
-		std::cerr << e.what() << std::endl;
-	}
+		args.erase("server_names");
+
+		std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	serverNamesRange = _serverNames.equal_range(port);
+		std::multimap< int, std::string >::iterator	mmIt = serverNamesRange.first, mmIte = serverNamesRange.second;
+		while (mmIt != mmIte) {
+			if (!isInRange(mit->second, _serverNames.equal_range(port))) {
+				Rules	defaultRules;
+				Rules*	rules = new Rules(args, defaultRules, "/");
+				rules->printDeep(0, mmIt->second); ///////
+				toSet[mmIt->second] = rules;
+				if (!_parsedConfig.count(port))
+					_parsedConfig[port] = toSet;
+				else if (!_parsedConfig[port].count(mmIt->second))
+					_parsedConfig[port][mmIt->second] = toSet[mmIt->second];
+				else
+					delete rules;
+			}
+			mmIt++;
+		}
+	} 
 	// catch in Webserv() ?
 }
 
@@ -99,7 +78,7 @@ void	Config::setArgsToFind() {
 	_argsToFind.insert("upload");
 }
 
-std::string	Config::extractFileContent(char* fileName) {
+std::string	Config::extractFileContent(const char* fileName) {
 	std::ifstream	ifs(fileName);
 	if (!ifs.is_open())
 		throw	OpenFileException();
