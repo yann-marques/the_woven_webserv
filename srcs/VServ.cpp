@@ -1,28 +1,26 @@
 #include "VServ.hpp"
 
 // VServ::VServ();
-
-Rules*	VServ::getTargetRules(HttpRequest &req) {
-	std::string serverName = req.getHeader("Host");
+/*
+Rules*	VServ::getTargetRules(std::string serverName, std::string location) {
 	Rules*	ptr = _rules[serverName];
 	// std::vector vec = split path '/'
 	// example: (louis.fr) /popo/tata/yoyo/lala/mumu/nini.html
 	// popo tata yoyo
 	for (size_t i = 0, n = vec.size(); i < n; i++) {
 		if (!ptr->_location.count(vec[i])) // location not found
-			break;
+			// renvoyer la page d'erreur associee
 		else
 			ptr = ptr->_location[vec[i]];
 	}
-	return (ptr);
 }
-
-
-VServ::VServ(int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
+*/
+VServ::VServ(int port, std::set< std::string > serverNames, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
 	// tmp
 	_port = port;
 //	_host = config.getHost();
 	// parse config ...
+	_serverNames = serverNames;
 	_rules = rules;
 	setAddress();
 	socketInit();
@@ -346,6 +344,8 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	env.push_back(NULL);
 	return (env);
 }
+
+
 
 std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 	int					parentToChild[2], childToParent[2];

@@ -2,6 +2,16 @@
 
 // WebServ::WebServ() {} // private ?
 
+static	std::set< std::string >	initServerNamesSet(std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator > range) {
+	std::set< std::string >	toSet;
+	std::multimap< int, std::string >::iterator	mmIt = range.first, mmIte = range.second;
+	while (mmIt != mmIte) {
+		toSet.insert(mmIt->second);
+		mmIt++;
+	}
+	return (toSet);
+}
+
 WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) {
 //	signal(SIGINT, handleSignal); // in execution
 
@@ -34,7 +44,9 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 
 		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
 		while (portIt != portIte) {
-			VServ*	server = new VServ(*portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+			std::multimap< int, std::string >	configSNames = _config.getServerNames();
+			std::set< std::string >	serverNames = initServerNamesSet(configSNames.equal_range(*portIt));
+			VServ*	server = new VServ(*portIt, serverNames, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
 
 			//////
 			int	sfd = server->getFd();
