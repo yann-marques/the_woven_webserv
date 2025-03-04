@@ -48,7 +48,7 @@ Config::Config(const char* fileName) {
 			if (!isInRange(mit->second, _serverNames.equal_range(port))) {
 				Rules	defaultRules;
 				Rules*	rules = new Rules(args, defaultRules, "/");
-				rules->printDeep(0, mmIt->second); ///////
+				//rules->printDeep(0, mmIt->second); ///////
 				toSet[mmIt->second] = rules;
 				if (!_parsedConfig.count(port))
 					_parsedConfig[port] = toSet;
