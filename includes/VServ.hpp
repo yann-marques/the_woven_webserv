@@ -76,6 +76,7 @@ class	VServ {
 		std::string			handleCGI(std::string &fileData, HttpRequest &request);
 		std::vector<char*>	makeEnvp(HttpRequest &request);
 		std::string			getPagePath(HttpRequest &request);
+		Rules*				getTargetRules(HttpRequest &req);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
