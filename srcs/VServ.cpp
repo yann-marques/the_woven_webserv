@@ -2,19 +2,37 @@
 
 // VServ::VServ();
 
-Rules*	VServ::getTargetRules(HttpRequest &req) {
-	std::string serverName = req.getHeader("Host");
+
+std::vector<std::string> split (const std::string &s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string item;
+
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
+    }
+
+    return result;
+}
+
+void	VServ::setTargetRules(HttpRequest &req) {
+	std::string serverName = split(req.getHeader("Host"), ':')[0];
+
+	//if (!_rules.count(serverName))
+		//return (NULL); // exeption
 	Rules*	ptr = _rules[serverName];
-	// std::vector vec = split path '/'
-	// example: (louis.fr) /popo/tata/yoyo/lala/mumu/nini.html
-	// popo tata yoyo
+
+	std::vector<std::string> vec = split(req.getPath(), '/');
 	for (size_t i = 0, n = vec.size(); i < n; i++) {
-		if (!ptr->_location.count(vec[i])) // location not found
-			break;
-		else
-			ptr = ptr->_location[vec[i]];
+		if (!vec[i].empty()) {
+			std::map<std::string, Rules *> locations = ptr->getLocation();
+			if (!locations.count("/" + vec[i])) //location not found
+				break;
+			else
+				ptr = locations["/" + vec[i]];
+		}
 	}
-	return (ptr);
+	req.setRules(ptr);
 }
 
 
@@ -118,15 +136,17 @@ int	VServ::clientAccept(void) {
 
 std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqRootPath = request.getRootPath();
-	std::string rqPath = request.getPath();
+	std::string locationPath = request.getRules()->getLocationPath();
+	std::string rqPath = request.getPath().substr(locationPath.size());
+
+	std::cout << "AFTER LOCATION PATH: " << rqPath << std::endl;
 
 	if (!rqRootPath.empty())
 		return (rqRootPath);
-	if (rqPath != "/") {
-		return ("" + getPagePath(request)); /////
-	}
+	if (rqPath == "/" || rqPath.empty())
+		return(request.getRules()->getRoot()); /////
 	else
-		return(""); /////
+		return (request.getRules()->getRoot() + rqPath); /////
 }
 
 
@@ -212,7 +232,7 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 }
 
 void	VServ::handleBigRequest(HttpRequest &request) {
-	size_t client_max_body_size = 20 * pow(10, 6);  //in bytes ~10Mo
+	size_t client_max_body_size = request.getRules()->getMaxBodyBytes();
 
 	std::string contentLengthStr = request.getHeader("Content-Length");
 	if (!contentLengthStr.empty()) {
@@ -229,13 +249,7 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 
 std::string	VServ::readDefaultPages(HttpRequest &request) 
 {
-
-	//IN CONFIG !
-	std::vector<std::string> defaultPages;
-	defaultPages.push_back("index");
-	defaultPages.push_back("index.html");
-	defaultPages.push_back("index.php");
-	//END IN CONFIG !
+	std::vector<std::string> defaultPages = request.getRules()->getDefaultPages();
 
 	std::string file;
 	for (std::vector<std::string>::iterator it = defaultPages.begin(); it != defaultPages.end(); it++) {
@@ -274,7 +288,7 @@ bool	VServ::fileIsCGI(HttpRequest &request) {
 	return (false);	
 }
 
-std::string VServ::getPagePath(HttpRequest &request) {
+/* std::string VServ::getPagePath(HttpRequest &request) {
 	std::size_t	startDelPos;
 	std::string	path;
 	std::vector<std::string> delimiters;
@@ -300,7 +314,7 @@ std::string VServ::getPagePath(HttpRequest &request) {
 		}
 	}
 	return (path);
-}
+} */
 
 std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	size_t startPos;
@@ -413,21 +427,19 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest request(rawRequest);
 	HttpRequest response;
 	struct stat path_stat;	
-
-	//setRules : appel a getTargetRules(request.getHost(), request.getPath());
-
-	request.log();
-
-	//DEFINE IN THE CONFIG
-	//...
-	bool _autoIndex = false;
-	//...
-	//END DEFINE IN CONFIG
-
+	
 	try {
+		
+		request.log();
+		setTargetRules(request);
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
+		request.getRules()->printDeep(0, "pipi");
+
+
+		std::cout << "ROOT-PATH: " << rootPath << std::endl;
+
 		if (_debug)
 			std::cout << rootPath << std::endl;
 
@@ -445,7 +457,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 			if (!dir)
 				throw OpenFolderException();
 
-			if (_autoIndex) {
+			if (request.getRules()->getAutoIndex()) {
 				showDirectory(dir, response);
 			} else {
 				std::string rawResponse = readDefaultPages(request);

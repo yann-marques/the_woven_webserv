@@ -9,6 +9,8 @@
 # include <sys/types.h>
 # include <fcntl.h>
 
+# include "parsing/Rules.hpp"
+
 //METHODS
 
 #define GET "GET"
@@ -48,9 +50,9 @@ class HttpRequest {
         int                                 _responseCode;
         std::string                         _body;
         std::string                         _rootPath;
-
         std::map<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
+        Rules*                              _rules;
 
         //METHODS
         void        parse(const std::string &rawRequest);
@@ -69,6 +71,7 @@ class HttpRequest {
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
         std::map<std::string, std::string> getHeaders(void) const;
+        Rules*      getRules(void) const; 
 
         //SETTERS
         void    setMethod(std::string &method);
@@ -77,6 +80,7 @@ class HttpRequest {
         void    setHeaders(std::map<std::string, std::string> &headers);
         void    setBody(const std::string &body);
         void    setRootPath(std::string &rootPath);
+        void    setRules(Rules* rules);
 
         //METHODS:
         std::string makeRawResponse(void);
