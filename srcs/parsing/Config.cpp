@@ -9,7 +9,6 @@ static bool	isInRange(std::string str, std::pair< std::multimap< int, std::strin
 	std::multimap< int, std::string >::iterator	mmIt = range.first, mmIte = range.second;
 	while (mmIt != mmIte && mmIt->second != str)
 		mmIt++;
-	std::cout << str << " is in range ? " << (mmIt != mmIte) << std::endl;
 	return (mmIt != mmIte);
 }
 
