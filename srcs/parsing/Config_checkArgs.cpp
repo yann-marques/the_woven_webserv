@@ -56,6 +56,7 @@ static void	checkErrorPages(t_range range) {
 }
 
 static bool	isValidExtension(std::string str) {
+	return true;
 	std::set< std::string >	extensionVec;
 	extensionVec.insert(".php");
 	extensionVec.insert(".py");

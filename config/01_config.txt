@@ -8,7 +8,7 @@ server {
     500: internal_error.html;
   }
   auto_index: false;
-  allowed_methods: GET, POST;
+  allowed_methods: POST;
   max_body_bytes: 2048;
   redirect: /new-location/;
   upload: /uploads/;

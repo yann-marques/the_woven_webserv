@@ -255,7 +255,7 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	} else
 		vserv->processRequest(rawRequest, clientFd);
 	
-	deleteFd(clientFd, _clientFds);
+	//deleteFd(clientFd, _clientFds);
 }
 
 void	WebServ::listenEvents(void) {

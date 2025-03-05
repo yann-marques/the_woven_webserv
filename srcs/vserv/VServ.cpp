@@ -385,6 +385,19 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 	return (result);
 }
 
+void	VServ::checkAllowedMethod(HttpRequest& request) {
+	std::string method = request.getMethod();
+	std::transform(method.begin(), method.end(), method.begin(), ::toupper);
+
+	std::vector<std::string> allowedMethods = request.getRules()->getAllowedMethods();
+	for (size_t i = 0, n = allowedMethods.size(); i < n; i++) {
+		std::transform(allowedMethods[i].begin(), allowedMethods[i].end(), allowedMethods[i].begin(), ::toupper);
+		if (allowedMethods[i] == method)
+			return ;
+	}
+	throw MethodNotAllowed();
+} 
+
 void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	HttpRequest request(rawRequest);
 	HttpRequest response;
@@ -394,6 +407,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		
 		request.log();
 		setTargetRules(request);
+		checkAllowedMethod(request);
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
@@ -441,6 +455,8 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (ExecveException& e) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
+	} catch (MethodNotAllowed& e) {
+		response.makeError(HTTP_METHOD_NOT_ALLOWED);
 	}
 
 	sendRequest(response, clientFd);

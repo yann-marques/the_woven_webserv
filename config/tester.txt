@@ -1,0 +1,34 @@
+server {
+  port: 8080;
+  server_names: localhost, example.com, www.example.com;
+  root: www/;
+  default_pages: index.html, home.html;
+
+  error_pages {
+    404: not_found.html;
+    500: internal_error.html;
+  }
+
+  auto_index: false;
+  allowed_methods: GET;
+  
+  cgi_path {
+    .bla: ~/Desktop/tester/cgi_tester;
+  }
+
+  location: /post_body {
+    allowed_methods: POST;
+    max_body_bytes: 100;
+  }
+
+  location: /directory {
+    allowed_methods: GET;
+    root: ~/Desktop/tester/YoupiBanane;
+    default_pages: youpi.bad_extension;
+  }
+
+  location: /put_test {
+    allowed_methods: PUT;
+    upload: www/uploads/;
+  }
+}

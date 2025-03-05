@@ -146,7 +146,7 @@ void    HttpRequest::parse(const std::string &rawRequest)
     if (!line.empty() && (line.find('\r') != std::string::npos)) {
         if (!line.empty() && (line.find("HTTP") != std::string::npos))
             std::getline(stream, line);
-        while (line != "\r") {
+        while (line != "\r" && !stream.eof()) {
             size_t pos = line.find(": ");
             if (pos != std::string::npos) {
                 std::string key = line.substr(0, pos);
@@ -165,8 +165,6 @@ void    HttpRequest::parse(const std::string &rawRequest)
     }
 
     setDefaultsHeaders();
-    std::cout << "\n" << getRawHeaders() << std::endl << std::endl;
-
 }
 
 void    HttpRequest::makeError(int httpCode) {

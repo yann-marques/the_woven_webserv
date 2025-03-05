@@ -77,6 +77,7 @@ class	VServ {
 		std::vector<char*>	makeEnvp(HttpRequest &request);
 		std::string			getPagePath(HttpRequest &request);
 		void				setTargetRules(HttpRequest &req);
+		void 				checkAllowedMethod(HttpRequest& request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -154,5 +155,9 @@ class	VServ {
 		class	InterpreterEmpty: public std::exception {
 			public:
 				const char* what() const throw();
-		};		
+		};
+		class	MethodNotAllowed: public std::exception {
+			public:
+				const char* what() const throw();
+		};	
 };

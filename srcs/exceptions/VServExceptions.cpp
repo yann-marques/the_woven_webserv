@@ -75,3 +75,7 @@ const char* VServ::ServerNameNotFound::what() const throw() {
 const char* VServ::InterpreterEmpty::what() const throw() {
 	return ("Interpreter is empty.");
 }
+
+const char* VServ::MethodNotAllowed::what() const throw() {
+	return ("The method is not allowed. Abort");
+}
