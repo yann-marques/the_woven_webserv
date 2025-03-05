@@ -20,7 +20,7 @@
 # include <math.h>
 
 
-# include "parsing/Config.hpp"
+# include "parsing/Rules.hpp"
 # include "HTTPRequest.hpp"
 
 
@@ -77,7 +77,7 @@ class	VServ {
 		std::string			handleCGI(std::string &fileData, HttpRequest &request);
 		std::vector<char*>	makeEnvp(HttpRequest &request);
 		std::string			getPagePath(HttpRequest &request);
-		Rules*				getTargetRules(HttpRequest &req);
+		void				setTargetRules(HttpRequest &req);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {

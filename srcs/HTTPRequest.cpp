@@ -58,6 +58,10 @@ std::string HttpRequest::getRootPath() const {
     return (this->_rootPath);
 }
 
+Rules*  HttpRequest::getRules() const {
+    return _rules;
+}
+
 
 //SETTERS
 
@@ -83,6 +87,10 @@ void    HttpRequest::setBody(const std::string &body) {
 
 void    HttpRequest::setRootPath(std::string &rootPath) {
     _rootPath = rootPath;
+}
+
+void    HttpRequest::setRules(Rules* rules) {
+    _rules = rules;
 }
 
 //METHODS
@@ -169,13 +177,14 @@ void    HttpRequest::makeError(int httpCode) {
 }
 
 void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {
-    std::string html = "<nav>\n  <ul>\n";
+    std::string html = "<html><nav>\n  <ul>\n";
     
     for (std::vector<std::string>::const_iterator it = fileNames.begin(); it != fileNames.end(); it++) {
         html += "    <li><a href=\"" + (*it) + "\">" + (*it) + "</a></li>\n";
     }
-    html += "  </ul>\n</nav>\n";
+    html += "  </ul>\n</nav></html>\n";
     setBody(html);
+    setDefaultsHeaders();
 }
 
 std::string HttpRequest::makeRawResponse(void) {

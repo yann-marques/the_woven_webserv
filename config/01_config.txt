@@ -1,7 +1,7 @@
 server {
   port: 8081;
-  server_names: example.com, www.example.com;
-  root: /var/www/html/;
+  server_names: localhost, example.com, www.example.com;
+  root: www/;
   default_pages: index.html, home.html;
   error_pages {
     404: not_found.html;
@@ -17,10 +17,13 @@ server {
   }
 
   location: /api, /admin {
+    root: www/api;
     cgi_path {
       .php: path_to_php;
       .py: path_to_py;
     }
+    max_body_bytes: 42;
+    auto_index: false;
     allowed_methods: GET, DELETE;
 
     location: /bloblo {
@@ -30,7 +33,8 @@ server {
             .pl: path_to_toto;
           }
           location: /bla {
-            auto_index: false;
+            root: www;
+            auto_index: true;
           }
         }
       }
