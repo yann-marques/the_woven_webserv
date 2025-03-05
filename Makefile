@@ -5,7 +5,7 @@ DIR_SRCS=srcs
 DIR_OBJS=objects
 DIR_INCS=includes
 
-LST_SRCS=main.cpp WebServ.cpp VServ.cpp HTTPRequest.cpp \
+LST_SRCS=main.cpp WebServ.cpp vserv/VServ.cpp http/HTTPRequest.cpp \
 	parsing/Config_checkArgs.cpp   parsing/Config_getters.cpp        parsing/multimap_print.cpp \
 	parsing/Config.cpp             parsing/Config_makeRules.cpp      parsing/Rules.cpp \
 	parsing/Config_Exceptions.cpp  parsing/Config_parseLocation.cpp  parsing/Rules_getters.cpp \
@@ -22,6 +22,8 @@ $(DIR_OBJS)/%.o: $(DIR_SRCS)/%.cpp
 	@mkdir -p $(DIR_OBJS)
 	@mkdir -p $(DIR_OBJS)/exceptions
 	@mkdir -p $(DIR_OBJS)/parsing
+	@mkdir -p $(DIR_OBJS)/vserv
+	@mkdir -p $(DIR_OBJS)/http
 	@$(CC) $(FLAGS) -I $(DIR_INCS) -c $< -o $@
 	@echo -n '.'
 

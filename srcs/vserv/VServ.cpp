@@ -18,8 +18,8 @@ std::vector<std::string> split (const std::string &s, char delim) {
 void	VServ::setTargetRules(HttpRequest &req) {
 	std::string serverName = split(req.getHeader("Host"), ':')[0];
 
-	//if (!_rules.count(serverName))
-		//return (NULL); // exeption
+	if (!_rules.count(serverName))
+		throw ServerNameNotFound();
 	Rules*	ptr = _rules[serverName];
 
 	std::vector<std::string> vec = split(req.getPath(), '/');
@@ -77,15 +77,7 @@ void	VServ::setAddress() {
 }
 
 // GETTERS
-/*
-int	VServ::getPort() const {
-	return (_port);
-}
 
-int	VServ::getHost() const {
-	return (_host);
-}
-*/
 int	VServ::getFd() const {
 	return (_fd);
 }
@@ -138,8 +130,6 @@ std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqRootPath = request.getRootPath();
 	std::string locationPath = request.getRules()->getLocationPath();
 	std::string rqPath = request.getPath().substr(locationPath.size());
-
-	std::cout << "AFTER LOCATION PATH: " << rqPath << std::endl;
 
 	if (!rqRootPath.empty())
 		return (rqRootPath);
@@ -281,50 +271,24 @@ bool	VServ::fileIsCGI(HttpRequest &request) {
 	std::istringstream stream(request.getPath());
 	std::string segment;
 
-	while (std::getline(stream, segment, '/')) {
-		if (segment.find(".php") != std::string::npos)
+	std::set<std::string> cgiPaths = request.getRules()->getCgiKeys();
+	while (std::getline(stream, segment, '.')) {
+		if (cgiPaths.find("." + segment) != cgiPaths.end())
+		{
+			request.setCgiExt("." + segment);
 			return (true);		
-	}
-	return (false);	
-}
-
-/* std::string VServ::getPagePath(HttpRequest &request) {
-	std::size_t	startDelPos;
-	std::string	path;
-	std::vector<std::string> delimiters;
-
-
-	//IN CONFIG
-	delimiters.push_back(".html");
-	delimiters.push_back(".php");
-	delimiters.push_back(".py");
-	delimiters.push_back(".pl");
-	delimiters.push_back("?");
-	delimiters.push_back("#");
-	//END IN CONFIG
-
-	path = request.getPath();
-	for (std::size_t i = 0, n = delimiters.size(); i < n; i++) {
-		std::string del = delimiters[i];
-		if ((startDelPos = path.find(del)) != std::string::npos) {
-			if (del == "?" || del == "#")
-				return (path.substr(0, startDelPos - del.size()));
-			else	
-				return (path.substr(0, startDelPos + del.size()));
 		}
 	}
-	return (path);
-} */
+	request.setCgiExt("");
+	return (false);	
+}
 
 std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	size_t startPos;
 	size_t endPos;
 	std::vector<char*> env;
 
-	//CONFIG
-	std::string ext = ".php";
-	//END CONFIG
-
+	std::string ext = request.getCgiExt();
 	std::string path = request.getPath();
 	if ((startPos = path.find(ext)) != std::string::npos) {
 		startPos += ext.size();
@@ -356,7 +320,6 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	
 	env.push_back(strdup(path_info.c_str()));
 	env.push_back(strdup(query_string.c_str()));
-
 	env.push_back(NULL);
 	return (env);
 }
@@ -368,8 +331,10 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 	std::string			result;
 	int 				status;
 
-	//TMP
-	std::string interpreter = "/usr/bin/php-cgi";
+	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
+	std::string interpreter = cgiPaths[request.getCgiExt()];
+	if (interpreter.empty())
+		throw InterpreterEmpty();
 
 	if (pipe(parentToChild) < 0 || pipe(childToParent) < 0)
 		throw PipeException();
@@ -396,9 +361,6 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 		};
 
 		env = makeEnvp(request);
-
-		for (std::vector<char *>::iterator it = env.begin(); it != env.end(); it++) { std::cerr << *it << std::endl; };
-
 		if (execve(interpreter.c_str(), argv, env.data()) < 0) {
 			throw ExecveException();
 		}
@@ -435,11 +397,6 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
-		request.getRules()->printDeep(0, "pipi");
-
-
-		std::cout << "ROOT-PATH: " << rootPath << std::endl;
-
 		if (_debug)
 			std::cout << rootPath << std::endl;
 
@@ -477,6 +434,12 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	} catch (EntityTooLarge& e) {
 		response.makeError(HTTP_PAYLOAD_TOO_LARGE);
 	} catch (RecvException& e) {
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
+	} catch (ServerNameNotFound& e) {
+		return ; //abort. send nothing
+	} catch (InterpreterEmpty& e) {
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
+	} catch (ExecveException& e) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	}
 

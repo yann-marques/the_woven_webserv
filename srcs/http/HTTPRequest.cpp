@@ -62,6 +62,9 @@ Rules*  HttpRequest::getRules() const {
     return _rules;
 }
 
+std::string HttpRequest::getCgiExt(void) const {
+    return _cgiExt;
+}
 
 //SETTERS
 
@@ -91,6 +94,10 @@ void    HttpRequest::setRootPath(std::string &rootPath) {
 
 void    HttpRequest::setRules(Rules* rules) {
     _rules = rules;
+}
+
+void    HttpRequest::setCgiExt(std::string ext) {
+    _cgiExt = ext;
 }
 
 //METHODS
@@ -137,7 +144,9 @@ void    HttpRequest::parse(const std::string &rawRequest)
     }
 
     if (!line.empty() && (line.find('\r') != std::string::npos)) {
-        while (std::getline(stream, line) && line != "\r") {
+        if (!line.empty() && (line.find("HTTP") != std::string::npos))
+            std::getline(stream, line);
+        while (line != "\r") {
             size_t pos = line.find(": ");
             if (pos != std::string::npos) {
                 std::string key = line.substr(0, pos);
@@ -147,6 +156,7 @@ void    HttpRequest::parse(const std::string &rawRequest)
                 }
                 _headers[key] = value;
             }
+            std::getline(stream, line);
         }
     }
 
@@ -155,6 +165,8 @@ void    HttpRequest::parse(const std::string &rawRequest)
     }
 
     setDefaultsHeaders();
+    std::cout << "\n" << getRawHeaders() << std::endl << std::endl;
+
 }
 
 void    HttpRequest::makeError(int httpCode) {

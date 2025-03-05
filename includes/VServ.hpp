@@ -147,4 +147,12 @@ class	VServ {
 			public:
 				const char* what() const throw();
 		};
+		class	ServerNameNotFound: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	InterpreterEmpty: public std::exception {
+			public:
+				const char* what() const throw();
+		};		
 };

@@ -1,5 +1,5 @@
 server {
-  port: 8081;
+  port: 8080;
   server_names: localhost, example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
@@ -13,6 +13,7 @@ server {
   redirect: /new-location/;
   upload: /uploads/;
   cgi_path {
+    .php: /usr/bin/php-cgi;
     .py: path_to_popo;
   }
 
