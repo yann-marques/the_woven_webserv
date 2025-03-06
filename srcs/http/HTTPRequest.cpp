@@ -4,9 +4,10 @@ HttpRequest::HttpRequest() {
     this->initReasons();
 }
 
-HttpRequest::HttpRequest(const std::string &rawRequest) {
+HttpRequest::HttpRequest(RequestDirection direction, std::string &rawRequest) {
+    _direction = direction;
     this->initReasons();
-    this->parse(rawRequest);
+    this->parseRequest(rawRequest);
     // rules = NULL;
 } 
 
@@ -132,30 +133,42 @@ void    HttpRequest::log(void) {
         std::cout << userAgent << std::endl;
 }
 
-void    HttpRequest::parse(const std::string &rawRequest)
+void    HttpRequest::parseRequest(const std::string &rawRequest)
 {
     std::istringstream stream(rawRequest);
     std::string line;
 
     std::getline(stream, line);
-    if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
-        std::istringstream requestLine(line);
-        requestLine >> _method >> _path >> _version;
+    if (_direction == HTTP_REQUEST) {
+        if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
+            std::istringstream requestLine(line);
+            requestLine >> _method >> _path >> _version;
+        }
+    
+        if (_method.empty() && _path.empty() && _version.empty()) {
+            std::cout << "Malformed header" << std::endl;
+            throw MalformedHttpHeader();
+        }
     }
+
 
     if (!line.empty() && (line.find('\r') != std::string::npos)) {
         if (!line.empty() && (line.find("HTTP") != std::string::npos))
             std::getline(stream, line);
-        while (line != "\r" && !stream.eof()) {
-            size_t pos = line.find(": ");
+        while (line != "\r") {
+            size_t pos = line.find(":");
             if (pos != std::string::npos) {
                 std::string key = line.substr(0, pos);
-                std::string value = line.substr(pos + 2); // Skip ": "
+                size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
+                std::cout << "jumpSize: " << jumpSize << " key:" << key << std::endl;
+                std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
                 if (!value.empty() && value[value.size() - 1] == '\r') {
                     value.erase(value.size() - 1);
                 }
                 _headers[key] = value;
             }
+            if (stream.eof())
+                break;
             std::getline(stream, line);
         }
     }
@@ -164,7 +177,8 @@ void    HttpRequest::parse(const std::string &rawRequest)
         _body += line + "\n";
     }
 
-    setDefaultsHeaders();
+    if (_direction == HTTP_RESPONSE)
+        setDefaultsHeaders();
 }
 
 void    HttpRequest::makeError(int httpCode) {

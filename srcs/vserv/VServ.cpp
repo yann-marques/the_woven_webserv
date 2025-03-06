@@ -16,7 +16,16 @@ std::vector<std::string> split (const std::string &s, char delim) {
 }
 
 void	VServ::setTargetRules(HttpRequest &req) {
-	std::string serverName = split(req.getHeader("Host"), ':')[0];
+	std::string httpHost = req.getHeader("Host");
+
+	//std::cout << req.getRawHeaders() << std::endl;
+	if (httpHost.empty()) {
+		std::cout << std::endl << "Host not found on http header." << std::endl;
+		httpHost = "localhost:";
+		//throw ServerNameNotFound();
+	}
+
+	std::string serverName = split(httpHost, ':')[0];
 
 	if (!_rules.count(serverName))
 		throw ServerNameNotFound();
@@ -122,7 +131,7 @@ int	VServ::clientAccept(void) {
 	if (clientFd == -1)
 		throw (AcceptException());
 	
-	std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
+	//std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
 	return (clientFd);
 }
 
@@ -185,7 +194,7 @@ std::string	VServ::readSocketFD(const int fd) {
     }
 
 	if (_debug)
-		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl;
+		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl << std::endl;
 
 	return std::string(buffer.begin(), buffer.end());
 }
@@ -399,13 +408,13 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 } 
 
 void	VServ::processRequest(std::string rawRequest, int clientFd) {
-	HttpRequest request(rawRequest);
-	HttpRequest response;
 	struct stat path_stat;	
+	HttpRequest response;
 	
 	try {
+		HttpRequest request(HTTP_REQUEST, rawRequest);
 		
-		request.log();
+		//request.log();
 		setTargetRules(request);
 		checkAllowedMethod(request);
 		handleBigRequest(request);
@@ -420,7 +429,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		if (S_ISREG(path_stat.st_mode)) {
 
 			std::string rawResponse = readRequest(request);
-			response = HttpRequest(rawResponse);			
+			response = HttpRequest(HTTP_RESPONSE, rawResponse);			
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
 
@@ -432,7 +441,8 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 				showDirectory(dir, response);
 			} else {
 				std::string rawResponse = readDefaultPages(request);
-				response = HttpRequest(rawResponse);			
+				std::cout << rawResponse << std::endl;
+				response = HttpRequest(HTTP_RESPONSE, rawResponse);	
 			}
 
 		} else {
@@ -457,6 +467,8 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (MethodNotAllowed& e) {
 		response.makeError(HTTP_METHOD_NOT_ALLOWED);
+	} catch (HttpRequest::MalformedHttpHeader& e) {
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	}
 
 	sendRequest(response, clientFd);

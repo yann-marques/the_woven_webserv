@@ -40,6 +40,10 @@
 #define HTTP_BAD_GATEWAY 502
 #define HTTP_SERVICE_UNAVAILABLE 503
 
+enum RequestDirection {
+    HTTP_REQUEST,
+    HTTP_RESPONSE
+};
 
 class HttpRequest {
     private:
@@ -54,13 +58,14 @@ class HttpRequest {
         std::map<int, std::string>          _reasonPhrases;
         Rules*                              _rules;
         std::string                         _cgiExt;
+        RequestDirection                    _direction;
 
         //METHODS
-        void        parse(const std::string &rawRequest);
+        void        parseRequest(const std::string &rawRequest);
 
     public:
         HttpRequest(void);
-        HttpRequest(const std::string &rawRequest);
+        HttpRequest(RequestDirection direction, std::string &rawRequest);
         ~HttpRequest(void);
 
         //GETTERS
@@ -95,6 +100,10 @@ class HttpRequest {
 
         //EXCETPIONS
         class	OpenFileException: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+        class	MalformedHttpHeader: public std::exception {
 			public:
 				const char*	what() const throw();
 		};

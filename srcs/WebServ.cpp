@@ -249,13 +249,33 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 		std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
 	std::string rawRequest = vserv->readSocketFD(clientFd);
+
+	/* std::cout << "***************" << std::endl;
+	std::cout << rawRequest.size() << std::endl;
+	for (size_t i = 0, n = rawRequest.size(); i < n; i++) {
+		// Check if the character is a special character
+		if (rawRequest[i] == '\n') {
+			std::cout << "\\n";
+		} else if (rawRequest[i] == '\t') {
+			std::cout << "\\t";
+		} else {
+			std::cout << rawRequest[i];
+		}
+	}
+
+	
+	std::cout << "***************" << std::endl;
+	std::cout << std::endl; */
+
+	//std::cout << std::endl << std::endl << rawRequest << std::endl << std::endl;
 	if (rawRequest.empty()) {
 		if (_debug)
 			std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
 	} else
 		vserv->processRequest(rawRequest, clientFd);
 	
-	//deleteFd(clientFd, _clientFds);
+	deleteFd(clientFd, _clientFds);
+
 }
 
 void	WebServ::listenEvents(void) {
