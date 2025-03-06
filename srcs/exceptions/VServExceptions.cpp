@@ -67,3 +67,15 @@ const char*	VServ::ForkException::what() const throw() {
 const char* VServ::ExecveException::what() const throw() {
 	return ("Execve error. Can't execute the binary cgi");
 }
+
+const char* VServ::ServerNameNotFound::what() const throw() {
+	return ("Server name not found in config. Abort.");
+}
+
+const char* VServ::InterpreterEmpty::what() const throw() {
+	return ("Interpreter is empty.");
+}
+
+const char* VServ::MethodNotAllowed::what() const throw() {
+	return ("The method is not allowed. Abort");
+}

@@ -1,6 +1,6 @@
 server {
-  port: 8081;
-  server_names: localhost, example.com, www.example.com;
+  port: 8080;
+  server_names: example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
   error_pages {
@@ -8,11 +8,12 @@ server {
     500: internal_error.html;
   }
   auto_index: false;
-  allowed_methods: GET, POST;
+  allowed_methods: POST;
   max_body_bytes: 2048;
   redirect: /new-location/;
   upload: /uploads/;
   cgi_path {
+    .php: /usr/bin/php-cgi;
     .py: path_to_popo;
   }
 
@@ -28,6 +29,7 @@ server {
 
     location: /bloblo {
       location: /toto {
+        root: blou/;
         location: /titi {
           cgi_path {
             .pl: path_to_toto;

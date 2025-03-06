@@ -5,6 +5,28 @@ Config::Config() {
 	setArgsToFind();
 }
 
+Config::Config(const Config& rhs) {
+	*this = rhs;
+}
+
+Config&	Config::operator=(const Config& rhs) {
+	setArgsToFind();
+	_ports = rhs.getPorts();
+	_serverNames = rhs.getServerNames();
+	for (std::set< int >::iterator portIt = _ports.begin(), portIte = _ports.end(); portIt != portIte; portIt++) {
+		int	port = *portIt;
+		std::pair< std::multimap< int, std::string >::iterator,
+			std::multimap< int, std::string >::iterator > range = _serverNames.equal_range(port);
+		for (std::multimap< int, std::string >::iterator mmIt = range.first, mmIte = range.second; mmIt != mmIte; mmIt++) {
+			std::string	serverName = mmIt->second;
+			_parsedConfig[port][serverName] = new Rules(*(rhs.getParsedConfig().at(port).at(serverName))); ///
+			// operator new ?
+		}
+	}
+//	_parsedConfig = rhs.getParsedConfig();
+	return (*this);
+}
+
 static bool	isInRange(std::string str, std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator > range) {
 	std::multimap< int, std::string >::iterator	mmIt = range.first, mmIte = range.second;
 	while (mmIt != mmIte && mmIt->second != str)
@@ -39,6 +61,9 @@ Config::Config(const char* fileName) {
 				_serverNames.insert(make_pair(port, mit->second));
 			mit++;
 		}
+		if (!isInRange("localhost", _serverNames.equal_range(port)))
+			_serverNames.insert(std::make_pair(port, "localhost"));
+
 		args.erase("server_names");
 
 		std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	serverNamesRange = _serverNames.equal_range(port);

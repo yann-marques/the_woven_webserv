@@ -1,5 +1,9 @@
 #include "parsing/Rules.hpp"
 
+const std::multimap< std::string, std::string >&	Rules::getArgs() const {
+	return (_args);
+}
+
 const std::string&	Rules::getLocationPath() const {
 	return (_locationPath);
 }

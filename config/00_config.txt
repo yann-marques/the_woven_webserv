@@ -16,7 +16,13 @@ server {
   redirect: /new-location/;
   upload: /uploads/;
   location: /api, /admin {
-    cgi_path: /usr/local/api-bin/;
+    location: /pipi {
+      cgi_path {
+      
+      }
+      root:toto/;
+    }
+    
     allowed_methods: GET, DELETE;
     error_pages {
       403: forbidden.html;

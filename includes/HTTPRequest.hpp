@@ -53,6 +53,7 @@ class HttpRequest {
         std::map<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
         Rules*                              _rules;
+        std::string                         _cgiExt;
 
         //METHODS
         void        parse(const std::string &rawRequest);
@@ -72,6 +73,7 @@ class HttpRequest {
         std::string getRawHeaders(void) const;
         std::map<std::string, std::string> getHeaders(void) const;
         Rules*      getRules(void) const; 
+        std::string getCgiExt(void) const;
 
         //SETTERS
         void    setMethod(std::string &method);
@@ -81,6 +83,7 @@ class HttpRequest {
         void    setBody(const std::string &body);
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
+        void    setCgiExt(std::string ext); 
 
         //METHODS:
         std::string makeRawResponse(void);

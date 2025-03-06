@@ -2,17 +2,7 @@
 
 // WebServ::WebServ() {} // private ?
 
-static	std::set< std::string >	initServerNamesSet(std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator > range) {
-	std::set< std::string >	toSet;
-	std::multimap< int, std::string >::iterator	mmIt = range.first, mmIte = range.second;
-	while (mmIt != mmIte) {
-		toSet.insert(mmIt->second);
-		mmIt++;
-	}
-	return (toSet);
-}
-
-WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) {
+WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
 //	signal(SIGINT, handleSignal); // in execution
 
 	try {
@@ -21,8 +11,9 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		if (_epollFd == -1)
 		throw EpollCreateException();
 	
-		//_config = Config(filename.c_str());
-		
+		_config = Config(filename.c_str());
+	//	std::cout << _config << std::endl;
+
 		//parse envp and argv:
 		std::set<std::string> arg;
 		std::set<std::string> env;
@@ -44,15 +35,14 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 
 		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
 		while (portIt != portIte) {
-			std::multimap< int, std::string >	configSNames = _config.getServerNames();
-			std::set< std::string >	serverNames = initServerNamesSet(configSNames.equal_range(*portIt));
-			VServ*	server = new VServ(*portIt, serverNames, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+			VServ*	server = new VServ(*portIt, _config.getServerNames().equal_range(*portIt),
+				_config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
 
 			//////
 			int	sfd = server->getFd();
 
 			insertServerFd(sfd);
-			setServerToServerFd(sfd, server);
+			setServerToServerFd(sfd, server); 
 
 			// set the event for sfd then epoll ctl the server fd
 			setEvent(EPOLLIN, sfd);
@@ -76,7 +66,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		}
 */
 		_epollEvents.resize(_maxEvents);
-		listenEvents();
+	//	listenEvents();
 
 	} catch (EpollCreateException& e) {
 		std::cerr << e.what() << std::endl;
@@ -113,6 +103,8 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 	} catch (Config::UnexpectedValueException& e) {
 		std::cerr << e.what() << std::endl;
 	} catch (Rules::RedefinedArgException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Rules::InvalidLocationKeyException& e) {
 		std::cerr << e.what() << std::endl;
 	}
 }
@@ -196,11 +188,6 @@ std::size_t	WebServ::getServerNbr() const {
 
 // METHODS
 
-void	WebServ::handleSignal(int signal) {
-	if (signal == SIGINT)
-		throw (SIGINTException());
-}
-
 int	WebServ::epollWait(void) {
 	int numEvents = epoll_wait(_epollFd, _epollEvents.data(), _maxEvents - 1, -1);
 	if (numEvents == -1)
@@ -267,7 +254,7 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	} else
 		vserv->processRequest(rawRequest, clientFd);
 	
-	deleteFd(clientFd, _clientFds);
+	//deleteFd(clientFd, _clientFds);
 }
 
 void	WebServ::listenEvents(void) {

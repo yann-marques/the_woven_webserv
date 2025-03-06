@@ -65,7 +65,6 @@ class	WebServ {
 		void	handleClientEvent(int fd, VServ* vserv);
 		bool	fdIsServer(int fd);
 		bool	fdIsClient(int fd);
-		void	handleSignal(int signal);
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd);

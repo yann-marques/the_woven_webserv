@@ -35,7 +35,7 @@ class	VServ {
 
 	//	std::vector<std::string>	_defaultPages;
 
-		std::set< std::string >		_serverNames;
+		std::set< std::string >		_rulesKeys;
 		std::map< std::string, Rules* >	_rules;
 
 		std::set<std::string>		_envp;
@@ -48,12 +48,14 @@ class	VServ {
 	public:
 //		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
 		VServ(): _maxClients(1024) {}
-		VServ(int port, std::set< std::string > serverNames, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+		VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
+			const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();
 
 		// SETTERS
+		void	setRulesKeys(std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator >& range);
 		void	setAddress();
 
 		// GETTERS
@@ -78,6 +80,7 @@ class	VServ {
 		std::vector<char*>	makeEnvp(HttpRequest &request);
 		std::string			getPagePath(HttpRequest &request);
 		void				setTargetRules(HttpRequest &req);
+		void 				checkAllowedMethod(HttpRequest& request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -148,4 +151,16 @@ class	VServ {
 			public:
 				const char* what() const throw();
 		};
+		class	ServerNameNotFound: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	InterpreterEmpty: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	MethodNotAllowed: public std::exception {
+			public:
+				const char* what() const throw();
+		};	
 };

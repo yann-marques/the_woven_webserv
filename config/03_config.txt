@@ -1,7 +1,7 @@
 server {
-  port: 80;
-  server_names: site1.com, www.site1.com;
-  root: /var/www/site1/;
+  port: 8080;
+  server_names: localhost, site1.com, www.site1.com;
+  root: www/;
   default_pages: index.html, home.html;
   error_pages {
     404: not_found.html;
@@ -48,7 +48,7 @@ server {
 }
 
 server {
-  port: 80;
+  port: 8080;
   server_names: site3.com;
   root: /var/www/site3/;
   default_pages: landing.html;

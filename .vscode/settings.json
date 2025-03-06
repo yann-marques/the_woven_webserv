@@ -1,6 +1,5 @@
 {
     "files.associations": {
-        "cstring": "cpp",
         "iosfwd": "cpp",
         "array": "cpp",
         "atomic": "cpp",
@@ -13,12 +12,12 @@
         "cmath": "cpp",
         "compare": "cpp",
         "concepts": "cpp",
-        "csignal": "cpp",
         "cstdarg": "cpp",
         "cstddef": "cpp",
         "cstdint": "cpp",
         "cstdio": "cpp",
         "cstdlib": "cpp",
+        "cstring": "cpp",
         "ctime": "cpp",
         "cwchar": "cpp",
         "cwctype": "cpp",
@@ -27,7 +26,6 @@
         "set": "cpp",
         "string": "cpp",
         "unordered_map": "cpp",
-        "unordered_set": "cpp",
         "vector": "cpp",
         "exception": "cpp",
         "algorithm": "cpp",

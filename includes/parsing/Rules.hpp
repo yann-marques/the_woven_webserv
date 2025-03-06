@@ -56,6 +56,7 @@ class	Rules: public Config {
 
 		// GETTERS
 
+		const std::multimap< std::string, std::string >&	getArgs() const;
 		const std::string&	getLocationPath() const;
 		const std::string&	getRoot() const;
 		const std::vector< std::string >&	getDefaultPages() const;
@@ -83,7 +84,13 @@ class	Rules: public Config {
 
 				const char*	what() const throw();
 		};
+		class	InvalidLocationKeyException: public StrException {
+			public:
+				InvalidLocationKeyException(std::string where);
+				~InvalidLocationKeyException() throw();
 
+				const char*	what() const throw();
+		};
 };
 
 #endif

@@ -32,8 +32,8 @@ class	Config {
 		Config();
 		Config(const char* fileName);
 
-	//	Config(const Config& rhs);
-	//	Config&	operator=(const Config& rhs);
+		Config(const Config& rhs);
+		Config&	operator=(const Config& rhs);
 
 		void	setArgsToFind();
 

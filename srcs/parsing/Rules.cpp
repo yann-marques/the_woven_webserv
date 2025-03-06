@@ -23,6 +23,34 @@ Rules::Rules() {
 */
 }
 
+Rules::Rules(const Rules& rhs) {
+	*this = rhs;
+}
+
+Rules&	Rules::operator=(const Rules& rhs) {
+	_args = rhs.getArgs();
+	_locationPath = rhs.getLocationPath();
+	_autoIndex = rhs.getAutoIndex();
+	_maxBodyBytes = rhs.getMaxBodyBytes();
+	_root = rhs.getRoot();
+	_redirect = rhs.getRedirect();
+	_upload = rhs.getUpload();
+	_defaultPages = rhs.getDefaultPages();
+	_allowedMethods = rhs.getAllowedMethods();
+	_errorKeys = rhs.getErrorKeys();
+	_errorPages = rhs.getErrorPages();
+	_cgiKeys = rhs.getCgiKeys();
+	_cgiPath = rhs.getCgiPath();
+
+	_locationKeys = rhs.getLocationKeys();
+	for (std::vector< std::string >::iterator it = _locationKeys.begin(), ite = _locationKeys.end(); it != ite; it++) {
+		std::string	key = *it;
+		_location[key] = new Rules(*(rhs.getLocation().at(key)));
+	}
+
+	return (*this);
+}
+
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): Config() {
 	_args = args;
 	setArgs(_args);
@@ -117,22 +145,38 @@ void	Rules::setLocation(t_range range) {
 	}
 }
 
+static bool	isValidLocationKey(std::string key) {
+	if (key[0] != '/')
+		return (false);
+	size_t	i = 1;
+	while (isalnum(key[i]))
+		i++;
+	return (!key[i]);
+}
+
 void	Rules::setLocationKey(std::string str) {
 	_locationKeys.push_back(str);
 }
 
 std::multimap< std::string, std::string >	Rules::parseLocationLine(std::string line) {
 	std::multimap< std::string, std::string >	args;
+	std::string	key;
 	size_t	pos = line.find(',');
 	while (pos != std::string::npos && pos < line.find('{')) {
-		setLocationKey(line.substr(0, pos));
+		key = line.substr(0, pos);
+		if (!isValidLocationKey(key))
+			throw (InvalidLocationKeyException(key));
+		setLocationKey(key);
 		pos++;
 		line.erase(0, pos);
 		pos = line.rfind(',');
 	}
 	pos = line.find('{');
 	if (pos != std::string::npos) {
-		setLocationKey(line.substr(0, pos));
+		key = line.substr(0, pos);
+		if (!isValidLocationKey(key))
+			throw (InvalidLocationKeyException(key));
+		setLocationKey(key);
 		pos++;
 		line.erase(0, pos);
 		pos = line.rfind('}');
@@ -279,5 +323,13 @@ Rules::RedefinedArgException::RedefinedArgException(std::string where): StrExcep
 Rules::RedefinedArgException::~RedefinedArgException() throw() {}
 
 const char*	Rules::RedefinedArgException::what() const throw() {
+	return (_str.c_str());
+}
+
+Rules::InvalidLocationKeyException::InvalidLocationKeyException(std::string where): StrException("Invalid location key: " + where + " (must be formated as: \"/<alnum>\")") {}
+
+Rules::InvalidLocationKeyException::~InvalidLocationKeyException() throw() {}
+
+const char*	Rules::InvalidLocationKeyException::what() const throw() {
 	return (_str.c_str());
 }
