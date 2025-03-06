@@ -2,7 +2,7 @@
 
 // WebServ::WebServ() {} // private ?
 
-WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000), _config(filename.c_str()) {
+WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
 //	signal(SIGINT, handleSignal); // in execution
 
 	try {
@@ -11,7 +11,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		if (_epollFd == -1)
 		throw EpollCreateException();
 	
-		//_config = Config(filename.c_str());
+		_config = Config(filename.c_str());
 		
 		//parse envp and argv:
 		std::set<std::string> arg;
@@ -34,7 +34,8 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 
 		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
 		while (portIt != portIte) {
-			VServ*	server = new VServ(*portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+			VServ*	server = new VServ(*portIt, _config.getServerNames().equal_range(*portIt),
+				_config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
 
 			//////
 			int	sfd = server->getFd();

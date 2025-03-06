@@ -29,6 +29,7 @@ server {
 
     location: /bloblo {
       location: /toto {
+        root: blou/;
         location: /titi {
           cgi_path {
             .pl: path_to_toto;

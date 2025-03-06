@@ -32,15 +32,25 @@ void	VServ::setTargetRules(HttpRequest &req) {
 				ptr = locations["/" + vec[i]];
 		}
 	}
+	ptr->printDeep(0, "current");
 	req.setRules(ptr);
 }
 
+void	VServ::setRulesKeys(std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator >& range) {
+	std::multimap< const int, std::string >::const_iterator	mmIt = range.first, mmIte = range.second;
+	while (mmIt != mmIte) {
+		_rulesKeys.insert(mmIt->second);
+		mmIt++;
+	}
+}
 
-VServ::VServ(int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
+VServ::VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
+	const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
 	// tmp
 	_port = port;
 //	_host = config.getHost();
 	// parse config ...
+	setRulesKeys(range);
 	_rules = rules;
 	setAddress();
 	socketInit();

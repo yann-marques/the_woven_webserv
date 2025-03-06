@@ -23,6 +23,34 @@ Rules::Rules() {
 */
 }
 
+Rules::Rules(const Rules& rhs) {
+	*this = rhs;
+}
+
+Rules&	Rules::operator=(const Rules& rhs) {
+	_args = rhs.getArgs();
+	_locationPath = rhs.getLocationPath();
+	_autoIndex = rhs.getAutoIndex();
+	_maxBodyBytes = rhs.getMaxBodyBytes();
+	_root = rhs.getRoot();
+	_redirect = rhs.getRedirect();
+	_upload = rhs.getUpload();
+	_defaultPages = rhs.getDefaultPages();
+	_allowedMethods = rhs.getAllowedMethods();
+	_errorKeys = rhs.getErrorKeys();
+	_errorPages = rhs.getErrorPages();
+	_cgiKeys = rhs.getCgiKeys();
+	_cgiPath = rhs.getCgiPath();
+
+	_locationKeys = rhs.getLocationKeys();
+	for (std::vector< std::string >::iterator it = _locationKeys.begin(), ite = _locationKeys.end(); it != ite; it++) {
+		std::string	key = *it;
+		_location[key] = new Rules(*(rhs.getLocation().at(key)));
+	}
+
+	return (*this);
+}
+
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): Config() {
 	_args = args;
 	setArgs(_args);
