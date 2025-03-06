@@ -12,7 +12,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		throw EpollCreateException();
 	
 		_config = Config(filename.c_str());
-		std::cout << _config << std::endl;
+	//	std::cout << _config << std::endl;
 
 		//parse envp and argv:
 		std::set<std::string> arg;
@@ -42,7 +42,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 			int	sfd = server->getFd();
 
 			insertServerFd(sfd);
-			setServerToServerFd(sfd, server);
+			setServerToServerFd(sfd, server); 
 
 			// set the event for sfd then epoll ctl the server fd
 			setEvent(EPOLLIN, sfd);
@@ -66,7 +66,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		}
 */
 		_epollEvents.resize(_maxEvents);
-		listenEvents();
+	//	listenEvents();
 
 	} catch (EpollCreateException& e) {
 		std::cerr << e.what() << std::endl;
@@ -187,11 +187,6 @@ std::size_t	WebServ::getServerNbr() const {
 }
 
 // METHODS
-
-void	WebServ::handleSignal(int signal) {
-	if (signal == SIGINT)
-		throw (SIGINTException());
-}
 
 int	WebServ::epollWait(void) {
 	int numEvents = epoll_wait(_epollFd, _epollEvents.data(), _maxEvents - 1, -1);
