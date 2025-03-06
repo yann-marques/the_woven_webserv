@@ -17,6 +17,9 @@ server {
   upload: /uploads/;
   location: /api, /admin {
     location: /pipi {
+      cgi_path {
+      
+      }
       root:toto/;
     }
     

@@ -61,6 +61,9 @@ Config::Config(const char* fileName) {
 				_serverNames.insert(make_pair(port, mit->second));
 			mit++;
 		}
+		if (!isInRange("localhost", _serverNames.equal_range(port)))
+			_serverNames.insert(std::make_pair(port, "localhost"));
+
 		args.erase("server_names");
 
 		std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	serverNamesRange = _serverNames.equal_range(port);

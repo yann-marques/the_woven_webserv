@@ -32,7 +32,7 @@ void	VServ::setTargetRules(HttpRequest &req) {
 				ptr = locations["/" + vec[i]];
 		}
 	}
-	ptr->printDeep(0, "current");
+//	ptr->printDeep(0, "current");
 	req.setRules(ptr);
 }
 
@@ -42,6 +42,7 @@ void	VServ::setRulesKeys(std::pair< std::multimap< const int, std::string >::con
 		_rulesKeys.insert(mmIt->second);
 		mmIt++;
 	}
+//	_rulesKeys.insert("localhost");
 }
 
 VServ::VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
@@ -52,6 +53,7 @@ VServ::VServ(int port, std::pair< std::multimap< const int, std::string >::const
 	// parse config ...
 	setRulesKeys(range);
 	_rules = rules;
+//	_rules["localhost"] = 
 	setAddress();
 	socketInit();
 	//

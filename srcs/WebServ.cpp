@@ -12,7 +12,8 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		throw EpollCreateException();
 	
 		_config = Config(filename.c_str());
-		
+		std::cout << _config << std::endl;
+
 		//parse envp and argv:
 		std::set<std::string> arg;
 		std::set<std::string> env;
