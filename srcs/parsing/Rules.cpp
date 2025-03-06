@@ -145,22 +145,38 @@ void	Rules::setLocation(t_range range) {
 	}
 }
 
+static bool	isValidLocationKey(std::string key) {
+	if (key[0] != '/')
+		return (false);
+	size_t	i = 1;
+	while (isalnum(key[i]))
+		i++;
+	return (!key[i]);
+}
+
 void	Rules::setLocationKey(std::string str) {
 	_locationKeys.push_back(str);
 }
 
 std::multimap< std::string, std::string >	Rules::parseLocationLine(std::string line) {
 	std::multimap< std::string, std::string >	args;
+	std::string	key;
 	size_t	pos = line.find(',');
 	while (pos != std::string::npos && pos < line.find('{')) {
-		setLocationKey(line.substr(0, pos));
+		key = line.substr(0, pos);
+		if (!isValidLocationKey(key))
+			throw (InvalidLocationKeyException(key));
+		setLocationKey(key);
 		pos++;
 		line.erase(0, pos);
 		pos = line.rfind(',');
 	}
 	pos = line.find('{');
 	if (pos != std::string::npos) {
-		setLocationKey(line.substr(0, pos));
+		key = line.substr(0, pos);
+		if (!isValidLocationKey(key))
+			throw (InvalidLocationKeyException(key));
+		setLocationKey(key);
 		pos++;
 		line.erase(0, pos);
 		pos = line.rfind('}');
@@ -307,5 +323,13 @@ Rules::RedefinedArgException::RedefinedArgException(std::string where): StrExcep
 Rules::RedefinedArgException::~RedefinedArgException() throw() {}
 
 const char*	Rules::RedefinedArgException::what() const throw() {
+	return (_str.c_str());
+}
+
+Rules::InvalidLocationKeyException::InvalidLocationKeyException(std::string where): StrException("Invalid location key: " + where + " (must be formated as: \"/<alnum>\")") {}
+
+Rules::InvalidLocationKeyException::~InvalidLocationKeyException() throw() {}
+
+const char*	Rules::InvalidLocationKeyException::what() const throw() {
 	return (_str.c_str());
 }

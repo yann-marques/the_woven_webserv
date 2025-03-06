@@ -84,7 +84,13 @@ class	Rules: public Config {
 
 				const char*	what() const throw();
 		};
+		class	InvalidLocationKeyException: public StrException {
+			public:
+				InvalidLocationKeyException(std::string where);
+				~InvalidLocationKeyException() throw();
 
+				const char*	what() const throw();
+		};
 };
 
 #endif

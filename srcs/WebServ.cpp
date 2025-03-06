@@ -103,6 +103,8 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		std::cerr << e.what() << std::endl;
 	} catch (Rules::RedefinedArgException& e) {
 		std::cerr << e.what() << std::endl;
+	} catch (Rules::InvalidLocationKeyException& e) {
+		std::cerr << e.what() << std::endl;
 	}
 }
 
