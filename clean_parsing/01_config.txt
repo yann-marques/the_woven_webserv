@@ -1,0 +1,49 @@
+server {
+  port: 8080;
+  server_names: example.com, www.example.com;
+  root: www/;
+  default_pages: index.html, home.html;
+  error_pages {
+    404: not_found.html;
+    500: internal_error.html;
+  }
+  auto_index: false;
+  allowed_methods: POST;
+  max_body_bytes: 2048;
+  redirect: /new-location/;
+  upload: /uploads/;
+  cgi_path {
+    .php: /usr/bin/php-cgi;
+    .py: path_to_popo;
+  }
+
+  location: /api, /admin {
+    root: www/api;
+    cgi_path {
+      .php: path_to_php;
+      .py: path_to_py;
+    }
+    max_body_bytes: 42;
+    auto_index: false;
+    allowed_methods: GET, DELETE;
+
+    location: /bloblo {
+      location: /toto {
+        root: blou/;
+        location: /titi {
+          cgi_path {
+            .pl: path_to_toto;
+          }
+          location: /bla {
+            root: www;
+            auto_index: true;
+          }
+        }
+      }
+    }
+
+    error_pages {
+      403: forbidden.html;
+    }
+  }
+}
