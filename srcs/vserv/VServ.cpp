@@ -81,7 +81,7 @@ VServ::~VServ() {
 
 void	VServ::setAddress() {
 	_address.sin_family = AF_INET;
-	_address.sin_addr.s_addr = INADDR_ANY;
+	_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	_address.sin_port = htons(_port);
 }
 
@@ -97,7 +97,7 @@ void	VServ::socketInit() {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fd == -1)
 		throw (SocketException());
-	fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
+	//fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
 
 	int opt = 1;
 	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
@@ -128,7 +128,7 @@ int	VServ::clientAccept(void) {
 	sockaddr_in clientAddress;
 	socklen_t clientAddressLength = sizeof(clientAddress);
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
-	if (clientFd == -1)
+	if (clientFd < 0)
 		throw (AcceptException());
 	
 	//std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
@@ -179,14 +179,40 @@ std::string VServ::readRequest(HttpRequest &request) {
 }
 
 
-std::string	VServ::readSocketFD(const int fd) {
+#include <iomanip>
+
+
+void print_buffer_as_hex(const char* buffer, int length) {
+    std::cout << "Buffer as hex: " << std::endl;
+    for (int i = 0; i < length; ++i) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)(unsigned char)buffer[i] << " ";
+    }
+    std::cout << std::dec << std::endl;
+}
+
+
+std::string	VServ::readSocketFD(int fd) {
 	std::vector<char> buffer;
 	ssize_t bytesRead;
 	char tempBuffer[4096];
+	
 
-	while ((bytesRead = recv(fd, tempBuffer, sizeof(tempBuffer), MSG_DONTWAIT)) > 0) {
+	bytesRead = read(fd, tempBuffer, 4096);
+
+	tempBuffer[bytesRead] = '\0';
+	std::cout << tempBuffer << std::endl;
+
+	print_buffer_as_hex(tempBuffer, bytesRead);
+
+
+	/* while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
+		print_buffer_as_hex(tempBuffer, bytesRead);
+		std::cout << bytesRead << std::endl;
+		std::cout << tempBuffer << std::endl;
 		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
-	}
+	} */
+
 
 	if (bytesRead < 0 && buffer.empty()) {
 	    close(fd);
@@ -441,7 +467,6 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 				showDirectory(dir, response);
 			} else {
 				std::string rawResponse = readDefaultPages(request);
-				std::cout << rawResponse << std::endl;
 				response = HttpRequest(HTTP_RESPONSE, rawResponse);	
 			}
 
@@ -468,7 +493,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	} catch (MethodNotAllowed& e) {
 		response.makeError(HTTP_METHOD_NOT_ALLOWED);
 	} catch (HttpRequest::MalformedHttpHeader& e) {
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
+		response.makeError(HTTP_BAD_REQUEST);
 	}
 
 	sendRequest(response, clientFd);

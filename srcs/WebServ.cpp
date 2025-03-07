@@ -9,7 +9,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
-		throw EpollCreateException();
+			throw EpollCreateException();
 	
 		//_config = Config(filename.c_str());
 		
@@ -190,7 +190,7 @@ void	WebServ::handleSignal(int signal) {
 }
 
 int	WebServ::epollWait(void) {
-	int numEvents = epoll_wait(_epollFd, _epollEvents.data(), _maxEvents - 1, -1);
+	int numEvents = epoll_wait(_epollFd, _epollEvents.data(), _maxEvents, -1);
 	if (numEvents == -1)
 		throw (EpollWaitException());
 	return (numEvents);
@@ -233,9 +233,13 @@ void	WebServ::deleteFd(int fd, std::set<int>& sets) {
 
 void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
-	fcntl(clientFd, F_SETFL, O_NONBLOCK);
+
+	int flags = fcntl(clientFd, F_GETFL, 0);
+	fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+
 	insertClientFd(clientFd);
 	setServerToClientFd(clientFd, vserv);
+
 	setEvent(EPOLLIN | EPOLLET, clientFd);
 	epollCtlAdd(clientFd);
 
@@ -250,32 +254,17 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	
 	std::string rawRequest = vserv->readSocketFD(clientFd);
 
-	/* std::cout << "***************" << std::endl;
-	std::cout << rawRequest.size() << std::endl;
-	for (size_t i = 0, n = rawRequest.size(); i < n; i++) {
-		// Check if the character is a special character
-		if (rawRequest[i] == '\n') {
-			std::cout << "\\n";
-		} else if (rawRequest[i] == '\t') {
-			std::cout << "\\t";
-		} else {
-			std::cout << rawRequest[i];
-		}
-	}
-
+	std::cout << "{" << rawRequest << "}" << std::endl;
 	
-	std::cout << "***************" << std::endl;
-	std::cout << std::endl; */
-
-	//std::cout << std::endl << std::endl << rawRequest << std::endl << std::endl;
 	if (rawRequest.empty()) {
+		std::cout << "rawRequest empty" << std::endl;
 		if (_debug)
-			std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
+		std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
 	} else
 		vserv->processRequest(rawRequest, clientFd);
 	
+	
 	deleteFd(clientFd, _clientFds);
-
 }
 
 void	WebServ::listenEvents(void) {
@@ -291,8 +280,10 @@ void	WebServ::listenEvents(void) {
 					throw UnknownFdException();
 
 				if (fdIsServer(fd)) {
+					std::cout << "Event server" << std::endl;
 					handleServerEvent(vserv);
 				} else if (fdIsClient(fd)) {
+					std::cout << "Event client" << std::endl;
 					handleClientEvent(fd, vserv);
 				} else {
 					throw UnknownFdException(); 
@@ -303,14 +294,18 @@ void	WebServ::listenEvents(void) {
 			std::cerr << "Fatal error: Unknown FD problem.";
 			break;
 		} catch (VServ::AcceptException& e) {
+			std::cout << "AcceptException" << std::endl;
 			//break; ? On stop le VServ ?
 			//deleteFd(fd, _serverFds);
 		} catch (VServ::RecvException& e) {
+			std::cout << "RecvException" << std::endl;
 			//break; ? On stop le VServ ?
 			//deleteFd(fd, _serverFds);
 		} catch (VServ::SendPartiallyException& e) {
+			std::cout << "SendPartiallyException" << std::endl;
 			// Je sais pas trop... c'est dur
 		} catch (VServ::SendException& e) {
+			std::cout << "SendException" << std::endl;
 			// Je sais toujours pas a ce stade... demande trop de mana.
 		}
 	}

@@ -63,7 +63,7 @@ class	VServ {
 		// METHODS
 		void				socketInit();
 		int					clientAccept(void);
-		std::string 		readSocketFD(const int fd);
+		std::string 		readSocketFD(int fd);
 		std::string 		readFile(int fd);
 		void				processRequest(std::string rawRequest, int clientFd);
 		void 				sendRequest(HttpRequest &request, int clientFd);

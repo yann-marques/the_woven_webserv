@@ -140,6 +140,7 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
 
     std::getline(stream, line);
     if (_direction == HTTP_REQUEST) {
+        std::cout << "[" << rawRequest << "]" << std::endl;
         if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
             std::istringstream requestLine(line);
             requestLine >> _method >> _path >> _version;
@@ -160,8 +161,8 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
             if (pos != std::string::npos) {
                 std::string key = line.substr(0, pos);
                 size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
-                std::cout << "jumpSize: " << jumpSize << " key:" << key << std::endl;
                 std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
+                std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
                 if (!value.empty() && value[value.size() - 1] == '\r') {
                     value.erase(value.size() - 1);
                 }
