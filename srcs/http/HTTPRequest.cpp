@@ -139,8 +139,9 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     std::string line;
 
     std::getline(stream, line);
+
     if (_direction == HTTP_REQUEST) {
-        std::cout << "[" << rawRequest << "]" << std::endl;
+        std::cout << "Http status line: " << line << std::endl;
         if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
             std::istringstream requestLine(line);
             requestLine >> _method >> _path >> _version;
@@ -152,7 +153,6 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
         }
     }
 
-
     if (!line.empty() && (line.find('\r') != std::string::npos)) {
         if (!line.empty() && (line.find("HTTP") != std::string::npos))
             std::getline(stream, line);
@@ -162,7 +162,7 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
                 std::string key = line.substr(0, pos);
                 size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
                 std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
-                std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
+                //std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
                 if (!value.empty() && value[value.size() - 1] == '\r') {
                     value.erase(value.size() - 1);
                 }
@@ -212,6 +212,7 @@ void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames
     setDefaultsHeaders();
 }
 
+//Called before the request is send. This is the last step before sending to the client.
 std::string HttpRequest::makeRawResponse(void) {
     std::ostringstream rawResponse;
 
@@ -224,7 +225,9 @@ std::string HttpRequest::makeRawResponse(void) {
 
     rawResponse << "Content-Length: " << _body.size() << "\r\n";
     rawResponse << "\r\n"; // End of headers
-    rawResponse << _body;
+    
+    if (_method != "HEAD") //no body for head reponse
+        rawResponse << _body;
 
     return rawResponse.str();
 }

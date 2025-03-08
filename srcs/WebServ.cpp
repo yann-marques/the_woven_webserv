@@ -252,17 +252,21 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	
 	std::string rawRequest = vserv->readSocketFD(clientFd);
 
-	std::cout << "{" << rawRequest << "}" << std::endl;
-	
-	if (rawRequest.empty()) {
+	/*if (rawRequest.empty()) {
 		std::cout << "rawRequest empty" << std::endl;
 		if (_debug)
-		std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
-	} else
+			std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
+		deleteFd(clientFd, _clientFds);
+	} */
+
+
+	if (!rawRequest.empty()) {
+		std::cout << "Request finish" << std::endl;
+		if (_debug)
+			std::cout << "REQUEST ------" << std::endl << rawRequest << std::endl;
 		vserv->processRequest(rawRequest, clientFd);
-	
-	
-	//deleteFd(clientFd, _clientFds);
+	}	
+		
 }
 
 
@@ -277,10 +281,8 @@ void	WebServ::listenEvents(void) {
 					throw UnknownFdException();
 
 				if (fdIsServer(fd)) {
-					std::cout << "Event server" << std::endl;
 					handleServerEvent(vserv);
 				} else {
-					std::cout << "Event client" << std::endl;
 					handleClientEvent(fd, vserv);
 				}
 				

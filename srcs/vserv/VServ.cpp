@@ -178,41 +178,56 @@ std::string VServ::readRequest(HttpRequest &request) {
     return (fileData);
 }
 
+bool isHttpRequestComplete(const std::string &rawRequest) {
 
-#include <iomanip>
+	size_t headerEnd = rawRequest.find("\r\n\r\n");
+	if (headerEnd == std::string::npos) {
+		return false;  // Headers not fully received yet
+	}
 
+	size_t contentLengthPos = rawRequest.find("Content-Length: ");
+	if (contentLengthPos != std::string::npos) {
+		size_t start = contentLengthPos + 16;  // Skip "Content-Length: "
+		size_t end = rawRequest.find("\r\n", start);
+		if (end != std::string::npos) {
+			int contentLength = atoi(rawRequest.substr(start, end - start).c_str());
+			size_t bodyStart = headerEnd + 4;  // "\r\n\r\n"
+			if (rawRequest.size() >= bodyStart + contentLength) {
+				return true;  // Full request (headers + body) received
+			}
+			return false;  // Waiting for more body data
+		}
+	}
 
-void print_buffer_as_hex(const char* buffer, int length) {
-    std::cout << "Buffer as hex: " << std::endl;
-    for (int i = 0; i < length; ++i) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0')
-                  << (int)(unsigned char)buffer[i] << " ";
-    }
-    std::cout << std::dec << std::endl;
+	return true;
 }
 
-
 std::string	VServ::readSocketFD(int fd) {
-	std::string	str;
+	std::string&	str = _clientBuffers[fd];
 	ssize_t		bytesRead;
 	char 		tempBuffer[1024];
 
-	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
-		std::cout << "Lopp: [" << tempBuffer << "]\n\n\n" << std::endl;
-		str += tempBuffer;
-		memset(tempBuffer, 0, sizeof(tempBuffer));
+	while (true) {
+		bytesRead = read(fd, tempBuffer, sizeof(tempBuffer));
+		
+		if (bytesRead > 0) {
+			str.append(tempBuffer, bytesRead);
+			//std::cout << "Lopp: [" << str << "]\n\n\n" << std::endl;
+
+		} else {
+			if (bytesRead == 0) //client close connection;
+				_clientBuffers.erase(fd);
+			break;
+		}
 	}
 
-	/*if (bytesRead < 0) {
-		std::cout << "bytesRead < 0, fd is closed" << std::endl; 
-		close(fd);
-       		throw RecvException();
-    	}*/
+	std::string finalStr = std::string(str);
+	if (isHttpRequestComplete(finalStr)) {
+		_clientBuffers.erase(fd);
+		return (finalStr);
+	}
 
-	if (_debug)
-		std::cout << "REQUEST ----- " << std::endl << str  << std::endl << std::endl;
-
-	return str;
+	return "";
 }
 
 std::string VServ::readFile(int fd) {
@@ -417,18 +432,22 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 	std::vector<std::string> allowedMethods = request.getRules()->getAllowedMethods();
 	for (size_t i = 0, n = allowedMethods.size(); i < n; i++) {
 		std::transform(allowedMethods[i].begin(), allowedMethods[i].end(), allowedMethods[i].begin(), ::toupper);
+		if (allowedMethods[i] == "GET" && method == "HEAD") //HEAD requests are accepted when GET is allowed.
+			return ;
 		if (allowedMethods[i] == method)
 			return ;
 	}
 	throw MethodNotAllowed();
 } 
 
-void	VServ::processRequest(std::string rawRequest, int clientFd) {
+void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	struct stat path_stat;	
 	HttpRequest response;
 	
 	try {
 		HttpRequest request(HTTP_REQUEST, rawRequest);
+
+		//response.setMethod(request.getMethod());
 		
 		//request.log();
 		setTargetRules(request);

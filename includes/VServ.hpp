@@ -27,13 +27,7 @@
 class	VServ {
 	private:
 		const int					_maxClients; // defined in config file ?
-		// config
 		int							_port;
-	//	int							_host;
-
-	//	std::string					_root;
-
-	//	std::vector<std::string>	_defaultPages;
 
 		std::map< std::string, Rules* >	_rules;
 
@@ -43,6 +37,9 @@ class	VServ {
 		int							_fd;
 		sockaddr_in					_address;
 		bool						_debug;
+
+		std::map<int, std::string>	_clientBuffers;
+
 
 	public:
 //		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
@@ -65,7 +62,7 @@ class	VServ {
 		int					clientAccept(void);
 		std::string 		readSocketFD(int fd);
 		std::string 		readFile(int fd);
-		void				processRequest(std::string rawRequest, int clientFd);
+		void				processRequest(std::string rawRequest, int &clientFd);
 		void 				sendRequest(HttpRequest &request, int clientFd);
 		std::string			readRequest(HttpRequest &request);
 		std::string			readDefaultPages(HttpRequest &request);

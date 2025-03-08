@@ -13,7 +13,7 @@ server {
   allowed_methods: GET;
   
   cgi_path {
-    .bla: /nfs/homes/ymarques/Desktop/tester/cgi_tester;
+    .bla: ~/Desktop/tester/cgi_tester;
   }
 
   location: /post_body {
@@ -23,7 +23,7 @@ server {
 
   location: /directory {
     allowed_methods: GET;
-    root: /nfs/homes/ymarques/Desktop/tester/YoupiBanane;
+    root: ~/Desktop/tester/YoupiBanane;
     default_pages: youpi.bad_extension;
   }
 
