@@ -138,10 +138,10 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     std::istringstream stream(rawRequest);
     std::string line;
 
-    std::getline(stream, line);
+    while (std::getline(stream, line) && line.empty())
+        ;
 
     if (_direction == HTTP_REQUEST) {
-        std::cout << "Http status line: " << line << std::endl;
         if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
             std::istringstream requestLine(line);
             requestLine >> _method >> _path >> _version;
@@ -162,7 +162,7 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
                 std::string key = line.substr(0, pos);
                 size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
                 std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
-                //std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
+                std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
                 if (!value.empty() && value[value.size() - 1] == '\r') {
                     value.erase(value.size() - 1);
                 }
@@ -223,11 +223,14 @@ std::string HttpRequest::makeRawResponse(void) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
 
-    rawResponse << "Content-Length: " << _body.size() << "\r\n";
-    rawResponse << "\r\n"; // End of headers
-    
-    if (_method != "HEAD") //no body for head reponse
+    if (_method == "HEAD") {
+        rawResponse << "Content-Length: " << 0 << "\r\n";
+        rawResponse << "\r\n"; 
+    } else {
+        rawResponse << "Content-Length: " << _body.size() << "\r\n";
+        rawResponse << "\r\n"; // End of headers
         rawResponse << _body;
+    }
 
     return rawResponse.str();
 }

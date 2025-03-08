@@ -13,7 +13,7 @@ server {
   allowed_methods: GET;
   
   cgi_path {
-    .bla: ~/Desktop/tester/cgi_tester;
+    .bla: tester/ubuntu_cgi_tester;
   }
 
   location: /post_body {
@@ -22,8 +22,8 @@ server {
   }
 
   location: /directory {
-    allowed_methods: GET;
-    root: ~/Desktop/tester/YoupiBanane;
+    allowed_methods: GET, POST;
+    root: tester/YoupiBanane;
     default_pages: youpi.bad_extension;
   }
 

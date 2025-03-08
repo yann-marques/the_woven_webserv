@@ -131,7 +131,7 @@ int	VServ::clientAccept(void) {
 	if (clientFd < 0)
 		throw (AcceptException());
 	
-	//std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
+	std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
 	return (clientFd);
 }
 
@@ -171,6 +171,7 @@ std::string VServ::readRequest(HttpRequest &request) {
 	std::string fileData = std::string(buffer.begin(), buffer.end());
 
 	if (fileIsCGI(request)) {
+		std::cout << "file is a cgi" << std::endl;
 		cgiContent = handleCGI(fileData, request);
 		return (cgiContent);
 	}
@@ -197,23 +198,26 @@ bool isHttpRequestComplete(const std::string &rawRequest) {
 			}
 			return false;  // Waiting for more body data
 		}
+	} else { //remove this block if bug for transfer-encoding: chuncked
+		if (rawRequest.find("\r\n") == std::string::npos)
+			return false;
 	}
 
 	return true;
 }
 
-std::string	VServ::readSocketFD(int fd) {
+ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 	std::string&	str = _clientBuffers[fd];
 	ssize_t		bytesRead;
 	char 		tempBuffer[1024];
 
+	buffer = "";	
 	while (true) {
 		bytesRead = read(fd, tempBuffer, sizeof(tempBuffer));
 		
 		if (bytesRead > 0) {
 			str.append(tempBuffer, bytesRead);
 			//std::cout << "Lopp: [" << str << "]\n\n\n" << std::endl;
-
 		} else {
 			if (bytesRead == 0) //client close connection;
 				_clientBuffers.erase(fd);
@@ -224,10 +228,10 @@ std::string	VServ::readSocketFD(int fd) {
 	std::string finalStr = std::string(str);
 	if (isHttpRequestComplete(finalStr)) {
 		_clientBuffers.erase(fd);
-		return (finalStr);
+		buffer = finalStr;
 	}
 
-	return "";
+	return bytesRead;
 }
 
 std::string VServ::readFile(int fd) {
@@ -251,7 +255,7 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	std::string	rawResponse = response.makeRawResponse();
 
 	if (_debug)
-		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
+		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl << std::endl << std::endl << std::endl;
 
 	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
 	if (bytesSent == -1) {
@@ -280,18 +284,27 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 std::string	VServ::readDefaultPages(HttpRequest &request) 
 {
 	std::vector<std::string> defaultPages = request.getRules()->getDefaultPages();
+	bool	defaultPageIsFind = false;
 
 	std::string file;
 	for (std::vector<std::string>::iterator it = defaultPages.begin(); it != defaultPages.end(); it++) {
-		std::string indexPath = makeRootPath(request) + "/" + *it;
+		std::string rootPath = makeRootPath(request);
+		std::string indexPath;
+		if (rootPath[rootPath.size() - 1] != '/')
+			indexPath = rootPath + "/" + (*it);
+		else
+			indexPath = rootPath + (*it);	
+
+		std::cout << "Index path: " << indexPath << std::endl;
 		struct stat path_stat;
 		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
+			defaultPageIsFind = true;
 			request.setRootPath(indexPath);
 			file = readRequest(request);
 			break;
 		}
 	}
-	if (file.empty())
+	if (!defaultPageIsFind)
 		throw FileNotExist();
 	return (file);
 }
@@ -330,6 +343,7 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 
 	std::string ext = request.getCgiExt();
 	std::string path = request.getPath();
+
 	if ((startPos = path.find(ext)) != std::string::npos) {
 		startPos += ext.size();
 		if ((endPos = path.find('?')) == std::string::npos)
@@ -337,11 +351,16 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	} else
 		throw ExtensionNotFound();
 
-	std::string path_info = "PATH_INFO=" + path.substr(startPos, endPos - startPos);
+	std::string afterExt = path.substr(startPos, endPos - startPos);
+	std::string path_info;
+	afterExt[0] != '/' ? path_info = "PATH_INFO=/" + afterExt : path_info = "PATH_INFO=" + afterExt;
+
+	std::cerr << path_info << std::endl;
 	std::string query_string = "QUERY_STRING=" + path.substr(endPos);
 	
     // Add standard CGI environment variables
     env.push_back( strdup(("REQUEST_METHOD=" + request.getMethod()).c_str()) );
+	env.push_back( strdup(("SERVER_PROTOCOL=" + request.getVersion()).c_str()) );
 	std::string rootPath = makeRootPath(request);
     env.push_back( strdup(("SCRIPT_FILENAME=" + rootPath).c_str()) );
 
@@ -373,6 +392,7 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 
 	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
 	std::string interpreter = cgiPaths[request.getCgiExt()];
+	std::cout << interpreter << std::endl;
 	if (interpreter.empty())
 		throw InterpreterEmpty();
 
@@ -415,7 +435,9 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 
 		waitpid(pid, &status, 0);
 		if (WIFEXITED(status)) {
+			std::cout << status << std::endl;
 			result = readFile(childToParent[0]);
+			std::cout << "Result CGI :\n" << result << std::endl;
 		} else {
 			result = "";
 		}
@@ -432,8 +454,6 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 	std::vector<std::string> allowedMethods = request.getRules()->getAllowedMethods();
 	for (size_t i = 0, n = allowedMethods.size(); i < n; i++) {
 		std::transform(allowedMethods[i].begin(), allowedMethods[i].end(), allowedMethods[i].begin(), ::toupper);
-		if (allowedMethods[i] == "GET" && method == "HEAD") //HEAD requests are accepted when GET is allowed.
-			return ;
 		if (allowedMethods[i] == method)
 			return ;
 	}
@@ -447,9 +467,12 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	try {
 		HttpRequest request(HTTP_REQUEST, rawRequest);
 
-		//response.setMethod(request.getMethod());
+		std::string reqMethod = request.getMethod();
+		response.setMethod(reqMethod);
+	
+		if (!_debug)
+			request.log();
 		
-		//request.log();
 		setTargetRules(request);
 		checkAllowedMethod(request);
 		handleBigRequest(request);
@@ -460,11 +483,12 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();
-
+		
 		if (S_ISREG(path_stat.st_mode)) {
 
 			std::string rawResponse = readRequest(request);
-			response = HttpRequest(HTTP_RESPONSE, rawResponse);			
+			response = HttpRequest(HTTP_RESPONSE, rawResponse);	
+			response.setMethod(reqMethod);
 
 		} else if (S_ISDIR(path_stat.st_mode)) {
 
@@ -477,6 +501,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 			} else {
 				std::string rawResponse = readDefaultPages(request);
 				response = HttpRequest(HTTP_RESPONSE, rawResponse);	
+				response.setMethod(reqMethod);
 			}
 
 		} else {

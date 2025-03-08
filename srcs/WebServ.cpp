@@ -250,23 +250,20 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	if (_debug)
 		std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
-	std::string rawRequest = vserv->readSocketFD(clientFd);
+	std::string	rawRequest;
+	ssize_t bytesRead = vserv->readSocketFD(clientFd, rawRequest);
 
-	/*if (rawRequest.empty()) {
-		std::cout << "rawRequest empty" << std::endl;
-		if (_debug)
-			std::cout << "Client close the request. FD: " << clientFd << " is close, ctldel and erase from the set." << std::endl;
+	if (bytesRead == 0) { //client close connection
 		deleteFd(clientFd, _clientFds);
-	} */
-
+	}
 
 	if (!rawRequest.empty()) {
 		std::cout << "Request finish" << std::endl;
 		if (_debug)
 			std::cout << "REQUEST ------" << std::endl << rawRequest << std::endl;
 		vserv->processRequest(rawRequest, clientFd);
-	}	
-		
+		deleteFd(clientFd, _clientFds);
+	}
 }
 
 
