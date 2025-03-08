@@ -233,9 +233,7 @@ void	WebServ::deleteFd(int fd, std::set<int>& sets) {
 
 void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
-
-	int flags = fcntl(clientFd, F_GETFL, 0);
-	fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+	fcntl(clientFd, F_SETFL, O_NONBLOCK);
 
 	insertClientFd(clientFd);
 	setServerToClientFd(clientFd, vserv);
@@ -264,17 +262,16 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 		vserv->processRequest(rawRequest, clientFd);
 	
 	
-	deleteFd(clientFd, _clientFds);
+	//deleteFd(clientFd, _clientFds);
 }
+
 
 void	WebServ::listenEvents(void) {
 	while (true) {
-		int fd;
 		try {
 			int nbEvents = epollWait();
 			for (int i = 0; i < nbEvents; i++) {
-				fd = _epollEvents[i].data.fd;
-
+				int fd = _epollEvents[i].data.fd;
 				VServ *vserv = getRelatedServer(fd);
 				if (!vserv)
 					throw UnknownFdException();
@@ -282,15 +279,14 @@ void	WebServ::listenEvents(void) {
 				if (fdIsServer(fd)) {
 					std::cout << "Event server" << std::endl;
 					handleServerEvent(vserv);
-				} else if (fdIsClient(fd)) {
+				} else {
 					std::cout << "Event client" << std::endl;
 					handleClientEvent(fd, vserv);
-				} else {
-					throw UnknownFdException(); 
 				}
+				
 			}
 		} catch (UnknownFdException& e) {
-			deleteFd(fd, _serverFds);
+			//deleteFd(fd, _serverFds);
 			std::cerr << "Fatal error: Unknown FD problem.";
 			break;
 		} catch (VServ::AcceptException& e) {

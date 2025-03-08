@@ -97,7 +97,7 @@ void	VServ::socketInit() {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fd == -1)
 		throw (SocketException());
-	//fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
+	fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
 
 	int opt = 1;
 	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
@@ -193,36 +193,26 @@ void print_buffer_as_hex(const char* buffer, int length) {
 
 
 std::string	VServ::readSocketFD(int fd) {
-	std::vector<char> buffer;
-	ssize_t bytesRead;
-	char tempBuffer[4096];
-	
+	std::string	str;
+	ssize_t		bytesRead;
+	char 		tempBuffer[1024];
 
-	bytesRead = read(fd, tempBuffer, 4096);
+	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
+		std::cout << "Lopp: [" << tempBuffer << "]\n\n\n" << std::endl;
+		str += tempBuffer;
+		memset(tempBuffer, 0, sizeof(tempBuffer));
+	}
 
-	tempBuffer[bytesRead] = '\0';
-	std::cout << tempBuffer << std::endl;
-
-	print_buffer_as_hex(tempBuffer, bytesRead);
-
-
-	/* while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
-		print_buffer_as_hex(tempBuffer, bytesRead);
-		std::cout << bytesRead << std::endl;
-		std::cout << tempBuffer << std::endl;
-		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
-	} */
-
-
-	if (bytesRead < 0 && buffer.empty()) {
-	    close(fd);
-        throw RecvException();
-    }
+	/*if (bytesRead < 0) {
+		std::cout << "bytesRead < 0, fd is closed" << std::endl; 
+		close(fd);
+       		throw RecvException();
+    	}*/
 
 	if (_debug)
-		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl << std::endl;
+		std::cout << "REQUEST ----- " << std::endl << str  << std::endl << std::endl;
 
-	return std::string(buffer.begin(), buffer.end());
+	return str;
 }
 
 std::string VServ::readFile(int fd) {
@@ -485,6 +475,7 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 	} catch (RecvException& e) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (ServerNameNotFound& e) {
+		std::cout << "Server name not found" << std::endl;
 		return ; //abort. send nothing
 	} catch (InterpreterEmpty& e) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
