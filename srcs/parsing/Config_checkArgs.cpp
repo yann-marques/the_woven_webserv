@@ -193,6 +193,9 @@ void	Config::checkArgsFormat(std::multimap< std::string, std::string >& args) {
 	checkServerNames(args, "server_names");
 	// to print a multimap value
 */
+	size_t	count = args.count("host");
+	if (count)
+		checkHost(count, args.equal_range("host"));
 	if (args.count("error_pages"))
 		checkErrorPages(args.equal_range("error_pages"));
 	if (args.count("cgi_path"))

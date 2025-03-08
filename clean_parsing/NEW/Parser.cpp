@@ -1,25 +1,8 @@
 #include "Parser.hpp"
 
-static std::set< std::string >	setArgsToFind() {
-	std::set< std::string >	argsToFind;
-	argsToFind.insert("location");
-	argsToFind.insert("port");
-	argsToFind.insert("server_names");
-	argsToFind.insert("root");
-	argsToFind.insert("default_pages");
-	argsToFind.insert("error_pages");
-	argsToFind.insert("auto_index");
-	argsToFind.insert("allowed_methods");
-	argsToFind.insert("max_body_bytes");
-	argsToFind.insert("cgi_path");
-	argsToFind.insert("redirect");
-	argsToFind.insert("upload");
-	return (argsToFind);
-}
+Parser::Parser() {}
 
-Parser::Parser(): _argsToFind(setArgsToFind()) {}
-
-Parser::Parser(const Parser& rhs): _argsToFind(setArgsToFind()) {
+Parser::Parser(const Parser& rhs) {
 	*this = rhs;
 }
 
@@ -46,18 +29,100 @@ size_t	Parser::endOfScopeIndex(std::string str, size_t pos) {
 	return (pos + i);
 }
 
-template< typename T >
-void	Parser::printVec(const std::vector< T >& vec, std::string tabs) {
-	for (size_t i = 0, n = vec.size(); i < n; i++)
-		std::cout << tabs << '\t' << vec[i] << std::endl;
+std::vector< std::string >	Parser::splitScope(std::string fileContent, std::string sep) {
+	std::vector< std::string >	vec;
+	size_t	pos = 0, end = 0;
+
+	while (!fileContent.empty()) {
+		pos = fileContent.find(sep, 0);
+		if (pos == std::string::npos)
+			break ;
+		end = endOfScopeIndex(fileContent, pos);
+		vec.push_back(fileContent.substr(pos + sep.size(), end - sep.size()));
+		fileContent.erase(pos, end - pos);
+	}
+	if (!fileContent.empty())
+		throw (ArgOutOfServerScopeException()); /////
+	return (vec);
 }
 
-template< typename T, typename U >
-void	Parser::printMap(std::set< T > keys, const std::map< T, U >& map, std::string tabs) {
-	typename t_set_it< T >::t	keyIt = keys.begin(), keyIte = keys.end();
-	while (keyIt != keyIte) {
-		std::cout << tabs << '\t' << *keyIt << ": " << map.at(*keyIt) << std::endl;
-		keyIt++;
+size_t	Parser::setArgKey(std::string line, std::string& key) {
+	size_t	pos = line.find('{');
+
+	if (line.compare(0, pos, "error_pages") && line.compare(0, pos, "cgi_path"))
+		pos = line.find(':');
+	if (pos == std::string::npos)
+		throw ConfigSyntaxException();
+	key = line.substr(0, pos);
+//	std::cout << "key: " << key << std::endl;
+	return (pos);
+}
+
+size_t	Parser::setArgValueLine(std::string line, std::string key, std::string& valueLine, size_t prvPos) {
+	size_t	pos;
+	t_set_it< std::string >::t	setIt = _argsToFind.find(key);
+
+	if (setIt == _argsToFind.end())
+		throw UnexpectedKeyException(key);
+	else if (*setIt == "location" || *setIt == "error_pages" || *setIt == "cgi_path")
+		pos = endOfScopeIndex(line, line.find('{')) - 1;
+	else
+		pos = line.find(';');
+
+	if (pos == std::string::npos)
+		throw (ConfigSyntaxException());
+
+	valueLine = line.substr(prvPos + 1, pos - prvPos);
+
+	return (pos);
+}
+
+void	Parser::setValues(std::multimap< std::string, std::string >& args, std::string key, std::string valueLine, int scopeCmp) {
+	while (!valueLine.empty()) {
+		size_t	pos;
+		if (!scopeCmp) {
+			pos = valueLine.find(';');
+			if (pos == std::string::npos)
+				throw (ConfigSyntaxException());
+		} else {
+			pos = valueLine.find(',');
+			if (pos == std::string::npos)
+				pos = valueLine.find(';');
+		}
+		args.insert(make_pair(key, valueLine.substr(0, pos)));
+		valueLine.erase(0, pos + 1);
+	}
+}
+
+std::multimap< std::string, std::string >	Parser::parseLine(std::string line) {
+	std::multimap< std::string, std::string >	args;
+	std::string	key, valueLine;
+
+	do {
+		size_t	pos1 = setArgKey(line, key),
+				pos2 = setArgValueLine(line, key, valueLine, pos1);
+
+		if (!key.compare("location"))
+			args.insert(make_pair(key, valueLine));
+		else {
+			int	scopeCmp = key.compare("error_pages") && key.compare("cgi_path");
+			if (!scopeCmp) {
+				if (line[key.size()] != '{')
+					throw (ConfigSyntaxException());
+				valueLine.erase(valueLine.size() - 1);
+			}
+			setValues(args, key, valueLine, scopeCmp);
+		}
+		line.erase(0, pos2 + 1);
+	} while (!line.empty());
+
+	return (args);
+}
+
+void	Parser::deleteBrackets(std::vector< std::string >&	vec) {
+	for (size_t i = 0, n = vec.size(); i < n; i++) {
+		vec[i].erase(0, 1);
+		vec[i].erase(vec[i].size() - 1, 1);
 	}
 }
 

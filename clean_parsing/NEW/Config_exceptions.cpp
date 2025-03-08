@@ -12,6 +12,6 @@ const char*	Config::BadSpacesException::what() const throw() {
 	return ("Syntax error: words must be separated by , : ; { }");
 }
 
-const char*	Config::ArgOutOfServerScopeException::what() const throw() {
-	return ("Argument found out of server scopes.");
+const char*	Config::MissingPortException::what() const throw() {
+	return ("Port not found in server scope.");
 }

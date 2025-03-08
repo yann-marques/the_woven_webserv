@@ -51,39 +51,62 @@ static bool	badSpaces(std::string str) {
 	return (false);
 }
 
-////
-std::vector< std::string >	Config::splitLine(std::string fileContent, std::string sep) {
-	std::vector< std::string >	vec;
-	size_t	pos = 0, end = 0;
-
-	while (!fileContent.empty()) {
-		pos = fileContent.find(sep, 0);
-		if (pos == std::string::npos)
-			break ;
-		end = endOfScopeIndex(fileContent, pos);
-		vec.push_back(fileContent.substr(pos + sep.size(), end - sep.size()));
-		fileContent.erase(pos, end - pos);
-	}
-	if (!fileContent.empty())
-		throw (ArgOutOfServerScopeException());
-	return (vec);
+void	Config::setPort(std::string host, int port) {
+	t_mmap_range< std::string, int >::t	mmRange = _ports.equal_range(host);
+	if (!isInRange< std::string, int >(mmRange, port))
+		_ports.insert(make_pair(host, port));
 }
 
-static bool	isInRange(std::string str, t_mm_range< int, std::string >::t range) {
-	t_mm_it< int, std::string >::t	mmIt = range.first, mmIte = range.second;
-	while (mmIt != mmIte && mmIt->second != str)
-		mmIt++;
-	return (mmIt != mmIte);
+void	setServerNames(std::string host, int port, t_mmap_range< std::string, std::string >::t argsRange) {
+	t_mmap_range< std::string, int >::t	portRange = _ports.equal_range(host);
+	t_mmap_it< std::string, int >::t	portIt = portRange.first, portIte = portRange.second;
+	t_mmap_it< std::string, std::string >::t	argsIt = argsRange.first, argsIte = argsRange.second;
+
+	if (_serverNames.count(host) && _serverNames.at(host).count(port)
+		&& !isInRange(portRange.equal_range(port), *argsIt))
+		_serverNames.insert(make_pair(host, make_pair(port, *argsIt)));
+
+	std::multimap< int, std::string >	sNames;
+	while (argsIt != argsIte) {
+		t_mmap_range< std::string, int >::t	portRange = _serverNames.equal_range(host);
+		if (isInRange(portRange, port)
+			&& !isInRange(portRange.equal_range(port), *argsIt))
+		sNames.insert(make_pair(port, *argsIt));
+	argsIt++;
+	}
+	if (!_serverNames.count(host))
+		_serverNames.insert(make_pair(host, sNames));
 }
 
 Config::Config(const char* fileName): Parser() {
+	setArgsToFind();
+
 	std::string	fileContent = extractFileContent(fileName);
 	if (!bracketsAreClosed(fileContent))
 		throw UnclosedScopeException();
 	if (badSpaces(fileContent))
 		throw BadSpacesException();
 
-	std::vector< std::string >	serverLines = splitLine(fileContent, "server");
-	
+	std::vector< std::string >	serverLines = splitScope(fileContent, "server");
+	deleteBrackets(serverLines);
+//	printVec(serverLines, "\t"); //
+	for (size_t i = 0, n = serverLines.size(); i < n; i++) {
+		std::multimap< std::string, std::string >	args = parseLine(serverLines[i]);
+		checkArgsFormat(args);
+
+		// set host
+		std::string	host;
+		if (args.count("host"))
+			host = args.equal_range("host").first->second;
+		else
+			host = "127.0.0.1";
+		_hosts.insert(host);
+
+		// set port
+		int	port = std::atoi(args.equal_range("port").first->second.c_str());
+		setPort(host, port);
+//		printMultimap(_argsToFind, _args);
+		setServerNames(host, port, args.equal_range("server_names"));
+	}
 }
 

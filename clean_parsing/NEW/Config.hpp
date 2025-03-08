@@ -7,9 +7,11 @@ class	Rules;
 
 class	Config: public Parser {
 	private:
-		std::set< int >	_ports;
-		std::multimap< int, std::string >	_serverNames;
-		std::map< int, std::map< std::string, Rules* > >	_parsedConfig;
+		std::set< std::string >	_hosts;
+		std::multimap< std::string, int >	_ports;
+		std::multimap< std::string, std::multimap< int, std::string > >	_serverNames;
+		// host -> port -> server_name -> Rules*
+		std::multimap< std::string, std::map< int, std::map< std::string, Rules* > > >	_parsedConfig;
 	public:
 		Config();
 		Config(const Config& rhs);
@@ -17,8 +19,14 @@ class	Config: public Parser {
 
 		Config(const char* fileName);
 
+		// INHERITED
+		void	setArgsToFind();
+		void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const;
+
 		std::string	extractFileContent(const char* fileName);
 		std::vector< std::string >	splitLine(std::string fileContent, std::string sep);
+
+		void	setPort(std::string host, int port);
 
 		~Config();
 
@@ -35,7 +43,7 @@ class	Config: public Parser {
 			public:
 				const char*	what() const throw();
 		};
-		class	ArgOutOfServerScopeException: public std::exception {
+		class	MissingPortException: public std::exception {
 			public:
 				const char*	what() const throw();
 		};

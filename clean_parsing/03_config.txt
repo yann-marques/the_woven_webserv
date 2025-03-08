@@ -20,7 +20,7 @@ server {
     allowed_methods: GET, POST;
   }
 }
-cucu {}
+
 server {
   port: 8080;
   server_names: site2.com, www.site2.com;

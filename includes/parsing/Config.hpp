@@ -24,7 +24,9 @@ void	printMultimap(std::set< std::string > keys, std::multimap< std::string, std
 class	Config {
 	protected:
 		std::set< std::string >					_argsToFind;
-
+		// same port, different host ?
+		// same host, different port ?
+		// std::set< std::pair< int, std::string >	port/host
 		std::set< int >	_ports;
 		std::multimap< int, std::string >	_serverNames;
 		std::map< int, std::map< std::string, Rules* > >	_parsedConfig;

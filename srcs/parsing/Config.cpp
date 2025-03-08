@@ -34,6 +34,66 @@ static bool	isInRange(std::string str, std::pair< std::multimap< int, std::strin
 	return (mmIt != mmIte);
 }
 
+static bool    isDigitStr(std::string str) {
+    size_t    i = 0, ie = str.size();
+
+    while (i < ie && isdigit(str[i]))
+        i++;
+
+    return (i == ie);
+}
+
+std::vector< std::string >    ft_split(std::string str, char sep) {
+    std::vector< std::string >    vec;
+    size_t    pos = 0;
+
+    do {
+        pos = str.find(sep, pos);
+        std::string    subStr = str.substr(0, pos);
+
+        if (!subStr.empty())
+            vec.push_back(subStr);
+
+        pos += (str[pos] == sep);
+
+        str.erase(0, pos);
+        pos = 0;
+    } while (!str.empty());
+
+    return (vec);
+}
+
+static bool    isValidHost(std::string str) {
+    if (str.find("..") != std::string::npos
+        || str[0] == '.' || str[str.size() - 1] == '.')
+        return (false);
+
+    std::vector< std::string >    vec = ft_split(str, '.');
+    size_t    i = 0, ie = vec.size();
+    if (ie != 4)
+        return (false);
+
+    while (i < ie && isDigitStr(vec[i]) && vec[i].size() <= 3) {
+        int n = std::atoi(vec[i].c_str());
+        if (n < 0 || n > 255)
+            break ;
+        i++;
+    }
+
+    return (i == ie);
+}
+
+static void	checkHost(size_t count, t_range range) {
+	if (count > 0) {
+		if (count > 1)
+			throw DoubleArgException("host");
+
+		std::string	str = range.first->second;
+		if (!isValidHost(str))
+			throw UnexpectedValueException(str);
+	}
+}
+
 Config::Config(const char* fileName) {
 	setArgsToFind();
 
@@ -44,14 +104,18 @@ Config::Config(const char* fileName) {
 	std::vector< std::string >	serverLines = splitLine(fileContent, "server");
 	for (size_t i = 0, n = serverLines.size(); i < n; i++) {
 		std::multimap< std::string, std::string >	args = parseServerLine(serverLines[i]);
+		checkHost(args.count("host"), args.equal_range("host"));
 		checkPortFormat(args.count("port"), args.equal_range("port"));
 		if (!args.count("server_names"))
 			args.insert(std::make_pair("server_names", "localhost"));
 		checkArgsFormat(args);
+
 		int	port = std::atoi(args.equal_range("port").first->second.c_str());
 		args.erase("port");
 
 		_ports.insert(port);
+
+//////////
 
 		t_range	range = args.equal_range("server_names");
 		t_multimap_it	mit = range.first, mite = range.second;
@@ -65,6 +129,8 @@ Config::Config(const char* fileName) {
 			_serverNames.insert(std::make_pair(port, "localhost"));
 
 		args.erase("server_names");
+
+/////////////
 
 		std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	serverNamesRange = _serverNames.equal_range(port);
 		std::multimap< int, std::string >::iterator	mmIt = serverNamesRange.first, mmIte = serverNamesRange.second;
@@ -88,6 +154,7 @@ Config::Config(const char* fileName) {
 }
 
 void	Config::setArgsToFind() {
+	_argsToFind.insert("host");
 	_argsToFind.insert("location");
 	_argsToFind.insert("port");
 	_argsToFind.insert("server_names");
@@ -186,7 +253,10 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 			throw ConfigSyntaxException();
 		std::string	key(line.substr(0, sepPos1));
 
-		std::set< std::string >::iterator	it = _argsToFind.find(key), ite = _argsToFind.end();
+/////////////
+
+		std::set< std::string >::iterator	it = _argsToFind.find(key),
+											ite = _argsToFind.end();
 		if (it == ite)
 			throw UnexpectedKeyException(key);
 		else if (*it == "location" || *it == "error_pages" || *it == "cgi_path")
@@ -198,6 +268,8 @@ std::multimap< std::string, std::string >	Config::parseLine(std::string line) {
 			throw ConfigSyntaxException();
 
 		std::string	value(line.substr(sepPos1 + 1, sepPos2 - sepPos1));
+
+/////////////
 
 		if (!key.compare("location"))
 			args.insert(make_pair(key, value));
