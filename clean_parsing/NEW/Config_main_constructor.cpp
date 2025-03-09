@@ -53,18 +53,88 @@ static bool	badSpaces(std::string str) {
 
 void	Config::setPort(std::string host, int port) {
 	t_mmap_range< std::string, int >::t	mmRange = _ports.equal_range(host);
-	if (!isInRange< std::string, int >(mmRange, port))
+	if (!isInRange< std::string, int >(mmRange, port)) {
 		_ports.insert(make_pair(host, port));
+		std::cout << "insert port: " << port << std::endl;
+	}
 }
 
-void	setServerNames(std::string host, int port, t_mmap_range< std::string, std::string >::t argsRange) {
-	t_mmap_range< std::string, int >::t	portRange = _ports.equal_range(host);
-	t_mmap_it< std::string, int >::t	portIt = portRange.first, portIte = portRange.second;
+void	Config::setServerNames(std::string host, int port, t_mmap_range< std::string, std::string >::t argsRange) {
+//	t_mmap_range< std::string, int >::t	portRange = _ports.equal_range(host);
+//	t_mmap_it< std::string, int >::t	portIt = portRange.first, portIte = portRange.second;
 	t_mmap_it< std::string, std::string >::t	argsIt = argsRange.first, argsIte = argsRange.second;
+//	std::multimap< std::string, std::multimap< int, std::string > >&
+	std::multimap< int, std::string >	portMM;
 
+	while (argsIt != argsIte) {
+		std::string	serverName = argsIt->second;
+		std::pair< int, std::string >	toInsert(port, serverName);
+
+		std::cout << "before insert: " << serverName << std::endl;
+
+		t_mmap_range< std::string, std::multimap< int, std::string > >::t
+			hostRange = _serverNames.equal_range(host);
+		t_mmap_it< std::string, std::multimap< int, std::string > >::t
+			hostIt = hostRange.first, hostIte = hostRange.second;
+		if (hostIt == hostIte) {
+			portMM.insert(toInsert);
+			_serverNames.insert(make_pair(host, portMM));
+			std::cout << "insert: " << serverName << std::endl;
+		} else {
+			while (hostIt != hostIte) {
+				portMM = hostIt->second;
+				if (!portMM.count(port)
+					|| !isInRange< int, std::string >(portMM.equal_range(port), serverName)) {
+					portMM.insert(toInsert);
+					_serverNames.insert(make_pair(host, portMM));
+					std::cout << "insert: " << serverName << std::endl;
+				}
+				hostIt++;
+			}
+		}
+		argsIt++;
+	}
+}
+/*
+		if (!_serverNames.count(host) || hostIt == hostIte) {
+
+			_serverNames.insert(make_pair(host, make_pair(port, serverName)));
+		}
+		argsIt++;
+*/
+/*
+	if (_serverNames.count(host)) {
+		t__mmap_range< std::string, std::multimap< int, std::string > >::t
+			hostRange = _serverNames.equal_range(host);
+		t_mmap_it< std::string, std::multimap< int, std::string > >::t
+			hostIt = hostRange.first, hostIte = hostRange.second;
+		while (hostIt != hostIte && !isInRange(hostIt->second.count(port)))
+			hostIt++;
+		if (hostIt != hostIte) {
+			t_mmap_range< int, std::string >::t
+				portRange = hostIt->second.equal_range(port);
+			t_mmap_it< int, std::string >::t
+				portIt = portRange.first, portIt = portRange.second;
+			while (argsIt != argsIte) {
+				std::string	serverName = argsIt->second;
+				if (!isInRange(portRange, serverName))
+					_serverNames.insert(make_pair(host, make_pair(port, serverName)))
+				argsIt++;
+			}
+		} else {
+			while (argsIt != argsIte) {
+				std::string	serverName = argsIt->second;
+				if (!hostIt->second.count(port))
+					_serverNames.insert(make_pair(host, make_pair(port, serverName)))
+				argsIt++;
+			}
+		}
+	}
+*/
+/*
 	if (_serverNames.count(host) && _serverNames.at(host).count(port)
-		&& !isInRange(portRange.equal_range(port), *argsIt))
-		_serverNames.insert(make_pair(host, make_pair(port, *argsIt)));
+		&& !isInRange(portRange.equal_range(port), argsIt->second))
+		_serverNames.insert(make_pair(host, make_pair(port, argsIt->second)));
 
 	std::multimap< int, std::string >	sNames;
 	while (argsIt != argsIte) {
@@ -76,7 +146,8 @@ void	setServerNames(std::string host, int port, t_mmap_range< std::string, std::
 	}
 	if (!_serverNames.count(host))
 		_serverNames.insert(make_pair(host, sNames));
-}
+*/
+
 
 Config::Config(const char* fileName): Parser() {
 	setArgsToFind();

@@ -42,6 +42,57 @@ void	Config::setArgsToFind() {
 }
 
 Config::~Config() {
+    t_set_it< std::string >::t
+        hostKeyIt = _hosts.begin(), hostKeyIte = _hosts.end();
+    while (hostKeyIt != hostKeyIte) {
+		std::cout << "host: " << *hostKeyIt << " count: "
+			<< _serverNames.count(*hostKeyIt) << std::endl;
+        // KEYS
+        t_mmap_range< std::string, int >::t
+            portKeyRange = _ports.equal_range(*hostKeyIt);
+        t_mmap_it< std::string, int >::t
+            portKeyIt = portKeyRange.first, portKeyIte = portKeyRange.second;
+        //
+
+        while (portKeyIt != portKeyIte) {
+			// KEYS
+            t_mmap_range< std::string, std::multimap< int, std::string > >::t
+			serverNamesPortRange = _serverNames.equal_range(*hostKeyIt);
+            t_mmap_it< std::string, std::multimap< int, std::string > >::t // port // mmap
+			serverNamesPortIt = serverNamesPortRange.first,
+			serverNamesPortIte = serverNamesPortRange.second;
+            //
+			
+            while (serverNamesPortIt != serverNamesPortIte) {
+				std::cout << "\tport: " << portKeyIt->second << " count: "
+					<< serverNamesPortIt->second.count(portKeyIt->second) << std::endl;
+                // KEYS
+
+                t_mmap_range< int, std::string >::t
+                    serverNamesRange = serverNamesPortIt->second.equal_range(portKeyIt->second);
+                t_mmap_it< int, std::string >::t
+                    serverNamesKeyIt = serverNamesRange.first,
+                    serverNamesKeyIte = serverNamesRange.second;
+                //
+				size_t i = 0;
+                while (serverNamesKeyIt != serverNamesKeyIte) {
+                    // KEYS
+                    std::string serverNameKey = serverNamesKeyIt->second;
+                    std::cout  << i << "port: " << portKeyIt->second << "\tserverNameKey: " << serverNameKey << std::endl;
+                    //
+
+                    serverNamesKeyIt++;
+					i++;
+                }
+                serverNamesPortIt++;
+            }
+            portKeyIt++;
+        }
+        hostKeyIt++;
+    }
+}
+/*
+Config::~Config() {
 	t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
 	while (hostIt != hostIte) {
 		t_mmap_range< std::string, int >::t	portRange = _ports.equal_range(*hostIt);
@@ -59,7 +110,7 @@ Config::~Config() {
 		hostIt++;
 	}
 }
-
+*/
 std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
 	(void) rhs;
 /*	std::cout	<< "########################################################## CONFIG" << std::endl << std::endl;
