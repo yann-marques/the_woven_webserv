@@ -22,13 +22,16 @@
 
 # include "parsing/Rules.hpp"
 # include "HTTPRequest.hpp"
+# include "WebServ.hpp"
 
+class WebServ;
 
 class	VServ {
 	private:
 		const int					_maxClients; // defined in config file ?
 		int							_port;
 
+		WebServ*					_mainInstance;
 		std::map< std::string, Rules* >	_rules;
 
 		std::set<std::string>		_envp;
@@ -44,7 +47,7 @@ class	VServ {
 	public:
 //		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
 		VServ(): _maxClients(1024) {}
-		VServ(int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+		VServ(WebServ* mainInstance, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();

@@ -18,6 +18,8 @@
 # include "parsing/Rules.hpp"
 # include "VServ.hpp"
 
+class VServ;
+
 class	WebServ {
 	private:
 		bool							_debug;
@@ -29,13 +31,9 @@ class	WebServ {
 		epoll_event						_event;
 		std::vector<struct epoll_event> _epollEvents;
 
-		std::set<int>					_serverFds;
-		std::set<int>					_clientFds;
-
-		std::size_t						_serverNbr;
-
-		std::map<int, VServ*>			_serversFdToServer;
-		std::map<int, VServ*>			_clientsFdToServer;
+		std::size_t						_VServerNbr;
+		std::map<int, VServ*>			_VServers;
+		std::set<int>					_VServerFds;
 		
 		std::set<std::string>			_envp;
 		std::set<std::string>			_argv;
@@ -48,13 +46,11 @@ class	WebServ {
 		~WebServ();
 
 		//SETTERS
-		void	insertServerFd(int fd);
-		void	insertClientFd(int fd);
-		void	setServerToServerFd(int fd, VServ* rhs);
-		void	setServerToClientFd(int fd, VServ* rhs);
+		void	insertVServFd(int fd);
+		void	setVServ(int fd, VServ* rhs);
 
 		//GETTERS
-		VServ*	getRelatedServer(int fd);
+		VServ*	getVServ(int fd);
 		int	getEpollFd() const;
 
 		std::set<int> getServersFd(void) const;
@@ -63,16 +59,15 @@ class	WebServ {
 		//METHODS
 		void	handleServerEvent(VServ* vserv);
 		void	handleClientEvent(int fd, VServ* vserv);
-		bool	fdIsServer(int fd);
-		bool	fdIsClient(int fd);
+		bool	isVServFD(int fd);
 		void	handleSignal(int signal);
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd);
 		void	epollCtlDel(int fd);
-		void	deleteFd(int fd, std::set<int>& sets);
-		void	setEvent(uint32_t epoll_event, int fd);
-
+		void	setEvent(uint32_t epoll_event, int fd, void *ptr);
+		void	deleteFd(int fd);
+		
 
 		// EXCEPTIONS
 		class	SIGINTException: public std::exception {

@@ -227,9 +227,11 @@ std::string HttpRequest::makeRawResponse(void) {
         rawResponse << "Content-Length: " << 0 << "\r\n";
         rawResponse << "\r\n"; 
     } else {
-        rawResponse << "Content-Length: " << _body.size() << "\r\n";
+        std::size_t bodySize = _body.size();
+        rawResponse << "Content-Length: " << bodySize << "\r\n";
         rawResponse << "\r\n"; // End of headers
-        rawResponse << _body;
+        if (bodySize > 2) //if bodysize <= 2, body is == "\r\n". So we add noting.
+            rawResponse << _body;
     }
 
     return rawResponse.str();

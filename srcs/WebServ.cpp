@@ -34,16 +34,16 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 
 		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
 		while (portIt != portIte) {
-			VServ*	server = new VServ(*portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+			VServ*	server = new VServ(this, *portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
 
 			//////
 			int	sfd = server->getFd();
 
-			insertServerFd(sfd);
-			setServerToServerFd(sfd, server);
+			insertVServFd(sfd);
+			setVServ(sfd, server);
 
 			// set the event for sfd then epoll ctl the server fd
-			setEvent(EPOLLIN, sfd);
+			setEvent(EPOLLIN, sfd, server);
 			epollCtlAdd(sfd);
 
 			portIt++;
@@ -120,8 +120,8 @@ WebServ::~WebServ() {
 	if (_epollFd != -1)
 		close(_epollFd);
 
-	for (std::set<int>::iterator it = _serverFds.begin(); it != _serverFds.end(); ++it)
-		delete getRelatedServer(*it);
+	for (std::set<int>::iterator it = _VServerFds.begin(); it != _VServerFds.end(); ++it)
+		delete getVServ(*it);
 /*
 	size = _clientFds.size();
 
@@ -133,20 +133,13 @@ WebServ::~WebServ() {
 // SETTERS
 
 
-void	WebServ::insertServerFd(int fd) {
-	_serverFds.insert(fd);
+void	WebServ::insertVServFd(int fd) {
+	_VServerFds.insert(fd);
 }
 
-void	WebServ::insertClientFd(int fd) {
-	_clientFds.insert(fd);
-}
 
-void	WebServ::setServerToServerFd(int fd, VServ* rhs) {
-	_serversFdToServer[fd] = rhs;
-}
-
-void	WebServ::setServerToClientFd(int fd, VServ* rhs) {
-	_clientsFdToServer[fd] = rhs;
+void	WebServ::setVServ(int fd, VServ* rhs) {
+	_VServers[fd] = rhs;
 }
 
 
@@ -157,29 +150,19 @@ int	WebServ::getEpollFd() const {
 }
 
 std::set<int>	WebServ::getServersFd(void) const {
-	return (_serverFds);
+	return (_VServerFds);
 }
 
 //Renvoie un VServ* associe au FD passe. Si c'est un FD client, ca renvoie le *VServ "attache" a ce client. Si c'est un FD Server, renvoie le *VServ.
-VServ*	WebServ::getRelatedServer(int fd) {
-
-	if (fdIsClient(fd) && fdIsServer(fd)) {
-		std::cerr << "Critical error. An FD Server is in FD Client vector or reverse" << std::endl;
-		//a voir comment gerer ce cas qui ne devrait jamais arriver si le code marche bien.
-		return (NULL);
+VServ*	WebServ::getVServ(int fd) {
+	if (isVServFD(fd)) {
+		return (_VServers[fd]);
 	}
-	
-	if (fdIsServer(fd)) {
-		return (_serversFdToServer[fd]);
-	} else if (fdIsClient(fd)) {
-		return (_clientsFdToServer[fd]);
-	}
-
 	return (NULL);
 }
 
 std::size_t	WebServ::getServerNbr() const {
-	return (_serverNbr);
+	return (_VServerNbr);
 }
 
 // METHODS
@@ -206,39 +189,29 @@ void	WebServ::epollCtlDel(int fd) {
 		throw (EpollCtlDelException());
 }
 
-void	WebServ::setEvent(uint32_t epoll_event, int fd) {
+void	WebServ::setEvent(uint32_t epoll_event, int fd, void *ptr) {
 	_event.events = epoll_event;
 	_event.data.fd = fd;
+	_event.data.ptr = ptr;
 }
 
-bool WebServ::fdIsServer(int fd) {
-	if (std::find(_serverFds.begin(), _serverFds.end(), fd) != _serverFds.end())
+bool WebServ::isVServFD(int fd) {
+	if (std::find(_VServerFds.begin(), _VServerFds.end(), fd) != _VServerFds.end())
 		return true;
 	else
 		return false;
 }
 
-bool WebServ::fdIsClient(int fd) {
-	if (std::find(_clientFds.begin(), _clientFds.end(), fd) != _clientFds.end())
-		return true;
-	else
-		return false;
-}
-
-void	WebServ::deleteFd(int fd, std::set<int>& sets) {
+void	WebServ::deleteFd(int fd) {
 	epollCtlDel(fd);
 	close(fd);
-	sets.erase(fd);
 }
 
 void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
 
-	insertClientFd(clientFd);
-	setServerToClientFd(clientFd, vserv);
-
-	setEvent(EPOLLIN | EPOLLET, clientFd);
+	setEvent(EPOLLIN | EPOLLET, clientFd, static_cast<void *>(vserv));
 	epollCtlAdd(clientFd);
 
 	if (_debug)
@@ -251,18 +224,13 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 		std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
 	std::string	rawRequest;
-	ssize_t bytesRead = vserv->readSocketFD(clientFd, rawRequest);
-
-	if (bytesRead == 0) { //client close connection
-		deleteFd(clientFd, _clientFds);
-	}
+	vserv->readSocketFD(clientFd, rawRequest);
 
 	if (!rawRequest.empty()) {
 		std::cout << "Request finish" << std::endl;
 		if (_debug)
 			std::cout << "REQUEST ------" << std::endl << rawRequest << std::endl;
 		vserv->processRequest(rawRequest, clientFd);
-		deleteFd(clientFd, _clientFds);
 	}
 }
 
@@ -273,15 +241,18 @@ void	WebServ::listenEvents(void) {
 			int nbEvents = epollWait();
 			for (int i = 0; i < nbEvents; i++) {
 				int fd = _epollEvents[i].data.fd;
-				VServ *vserv = getRelatedServer(fd);
+
+				std::cout << "FD: " << fd << std::endl;
+
+				//VServ *vserv = getVServ(fd);
+				VServ *vserv = static_cast<VServ *>(_epollEvents[i].data.ptr);
 				if (!vserv)
 					throw UnknownFdException();
 
-				if (fdIsServer(fd)) {
+				if (isVServFD(fd))
 					handleServerEvent(vserv);
-				} else {
+				else
 					handleClientEvent(fd, vserv);
-				}
 				
 			}
 		} catch (UnknownFdException& e) {

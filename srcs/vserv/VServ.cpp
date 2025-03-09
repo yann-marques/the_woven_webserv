@@ -3,16 +3,65 @@
 // VServ::VServ();
 
 
+VServ::VServ(WebServ *mainInstance, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
+	// tmp
+	_port = port;
+//	_host = config.getHost();
+// parse config ...
+	_rules = rules;
+	_mainInstance = mainInstance;
+	setAddress();
+	socketInit();
+	//
+	this->_argv = argv;
+	this->_envp = envp;
+	this->_debug = false;
+	if (argv.find("--debug=yes") != argv.end())
+	this->_debug = true;
+}
+
+// VServ::VServ(const VServ& rhs);
+
+VServ&	VServ::operator=(const VServ& rhs) {
+	//	_port = rhs.getPort();
+	//	_host = rhs.getHost();
+	_fd = rhs.getFd();
+	setAddress();
+	//	std::cout << "address port = " << _address.sin_port << std::endl;
+	return (*this);
+}
+
+VServ::~VServ() {
+	//	if (_fd != -1)
+	//		close(_fd);
+}
+
+// SETTERS
+
+void	VServ::setAddress() {
+	_address.sin_family = AF_INET;
+	_address.sin_addr.s_addr = htonl(INADDR_ANY);
+	_address.sin_port = htons(_port);
+}
+
+// GETTERS
+
+int	VServ::getFd() const {
+	return (_fd);
+}
+
+// METHODS
+
 std::vector<std::string> split (const std::string &s, char delim) {
-    std::vector<std::string> result;
-    std::stringstream ss(s);
-    std::string item;
+	std::vector<std::string> result;
+	std::stringstream ss(s);
+	std::string item;
 
-    while (getline(ss, item, delim)) {
-        result.push_back(item);
-    }
+	while (getline(ss, item, delim)) {
+		result.push_back(item);
+	}
 
-    return result;
+	return result;
 }
 
 void	VServ::setTargetRules(HttpRequest &req) {
@@ -44,65 +93,17 @@ void	VServ::setTargetRules(HttpRequest &req) {
 	req.setRules(ptr);
 }
 
-
-VServ::VServ(int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
-	// tmp
-	_port = port;
-//	_host = config.getHost();
-	// parse config ...
-	_rules = rules;
-	setAddress();
-	socketInit();
-	//
-	this->_argv = argv;
-	this->_envp = envp;
-	this->_debug = false;
-	if (argv.find("--debug=yes") != argv.end())
-		this->_debug = true;
-}
-
-// VServ::VServ(const VServ& rhs);
-
-VServ&	VServ::operator=(const VServ& rhs) {
-//	_port = rhs.getPort();
-//	_host = rhs.getHost();
-	_fd = rhs.getFd();
-	setAddress();
-//	std::cout << "address port = " << _address.sin_port << std::endl;
-	return (*this);
-}
-
-VServ::~VServ() {
-//	if (_fd != -1)
-//		close(_fd);
-}
-
-// SETTERS
-
-void	VServ::setAddress() {
-	_address.sin_family = AF_INET;
-	_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	_address.sin_port = htons(_port);
-}
-
-// GETTERS
-
-int	VServ::getFd() const {
-	return (_fd);
-}
-
-// METHODS
-
 void	VServ::socketInit() {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fd == -1)
 		throw (SocketException());
+	
 	fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
-
+		
 	int opt = 1;
 	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
-		throw (SetSockOptException());
-
+	throw (SetSockOptException());
+	
 	if (bind(_fd, (struct sockaddr*)&_address, sizeof(_address)) == -1)
 		throw (BindException());
 
@@ -198,11 +199,11 @@ bool isHttpRequestComplete(const std::string &rawRequest) {
 			}
 			return false;  // Waiting for more body data
 		}
-	} else { //remove this block if bug for transfer-encoding: chuncked
+	} /* else { //remove this block if bug for transfer-encoding: chuncked
 		if (rawRequest.find("\r\n") == std::string::npos)
 			return false;
 	}
-
+ */
 	return true;
 }
 
@@ -219,8 +220,10 @@ ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 			str.append(tempBuffer, bytesRead);
 			//std::cout << "Lopp: [" << str << "]\n\n\n" << std::endl;
 		} else {
-			if (bytesRead == 0) //client close connection;
+			if (bytesRead == 0) { //client close connection;
 				_clientBuffers.erase(fd);
+				_mainInstance->deleteFd(fd);
+			}
 			break;
 		}
 	}
@@ -255,7 +258,7 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	std::string	rawResponse = response.makeRawResponse();
 
 	if (_debug)
-		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl << std::endl << std::endl << std::endl;
+		std::cout << "RESPONSE --------" << std::endl << "{" << rawResponse << "}" << std::endl << std::endl << std::endl << std::endl;
 
 	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
 	if (bytesSent == -1) {
@@ -437,7 +440,7 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 		if (WIFEXITED(status)) {
 			std::cout << status << std::endl;
 			result = readFile(childToParent[0]);
-			std::cout << "Result CGI :\n" << result << std::endl;
+			std::cout << "Result CGI [" << result << "]" << std::endl;
 		} else {
 			result = "";
 		}
@@ -462,10 +465,11 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 
 void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	struct stat path_stat;	
+	HttpRequest request;
 	HttpRequest response;
 	
 	try {
-		HttpRequest request(HTTP_REQUEST, rawRequest);
+		request = HttpRequest(HTTP_REQUEST, rawRequest);
 
 		std::string reqMethod = request.getMethod();
 		response.setMethod(reqMethod);
@@ -532,4 +536,10 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	}
 
 	sendRequest(response, clientFd);
+
+	std::string connectionType = request.getHeader("Connection");
+	if (connectionType.empty() || (connectionType.find("keep-alive") == std::string::npos)) {
+		std::cout << "The request has been closed." << std::endl;	
+		_mainInstance->deleteFd(clientFd);
+	}
 }
