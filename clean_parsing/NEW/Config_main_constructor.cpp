@@ -179,7 +179,7 @@ void	Config::setServerName(const std::string& host, const int& port, const std::
 	if (hostIt != hostIte) {
 		newPorts = hostIt->second;
 		newPorts.insert(make_pair(port, serverName));
-		hostIt->second = newPorts;
+	//	hostIt->second = newPorts;
 	}
 	newPorts.insert(make_pair(port, serverName));
 	_serverNames.insert(make_pair(host, newPorts));
@@ -245,7 +245,86 @@ void	Config::setServerNames(std::string host, int port, t_mmap_range< std::strin
     } else
 		valueExists = false;
 */
+/*
+void	Config::setRules(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs) {
+	t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
+		hostIt = hostArgs.begin(), hostIte = hostArgs.end();
+	while (hostIt != hostIte) {
 
+		hostIt++;
+	}
+}
+*/
+
+void	Config::setServerNames(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs) {
+	t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
+		hostArgsIt = hostArgs.begin(), hostArgsIte = hostArgs.end();
+	while (hostArgsIt != hostArgsIte) {
+		std::cout << "/////// host = " << hostArgsIt->first << std::endl;
+	//	int	port = _ports[hostArgsIt->first];
+	//	t_mmap_range< std::string, std::string >::t
+	//		portRange = hostArgsIt->second.equal_range("port");
+	//	t_mmap_it< std::string, std::string >::t
+	//		portIt = portRange.first, portIte = portRange.second;
+		t_mmap_range< std::string, int >::t
+			portRange = _ports.equal_range(hostArgsIt->first);
+		t_mmap_it< std::string, int >::t
+			portIt = portRange.first, portIte = portRange.second;
+		std::multimap< int, std::string >	toSet;
+		while (portIt != portIte) {
+			int	port = portIt->second;
+		//	int	port = std::atoi((hostArgsIt->second.find("port"))->second.c_str());
+			t_mmap_range< std::string, std::string >::t
+				sNameRange = hostArgsIt->second.equal_range("server_names");
+			t_mmap_it< std::string, std::string >::t
+				sNameIt = sNameRange.first, sNameIte = sNameRange.second;
+			while (sNameIt != sNameIte) {
+				std::string	serverName = sNameIt->second;
+				std::cout << "/////// port = " << port << "\tserverName = " << serverName << std::endl;
+				toSet.insert(make_pair(port, serverName));
+				sNameIt++;
+			}
+			portIt++;
+		}
+		_serverNames.insert(make_pair(hostArgsIt->first, toSet));
+		toSet.clear();
+		hostArgsIt++;
+	} // ajouter local host
+}
+
+void	Config::setRules(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs) {
+	t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
+		argsIt = hostArgs.begin(), argsIte = hostArgs.end();
+	while (argsIt != argsIte) {
+		std::map< std::string, Rules* >	sNamesToSet;
+		std::map< int, std::map< std::string, Rules* > >	portToSet;
+//		t_mmap_range< std::string, std::multimap< int, std::string > >::t
+//			sNamesRange
+		t_mmap_it< std::string, std::multimap< int, std::string > >::t
+			sNamesIt = _serverNames.begin(), sNamesIte = _serverNames.end();
+		while (sNamesIt != sNamesIte) {
+			// if prout
+			t_mmap_it< int, std::string >::t
+				portIt = sNamesIt->second.begin(), portIte = sNamesIt->second.end();
+			while (portIt != portIte) {
+
+			//	Rules	defaultRules;
+			//	Rules*	rules = new Rules(args, defaultRules, "/");
+				Rules*	rules = NULL;
+				sNamesToSet[portIt->second] = rules;
+				if (!portToSet.count(portIt->first))
+					portToSet[portIt->first] = sNamesToSet;
+				else if (!portToSet[portIt->first].count(portIt->second))
+					portToSet[portIt->first][portIt->second] = sNamesToSet[portIt->second];
+			//	else
+			//		delete rules;
+			}
+			sNamesIt++;
+		}
+		_parsedConfig.insert(make_pair(argsIt->first, portToSet));
+		argsIt++;
+	}
+}
 
 Config::Config(const char* fileName): Parser() {
 	setArgsToFind();
@@ -259,6 +338,7 @@ Config::Config(const char* fileName): Parser() {
 	std::vector< std::string >	serverLines = splitScope(fileContent, "server");
 	deleteBrackets(serverLines);
 //	printVec(serverLines, "\t"); //
+	std::multimap< std::string, std::multimap< std::string, std::string > >	hostArgs;
 	for (size_t i = 0, n = serverLines.size(); i < n; i++) {
 		std::multimap< std::string, std::string >	args = parseLine(serverLines[i]);
 		checkArgsFormat(args);
@@ -274,21 +354,31 @@ Config::Config(const char* fileName): Parser() {
 		// set port
 		int	port = std::atoi(args.equal_range("port").first->second.c_str());
 		setPort(host, port);
-		printMultimap(_argsToFind, args);
-		std::cout << std::endl;
-		setServerNames(host, port, args.equal_range("server_names"));
+		hostArgs.insert(make_pair(host, args));
+	//	printMultimap(_argsToFind, args);
+	//	std::cout << std::endl;
+
+	//	setServerNames(host, port, args.equal_range("server_names"));
 	//	setServerNames(host, port);
-		std::cout << "After setServerNames: " << std::endl;
-		for (std::multimap<std::string, std::multimap<int, std::string> >::const_iterator it = _serverNames.begin(); it != _serverNames.end(); ++it) {
-			std::cout << "Host: " << it->first << std::endl;
-			for (std::multimap<int, std::string>::const_iterator portIt = it->second.begin(); portIt != it->second.end(); ++portIt) {
-				std::cout << "  Port: " << portIt->first
-						  << ", Server Name: " << portIt->second << std::endl;
-			}
-		}
-		std::cout << std::endl;
 	//	std::cout << "count port 80: " << _serverNames
 	}
+	std::cout << "After hostArgs set:" << std::endl;
+	for (t_mmap_it< std::string, std::multimap< std::string, std::string > >::t	mmIt = hostArgs.begin(), mmIte = hostArgs.end(); mmIt != mmIte; mmIt++) {
+		std::cout << "\thost: " << mmIt->first << "\tcount: " << hostArgs.count(mmIt->first) << std::endl;
+		printMultimap(_argsToFind, mmIt->second);
+	}
+	setServerNames(hostArgs); // ajouter localhost
+	std::cout << "After setServerNames:" << std::endl;
+	for (t_mmap_it< std::string, std::multimap< int, std::string > >::t hostIt = _serverNames.begin(), hostIte = _serverNames.end(); hostIt != hostIte; hostIt++) {
+		std::cout	<< "\thost: " << hostIt->first << "\tcount = " << _serverNames.count(hostIt->first) << std::endl;
+		for (t_mmap_it< int, std::string >::t portIt = hostIt->second.begin(), portIte = hostIt->second.end(); portIt != portIte; portIt++) {
+			std::cout	<< "\tport: " << portIt->first
+						<< "\tserverName: " << portIt->second
+						<< std::endl;
+		}
+	}
+//	setRules(hostArgs); //
+
 	// Set tous les arguments de tous les serveurs apres la boucle.
 	// lire tous les serveurs dans la boucle, stocker leurs arguments provisoirement dans:
 	// std::vector< std::multimap< std::string, std::string > >

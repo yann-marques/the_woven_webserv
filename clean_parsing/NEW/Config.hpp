@@ -26,10 +26,11 @@ class	Config: public Parser {
 		std::string	extractFileContent(const char* fileName);
 		std::vector< std::string >	splitLine(std::string fileContent, std::string sep);
 
+		void	setRules(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs);
 		void	setPort(std::string host, int port);
 		void	setServerName(const std::string& host, const int& port, const std::string& serverName);
 		void	setServerNames(std::string host, int port, t_mmap_range< std::string, std::string >::t argsRange);
-
+		void	setServerNames(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs);
 		~Config();
 
 		// EXCEPTIONS

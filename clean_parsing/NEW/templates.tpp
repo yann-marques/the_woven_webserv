@@ -39,7 +39,6 @@ void	printMap(std::set< T > keys, const std::map< T, U >& map, std::string tabs)
 
 template< typename Key, typename Value >
 void	printMultimap(std::set< Key > keys, const std::multimap< Key, Value >& mmap) {
-	std::cout << "coucou" << std::endl;
 	typename t_set_it< Key >::t	keyIt = keys.begin(), keyIte = keys.end();
 	while (keyIt != keyIte) {
 		typename t_mmap_range< Key, Value >::t	mmRange = mmap.equal_range(*keyIt);
