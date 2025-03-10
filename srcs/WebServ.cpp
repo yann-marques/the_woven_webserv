@@ -34,17 +34,17 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 
 		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
 		while (portIt != portIte) {
-			VServ*	server = new VServ(this, *portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+			VServ*	vserv = new VServ(this, *portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
 
 			//////
-			int	sfd = server->getFd();
+			int	sfd = vserv->getFd();
 
-			insertVServFd(sfd);
-			setVServ(sfd, server);
+			//insertVServFd(sfd);
+			_fds[sfd] = SERVER_SOCK;  
+			setVServ(sfd, vserv);
 
 			// set the event for sfd then epoll ctl the server fd
-			setEvent(EPOLLIN, sfd, server);
-			epollCtlAdd(sfd);
+			epollCtlAdd(sfd, EPOLLIN);
 
 			portIt++;
 		}
@@ -63,7 +63,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 			epollCtlAdd(sfd);
 		}
 */
-		_epollEvents.resize(_maxEvents);
+		_epollEventsBuff.resize(_maxEvents);
 		listenEvents();
 
 	} catch (EpollCreateException& e) {
@@ -120,8 +120,8 @@ WebServ::~WebServ() {
 	if (_epollFd != -1)
 		close(_epollFd);
 
-	for (std::set<int>::iterator it = _VServerFds.begin(); it != _VServerFds.end(); ++it)
-		delete getVServ(*it);
+	//for (std::set<int>::iterator it = _VServerFds.begin(); it != _VServerFds.end(); ++it)
+	//	delete getVServ(*it);
 /*
 	size = _clientFds.size();
 
@@ -131,11 +131,6 @@ WebServ::~WebServ() {
 }
 
 // SETTERS
-
-
-void	WebServ::insertVServFd(int fd) {
-	_VServerFds.insert(fd);
-}
 
 
 void	WebServ::setVServ(int fd, VServ* rhs) {
@@ -149,21 +144,12 @@ int	WebServ::getEpollFd() const {
 	return (_epollFd);
 }
 
-std::set<int>	WebServ::getServersFd(void) const {
-	return (_VServerFds);
-}
 
 //Renvoie un VServ* associe au FD passe. Si c'est un FD client, ca renvoie le *VServ "attache" a ce client. Si c'est un FD Server, renvoie le *VServ.
 VServ*	WebServ::getVServ(int fd) {
-	if (isVServFD(fd)) {
-		return (_VServers[fd]);
-	}
-	return (NULL);
+	return (_VServers[fd]);
 }
 
-std::size_t	WebServ::getServerNbr() const {
-	return (_VServerNbr);
-}
 
 // METHODS
 
@@ -173,14 +159,18 @@ void	WebServ::handleSignal(int signal) {
 }
 
 int	WebServ::epollWait(void) {
-	int numEvents = epoll_wait(_epollFd, _epollEvents.data(), _maxEvents, -1);
+	int numEvents = epoll_wait(_epollFd, _epollEventsBuff.data(), _maxEvents, -1);
 	if (numEvents == -1)
 		throw (EpollWaitException());
 	return (numEvents);
 }
 
-void	WebServ::epollCtlAdd(int fd) {
-	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &_event) == -1)
+void	WebServ::epollCtlAdd(int fd, uint32_t events) {
+	epoll_event event;
+	event.events = events;
+	event.data.fd = fd;
+	
+	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1)
 		throw (EpollCtlAddException());
 }
 
@@ -189,17 +179,14 @@ void	WebServ::epollCtlDel(int fd) {
 		throw (EpollCtlDelException());
 }
 
-void	WebServ::setEvent(uint32_t epoll_event, int fd, void *ptr) {
-	_event.events = epoll_event;
-	_event.data.fd = fd;
-	_event.data.ptr = ptr;
+bool WebServ::isServerFD(int fd) {
+    std::map<int, fdType>::iterator it = _fds.find(fd);
+    return (it != _fds.end() && it->second == SERVER_SOCK);
 }
 
-bool WebServ::isVServFD(int fd) {
-	if (std::find(_VServerFds.begin(), _VServerFds.end(), fd) != _VServerFds.end())
-		return true;
-	else
-		return false;
+bool WebServ::isClientFD(int fd) {
+    std::map<int, fdType>::iterator it = _fds.find(fd);
+    return (it != _fds.end() && it->second == CLIENT_SOCK);
 }
 
 void	WebServ::deleteFd(int fd) {
@@ -209,10 +196,10 @@ void	WebServ::deleteFd(int fd) {
 
 void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
+	_fds[clientFd] = CLIENT_SOCK;  
+	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-
-	setEvent(EPOLLIN | EPOLLET, clientFd, static_cast<void *>(vserv));
-	epollCtlAdd(clientFd);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLET);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 
@@ -240,18 +227,17 @@ void	WebServ::listenEvents(void) {
 		try {
 			int nbEvents = epollWait();
 			for (int i = 0; i < nbEvents; i++) {
-				int fd = _epollEvents[i].data.fd;
+				int fd = _epollEventsBuff[i].data.fd;
 
 				std::cout << "FD: " << fd << std::endl;
 
-				//VServ *vserv = getVServ(fd);
-				VServ *vserv = static_cast<VServ *>(_epollEvents[i].data.ptr);
+				VServ *vserv = getVServ(fd);
 				if (!vserv)
 					throw UnknownFdException();
 
-				if (isVServFD(fd))
+				if (isServerFD(fd))
 					handleServerEvent(vserv);
-				else
+				if (isClientFD(fd))
 					handleClientEvent(fd, vserv);
 				
 			}

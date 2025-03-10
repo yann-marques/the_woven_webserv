@@ -20,6 +20,11 @@
 
 class VServ;
 
+enum fdType {
+    SERVER_SOCK,
+    CLIENT_SOCK
+};
+
 class	WebServ {
 	private:
 		bool							_debug;
@@ -28,12 +33,10 @@ class	WebServ {
 		Config							_config;	// parsed config file
 
 		int								_epollFd;
-		epoll_event						_event;
-		std::vector<struct epoll_event> _epollEvents;
+		std::vector<struct epoll_event> _epollEventsBuff;
 
-		std::size_t						_VServerNbr;
+		std::map<int, fdType>			_fds;
 		std::map<int, VServ*>			_VServers;
-		std::set<int>					_VServerFds;
 		
 		std::set<std::string>			_envp;
 		std::set<std::string>			_argv;
@@ -46,28 +49,23 @@ class	WebServ {
 		~WebServ();
 
 		//SETTERS
-		void	insertVServFd(int fd);
 		void	setVServ(int fd, VServ* rhs);
 
 		//GETTERS
 		VServ*	getVServ(int fd);
 		int	getEpollFd() const;
 
-		std::set<int> getServersFd(void) const;
-		std::size_t	getServerNbr() const;
-
 		//METHODS
 		void	handleServerEvent(VServ* vserv);
 		void	handleClientEvent(int fd, VServ* vserv);
-		bool	isVServFD(int fd);
 		void	handleSignal(int signal);
 		void	listenEvents(void);
 		int		epollWait(void);
-		void	epollCtlAdd(int fd);
+		void	epollCtlAdd(int fd, uint32_t events);
 		void	epollCtlDel(int fd);
-		void	setEvent(uint32_t epoll_event, int fd, void *ptr);
 		void	deleteFd(int fd);
-		
+		bool	isServerFD(int fd);
+		bool	isClientFD(int fd);
 
 		// EXCEPTIONS
 		class	SIGINTException: public std::exception {
