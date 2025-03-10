@@ -27,6 +27,7 @@ class	Config: public Parser {
 		std::vector< std::string >	splitLine(std::string fileContent, std::string sep);
 
 		void	setPort(std::string host, int port);
+		void	setServerName(const std::string& host, const int& port, const std::string& serverName);
 		void	setServerNames(std::string host, int port, t_mmap_range< std::string, std::string >::t argsRange);
 
 		~Config();

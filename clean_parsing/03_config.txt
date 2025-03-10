@@ -1,6 +1,6 @@
 server {
   port: 8080;
-  server_names: localhost, site1.com, www.site1.com;
+  server_names: localhost, site1.com, www.site1.com, www.bloum.fr;
   root: www/;
   default_pages: index.html, home.html;
   error_pages {
