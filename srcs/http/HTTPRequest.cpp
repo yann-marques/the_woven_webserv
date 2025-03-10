@@ -139,7 +139,7 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     std::string line;
 
     while (std::getline(stream, line) && line.empty())
-        ;
+        ; 
 
     if (_direction == HTTP_REQUEST) {
         if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
@@ -228,9 +228,10 @@ std::string HttpRequest::makeRawResponse(void) {
         rawResponse << "\r\n"; 
     } else {
         std::size_t bodySize = _body.size();
+        bodySize = bodySize <= 2 ? 0 : bodySize;
         rawResponse << "Content-Length: " << bodySize << "\r\n";
         rawResponse << "\r\n"; // End of headers
-        if (bodySize > 2) //if bodysize <= 2, body is == "\r\n". So we add noting.
+        if (bodySize > 0) //if bodysize <= 2, body is == "\r\n". So we add noting.
             rawResponse << _body;
     }
 

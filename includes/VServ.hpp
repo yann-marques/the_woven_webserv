@@ -78,6 +78,8 @@ class	VServ {
 		std::string			getPagePath(HttpRequest &request);
 		void				setTargetRules(HttpRequest &req);
 		void 				checkAllowedMethod(HttpRequest& request);
+		bool				isEndedChunckReq(std::string rawRequest);
+		bool				isHttpRequestComplete(const std::string &rawRequest);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {

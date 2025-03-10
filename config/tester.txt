@@ -3,6 +3,7 @@ server {
   server_names: 172.20.10.2, localhost, example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
+  max_body_bytes: 1G;
 
   error_pages {
     404: not_found.html;

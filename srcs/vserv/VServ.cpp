@@ -67,7 +67,6 @@ std::vector<std::string> split (const std::string &s, char delim) {
 void	VServ::setTargetRules(HttpRequest &req) {
 	std::string httpHost = req.getHeader("Host");
 
-	//std::cout << req.getRawHeaders() << std::endl;
 	if (httpHost.empty()) {
 		std::cout << std::endl << "Host not found on http header." << std::endl;
 		httpHost = "localhost:";
@@ -155,32 +154,49 @@ std::string VServ::readRequest(HttpRequest &request) {
     ssize_t bytesRead;
 	std::string cgiContent;
     char tempBuffer[4096];
+	std::string body;
 
 	std::string rootPath = makeRootPath(request);
     int fd = open(rootPath.c_str(), O_RDONLY);
     if (fd < 0)
 		throw OpenFileException();
 
-    while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
-        buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
-    }
-	if (bytesRead < 0 && buffer.empty()) {
-        close(fd);
-        throw OpenFileException();
-    }
-    close(fd);
-	std::string fileData = std::string(buffer.begin(), buffer.end());
+	if (request.getMethod() == "GET") {
+		while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
+			buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
+		}
+		if (bytesRead < 0 && buffer.empty()) {
+			close(fd);
+			throw OpenFileException();
+		}
+		close(fd);
+		body = std::string(buffer.begin(), buffer.end());
+	}
 
-	if (fileIsCGI(request)) {
+	if (request.getMethod() == "POST") {
+		body = request.getBody();
+	}
+
+	if (!body.empty() && fileIsCGI(request)) {
 		std::cout << "file is a cgi" << std::endl;
-		cgiContent = handleCGI(fileData, request);
+		cgiContent = handleCGI(body, request);
 		return (cgiContent);
 	}
 
-    return (fileData);
+    return (body);
 }
 
-bool isHttpRequestComplete(const std::string &rawRequest) {
+bool VServ::isEndedChunckReq(std::string rawRequest) {
+	if (rawRequest.find("0\r\n\r\n") != std::string::npos
+	    || rawRequest.find("\r\n0") != std::string::npos)
+	{ //last chunked request
+		std::cout << "Last chuncked. Connection close" << std::endl;
+		return (true);
+	}
+	return (false);	
+}
+
+bool VServ::isHttpRequestComplete(const std::string &rawRequest) {
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	if (headerEnd == std::string::npos) {
@@ -199,11 +215,12 @@ bool isHttpRequestComplete(const std::string &rawRequest) {
 			}
 			return false;  // Waiting for more body data
 		}
-	} /* else { //remove this block if bug for transfer-encoding: chuncked
-		if (rawRequest.find("\r\n") == std::string::npos)
+	} else {
+		if (rawRequest.find("Transfer-Encoding: chunked") != std::string::npos
+			&& !isEndedChunckReq(rawRequest))
 			return false;
 	}
- */
+
 	return true;
 }
 
@@ -221,12 +238,16 @@ ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 			//std::cout << "Lopp: [" << str << "]\n\n\n" << std::endl;
 		} else {
 			if (bytesRead == 0) { //client close connection;
+				std::cout << "client close connection." << std::endl;
 				_clientBuffers.erase(fd);
 				_mainInstance->deleteFd(fd);
+				return (bytesRead);
 			}
 			break;
 		}
 	}
+
+	std::cout << str.size() << std::endl;
 
 	std::string finalStr = std::string(str);
 	if (isHttpRequestComplete(finalStr)) {
@@ -329,8 +350,7 @@ bool	VServ::fileIsCGI(HttpRequest &request) {
 
 	std::set<std::string> cgiPaths = request.getRules()->getCgiKeys();
 	while (std::getline(stream, segment, '.')) {
-		if (cgiPaths.find("." + segment) != cgiPaths.end())
-		{
+		if (cgiPaths.find("." + segment) != cgiPaths.end()) {
 			request.setCgiExt("." + segment);
 			return (true);		
 		}
@@ -386,16 +406,18 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	return (env);
 }
 
-std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
+std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 	int					parentToChild[2], childToParent[2];
 	pid_t				pid;
 	std::vector<char*>	env;
 	std::string			result;
 	int 				status;
+	ssize_t				bytesWritten = 0;
+	ssize_t				totalBytesWritten = 0;
+	const size_t 		chunckSize = 65536;  // 64 KB chunk size
 
 	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
 	std::string interpreter = cgiPaths[request.getCgiExt()];
-	std::cout << interpreter << std::endl;
 	if (interpreter.empty())
 		throw InterpreterEmpty();
 
@@ -432,8 +454,50 @@ std::string	VServ::handleCGI(std::string &fileData, HttpRequest &request) {
 		close(parentToChild[0]);
 		close(childToParent[1]);
 
-		if (write(parentToChild[1], fileData.c_str(), fileData.size() + 1) < 0)
-			std::cerr << "Fail to write into parentToChild pipe" << std::endl;
+		fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
+
+
+		// Set up epoll
+        int epollFd = epoll_create(10);
+        if (epollFd == -1) {
+            std::cerr << "epoll_create1 failed: " << strerror(errno) << std::endl;
+            return "";
+        }
+
+        struct epoll_event event;
+        event.events = EPOLLOUT;  // Monitor for write availability
+        event.data.fd = parentToChild[1];  // Write end of the pipe
+
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, parentToChild[1], &event) == -1) {
+            std::cerr << "epoll_ctl failed: " << strerror(errno) << std::endl;
+            return "";
+        }
+
+
+		while (totalBytesWritten < static_cast<ssize_t>(body.size())) {
+			
+			struct epoll_event events[1];
+            int nfds = epoll_wait(epollFd, events, 1, -1);  // Wait for writability
+            if (nfds == -1) {
+                std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
+                break;
+            }
+
+			if (events[0].events & EPOLLOUT) {
+				std::cout << totalBytesWritten << std::endl;
+				if ((bytesWritten = write(parentToChild[1], body.c_str() + totalBytesWritten, chunckSize)) < 0) {
+					std::cerr << "Fail to write into parentToChild pipe" << std::endl;
+					//break ;
+					if (errno == EAGAIN) {
+                        std::cerr << "Pipe buffer full, waiting for writability" << std::endl;
+                    } else {
+                        std::cerr << "Fail to write into parentToChild pipe: " << strerror(errno) << std::endl;
+                        break;
+                    }
+				}
+				totalBytesWritten += bytesWritten;
+			}
+		}
 		close(parentToChild[1]);
 
 		waitpid(pid, &status, 0);
@@ -461,7 +525,7 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 			return ;
 	}
 	throw MethodNotAllowed();
-} 
+}
 
 void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	struct stat path_stat;	
@@ -469,11 +533,12 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	HttpRequest response;
 	
 	try {
+
 		request = HttpRequest(HTTP_REQUEST, rawRequest);
 
 		std::string reqMethod = request.getMethod();
 		response.setMethod(reqMethod);
-	
+
 		if (!_debug)
 			request.log();
 		
@@ -537,8 +602,13 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 
 	sendRequest(response, clientFd);
 
+	if (isEndedChunckReq(rawRequest)) {
+		_mainInstance->deleteFd(clientFd);
+		return ;
+	}
+	
 	std::string connectionType = request.getHeader("Connection");
-	if (connectionType.empty() || (connectionType.find("keep-alive") == std::string::npos)) {
+	if (!connectionType.empty() || (connectionType.find("close") != std::string::npos))  {
 		std::cout << "The request has been closed." << std::endl;	
 		_mainInstance->deleteFd(clientFd);
 	}

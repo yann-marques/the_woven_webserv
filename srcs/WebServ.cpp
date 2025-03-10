@@ -229,8 +229,6 @@ void	WebServ::listenEvents(void) {
 			for (int i = 0; i < nbEvents; i++) {
 				int fd = _epollEventsBuff[i].data.fd;
 
-				std::cout << "FD: " << fd << std::endl;
-
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
 					throw UnknownFdException();
