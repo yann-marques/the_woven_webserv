@@ -227,7 +227,7 @@ bool VServ::isHttpRequestComplete(const std::string &rawRequest) {
 ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 	std::string&	str = _clientBuffers[fd];
 	ssize_t		bytesRead;
-	char 		tempBuffer[1024];
+	char 		tempBuffer[4096];
 
 	buffer = "";	
 	while (true) {
@@ -261,18 +261,22 @@ ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 std::string VServ::readFile(int fd) {
 	std::vector<char> buffer;
 	ssize_t bytesRead;
+	std::string result;
 	char tempBuffer[4096];
 
-	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer)))) {
-		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
-	}
+	while (true) {
+		bytesRead = read(fd, tempBuffer, sizeof(tempBuffer));
+		
+		if (bytesRead > 0) {
+			result.append(tempBuffer, bytesRead);
+			std::cout << "Lopp: [" << result << "]\n\n\n" << std::endl;
+		} else {
+			close(fd);
+			break;
+		}
+	}	
 
-	if (bytesRead < 0 && buffer.empty()) {
-	    close(fd);
-        throw RecvException();
-    }
-
-	return std::string(buffer.begin(), buffer.end());
+	return result;
 }
 
 void	VServ::sendRequest(HttpRequest &response, int clientFd) {
@@ -414,10 +418,11 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 	int 				status;
 	ssize_t				bytesWritten = 0;
 	ssize_t				totalBytesWritten = 0;
-	const size_t 		chunckSize = 65536;  // 64 KB chunk size
+	const ssize_t 		chunckSize = 5;  // 64 KB chunk size
 
 	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
 	std::string interpreter = cgiPaths[request.getCgiExt()];
+	std::cout << interpreter << std::endl;
 	if (interpreter.empty())
 		throw InterpreterEmpty();
 
@@ -430,7 +435,7 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		close(childToParent[0]);
 		close(parentToChild[1]);
 
-		fcntl(childToParent[1], F_SETFL, O_NONBLOCK);
+		fcntl(childToParent[0], F_SETFL, O_NONBLOCK);
 		
 		if (dup2(childToParent[1], STDOUT_FILENO) < 0)
 			std::cerr << "dup2 failed" << std::endl;
@@ -455,7 +460,7 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		close(childToParent[1]);
 
 		fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
-
+		fcntl(childToParent[0], F_SETFL, O_NONBLOCK);
 
 		// Set up epoll
         int epollFd = epoll_create(10);
@@ -464,51 +469,80 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
             return "";
         }
 
-        struct epoll_event event;
-        event.events = EPOLLOUT;  // Monitor for write availability
-        event.data.fd = parentToChild[1];  // Write end of the pipe
+		struct epoll_event eventWrite, eventRead;
+		eventWrite.events = EPOLLOUT;
+		eventWrite.data.fd = parentToChild[1];
 
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, parentToChild[1], &event) == -1) {
+		eventRead.events = EPOLLIN;
+		eventRead.data.fd = childToParent[0];
+
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, parentToChild[1], &eventWrite) == -1) {
             std::cerr << "epoll_ctl failed: " << strerror(errno) << std::endl;
             return "";
         }
 
+		if (epoll_ctl(epollFd, EPOLL_CTL_ADD, childToParent[0], &eventRead) == -1) {
+            std::cerr << "epoll_ctl failed: " << strerror(errno) << std::endl;
+            return "";
+		}
+		
+		ssize_t bodySize = static_cast<ssize_t>(body.size());
+		const char *bodyCStr = body.c_str();
 
-		while (totalBytesWritten < static_cast<ssize_t>(body.size())) {
+		bool endOfWritting = false;
+		bool endOfReading = false;
+
+		while (!(endOfWritting && endOfReading)) {
+		//while (totalBytesWritten < static_cast<ssize_t>(body.size())) {
 			
-			struct epoll_event events[1];
-            int nfds = epoll_wait(epollFd, events, 1, -1);  // Wait for writability
+			struct epoll_event events[2];
+            int nfds = epoll_wait(epollFd, events, 2, -1);  // Wait for writability
             if (nfds == -1) {
                 std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
                 break;
             }
 
-			if (events[0].events & EPOLLOUT) {
-				std::cout << totalBytesWritten << std::endl;
-				if ((bytesWritten = write(parentToChild[1], body.c_str() + totalBytesWritten, chunckSize)) < 0) {
-					std::cerr << "Fail to write into parentToChild pipe" << std::endl;
-					//break ;
-					if (errno == EAGAIN) {
-                        std::cerr << "Pipe buffer full, waiting for writability" << std::endl;
-                    } else {
-                        std::cerr << "Fail to write into parentToChild pipe: " << strerror(errno) << std::endl;
-                        break;
-                    }
+			for (int i = 0; i < nfds; i++)
+			{
+				int fd = events[i].data.fd;
+				
+				if ((events[i].events & EPOLLOUT) && !endOfWritting) {
+					
+					std::cout << "Writing into child fork : " << fd << std::endl;
+					
+					if (totalBytesWritten < bodySize) {
+						ssize_t bytesToWrite = totalBytesWritten + chunckSize < bodySize ? chunckSize : bodySize - totalBytesWritten;
+						std::cout << bytesToWrite << std::endl; 
+						if ((bytesWritten = write(fd, bodyCStr + totalBytesWritten, bytesToWrite)) < 0) {
+							std::cerr << "Fail to write into parentToChild pipe" << std::endl;
+							break ;
+						} else {
+							totalBytesWritten += bytesWritten;
+						}
+						if (bytesToWrite < chunckSize)
+							endOfWritting = true;
+					}
 				}
-				totalBytesWritten += bytesWritten;
+
+				if ((events[i].events & EPOLLIN) && !endOfReading) {
+					std::cout << "Reading from child fork: " << fd << std::endl;			
+					result = readFile(fd);
+					endOfReading = true;
+				}
 			}
 		}
+		//std::cout << "Result CGI [" << result << "]" << std::endl;
 		close(parentToChild[1]);
 
 		waitpid(pid, &status, 0);
+		
 		if (WIFEXITED(status)) {
 			std::cout << status << std::endl;
 			result = readFile(childToParent[0]);
-			std::cout << "Result CGI [" << result << "]" << std::endl;
 		} else {
 			result = "";
-		}
-		close(childToParent[0]);
+		} 
+			close(childToParent[0]);
 	}
 	
 	return (result);

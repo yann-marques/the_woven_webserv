@@ -14,7 +14,7 @@ server {
   allowed_methods: GET;
   
   cgi_path {
-    .bla: tester/ubuntu_cgi_tester;
+    .bla: /usr/bin/cat;
   }
 
   location: /post_body {
