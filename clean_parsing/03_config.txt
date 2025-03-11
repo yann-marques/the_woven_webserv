@@ -60,7 +60,7 @@ server {
   }
   auto_index: no;
   allowed_methods: GET, POST;
-  max_body_bytes: 1024;
+  max_body_bytes: 1M;
   cgi_path {
     .pl: /usr/bin/perl;
   }

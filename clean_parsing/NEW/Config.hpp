@@ -25,8 +25,9 @@ class	Config: public Parser {
 		void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const;
 
 		// GETTERS
+		const std::set< std::string >&	getHosts() const;
 		const std::multimap< std::string, int >&	getPorts() const;
-		const std::multimap< std::string, std::multimap< int, std::string > >&	getServerNames() const;
+		const std::map< std::string, std::multimap< int, std::string > >&	getServerNames() const;
 		const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&	getParsedConfig() const;
 
 		std::string	extractFileContent(const char* fileName);
@@ -37,6 +38,7 @@ class	Config: public Parser {
 		void	setServerName(const std::string& host, const int& port, const std::string& serverName);
 		void	setServerNames(std::string host, int port, t_mmap_range< std::string, std::string >::t argsRange);
 		void	setServerNames(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs);
+		void	setServerNamesByHost(const t_mmap_range< std::string, std::multimap< std::string, std::string > >::t& range);
 		void	setArgsByHost(t_mmap_range< std::string, std::multimap< std::string, std::string > >::t range);
 		~Config();
 

@@ -42,8 +42,6 @@ void	Config::setArgsToFind() {
 	_argsToFind.insert("upload");
 }
 
-Config::~Config() {}
-
 /*
 Config::~Config() {
     t_set_it< std::string >::t
@@ -107,7 +105,7 @@ Config::~Config() {
 			t_mmap_it< int, std::string >::t	serverNamesIt = serverNamesRange.first,
 												serverNamesIte = serverNamesRange.second;
 			while (serverNamesIt != serverNamesIte) {
-			//	delete _parsedConfig[*hostIt][portIt->second][serverNamesIt->second];
+				delete _parsedConfig[*hostIt][portIt->second][serverNamesIt->second];
 				serverNamesIt++;
 			}
 			portIt++;
@@ -116,23 +114,68 @@ Config::~Config() {
 	}
 }
 */
+
+Config::~Config() {
+	t_mmap_it< std::string, std::multimap< int, std::string > >::t
+		it = _serverNames.begin(), ite = _serverNames.end();
+	while (it != ite) {
+		std::string host = it->first;
+		t_mmap_it< int, std::string >::t
+			portIt = it->second.begin(), portIte = it->second.end();
+		while (portIt != portIte) {
+			int port = portIt->first;
+			std::string serverName = portIt->second;
+		//	t_mmap_range< int, std::string >::t
+		//		sNamesRange = portIt
+		std::cout << "host: " << host << "\tport: " << port << "\tsName: " << serverName << std::endl;
+		delete _parsedConfig[host][port][serverName];
+			portIt++;
+		}
+		it++;
+	}
+}
+
 std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
 	(void) rhs;
 	std::cout	<< "########################################################## CONFIG" << std::endl << std::endl;
 
+	t_mmap_it< std::string, std::multimap< int, std::string > >::t
+		it = rhs.getServerNames().begin(), ite = rhs.getServerNames().end();
+	std::string	host = "";
+	while (it != ite) {
+		if (host != it->first)
+			std::cout << "################################################### HOST " << it->first << std::endl << std::endl;
+		host = it->first;
+		t_mmap_it< int, std::string >::t
+			portIt = it->second.begin(), portIte = it->second.end();
+		int	port = -1;
+		while (portIt != portIte) {
+			if (port != portIt->first)
+				std::cout << "############################################ PORT " << portIt->first << std::endl << std::endl;
+			port = portIt->first;
+			std::string serverName = portIt->second;
+		//	t_mmap_range< int, std::string >::t
+		//		sNamesRange = portIt
+		//	std::cout << "host: " << host << "\tport: " << port << "\tsName: " << serverName << std::endl;
+			rhs.getParsedConfig().at(host).at(port).at(serverName)->printDeep(0, serverName);
+			portIt++;
+		}
+		it++;
+	}
+	/*
 	t_set_it< std::string >::t	hostKeyIt = rhs.getHosts().begin(), hostKeyIte = rhs.getHosts().end();
 	while (hostKeyIt != hostKeyIte) {
 		std::cout << "########################################################## HOST: " << *hostKeyIt << std::endl;
-		t_mmap_range< std::string, int >::t	portKeyRange = _ports.equal_range(*hostKeyIt);
+		t_mmap_range< std::string, int >::t	portKeyRange = rhs.getPorts().equal_range(*hostKeyIt);
 		t_mmap_it< std::string, int >::t
 			portKeyIt = portKeyRange.first, portKeyIte = portKeyRange.second;
 		while (portKeyIt != portKeyIte) {
 			t_mmap_range< int, std::string >::t
-				sNameKeyRange = _serverNames[*hostKeyIt].equal_range(portKeyIt->second);
+				sNameKeyRange = rhs.getServerNames().at(*hostKeyIt).equal_range(portKeyIt->second);
 			t_mmap_it< int, std::string >::t
 				sNamesKeyIt = sNameKeyRange.first, sNameKeyIte = sNameKeyRange.second;
 			while (sNamesKeyIt != sNameKeyIte) {
-				rhs.getParsedConfig().at(*hostKeyIt).at(portKeyIt->second).at(sNamesKeyIt->second)->printDeep;
+				rhs.getParsedConfig().at(*hostKeyIt).at(portKeyIt->second).at(sNamesKeyIt->second)->printDeep(0, sNamesKeyIt->second);
 				///
 				sNamesKeyIt++;
 			}
@@ -140,6 +183,7 @@ std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
 		}
 		hostKeyIt++;
 	}
+*/
 /*
 	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
 		hostIt = rhs.getParsedConfig().begin(), hostIte = rhs.getParsedConfig().end();

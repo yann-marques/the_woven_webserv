@@ -66,6 +66,7 @@ void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string
 	std::string	hostName = argsIt->first;
 	std::map< int, std::map< std::string, Rules* > >&
 		hostRef = _parsedConfig[hostName];
+	Rules	defaultRules;
 	while (argsIt != argsIte) {
 		std::multimap< std::string, std::string >	args = argsIt->second;
 		int	port = std::atoi(args.find("port")->second.c_str());
@@ -80,12 +81,12 @@ void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string
 
 	//	std::map< int, std::map< std::string, Rules* > >	portMap;
 		std::map< std::string, Rules* >	rulesMap;
-
+		
 		while (serverNamesIt != serverNamesIte) {
 			std::string serverName = serverNamesIt->second;
 		//	if (!portMap.count(port) || !rulesMap.count(serverName)) {
-				Rules	defaultRules;
-				Rules*	rules = new Rules(args, defaultRules, "/");
+				
+			Rules*	rules = new Rules(args, defaultRules, "/");
 			//	rulesMap[serverName] = rules;
 				if (!hostRef.count(port) || !hostRef[port].count(serverName))
 					hostRef[port][serverName] = rules;
@@ -94,8 +95,38 @@ void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string
 		//	}
 			serverNamesIt++;
 		}
+		if (!hostRef[port].count("localhost")) {
+			std::cout << "§§§§§§§§§§§§§§§§§ localhost set" << std::endl;
+			hostRef[port]["localhost"] = new Rules(args, defaultRules, "/");
+		}
 		argsIt++;
 	}
+}
+
+void	Config::setServerNamesByHost(const t_mmap_range< std::string, std::multimap< std::string, std::string > >::t& range) {
+	t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
+		argsIt = range.first, argsIte = range.second;
+	std::string	host = argsIt->first;
+	std::multimap< int, std::string >	portMap;
+	while (argsIt != argsIte) {
+		std::string	portStr = argsIt->second.find("port")->second;
+		int	port = std::atoi(argsIt->second.find("port")->second.c_str());
+		t_mmap_range< std::string, std::string >::t
+			sNamesRange = argsIt->second.equal_range("server_names");
+		t_mmap_it< std::string, std::string >::t
+			sNamesIt = sNamesRange.first, sNamesIte = sNamesRange.second;
+		while (sNamesIt != sNamesIte) {
+			std::string	serverName = sNamesIt->second;
+			std::cout << "/////////////// sName = " << serverName << std::endl;
+			portMap.insert(std::make_pair(port, serverName));
+			sNamesIt++;
+		}
+		if (!isInRange< int, std::string >(portMap.equal_range(port), "localhost"))
+			portMap.insert(std::make_pair(port, "localhost"));
+		argsIt++;
+	}
+	_serverNames.insert(make_pair(host, portMap));
+	
 }
 
 Config::Config(const char* fileName): Parser() {
@@ -127,7 +158,7 @@ Config::Config(const char* fileName): Parser() {
 		setPort(host, port);
 		hostArgs.insert(make_pair(host, args));
 
-		setServerNames(host, port, args.equal_range("server_names")); ////
+	//	setServerNames(host, port, args.equal_range("server_names")); ////
 	}
 	std::cout << "After hostArgs set:" << std::endl;
 	for (t_mmap_it< std::string, std::multimap< std::string, std::string > >::t	mmIt = hostArgs.begin(), mmIte = hostArgs.end(); mmIt != mmIte; mmIt++) {
@@ -137,6 +168,7 @@ Config::Config(const char* fileName): Parser() {
 	std::cout << std::endl;
 	t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
 	while (hostIt != hostIte) {
+		setServerNamesByHost(hostArgs.equal_range(*hostIt));
 		setArgsByHost(hostArgs.equal_range(*hostIt));
 		hostIt++;
 	}
