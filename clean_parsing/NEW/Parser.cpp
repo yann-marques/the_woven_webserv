@@ -62,8 +62,10 @@ size_t	Parser::setArgValueLine(std::string line, std::string key, std::string& v
 	size_t	pos;
 	t_set_it< std::string >::t	setIt = _argsToFind.find(key);
 
-	if (setIt == _argsToFind.end())
+	if (setIt == _argsToFind.end()) {
+	//	std::cout << "here" << std::endl;
 		throw UnexpectedKeyException(key);
+	}
 	else if (*setIt == "location" || *setIt == "error_pages" || *setIt == "cgi_path")
 		pos = endOfScopeIndex(line, line.find('{')) - 1;
 	else
@@ -124,6 +126,35 @@ void	Parser::deleteBrackets(std::vector< std::string >&	vec) {
 		vec[i].erase(0, 1);
 		vec[i].erase(vec[i].size() - 1, 1);
 	}
+}
+
+void	Parser::checkErrorPages(t_mmap_range< std::string, std::string >::t mmRange) const {
+	t_mmap_it< std::string, std::string >::t	mmIt = mmRange.first, mmIte = mmRange.second;
+	do {
+		std::string	str = mmIt->second;
+		size_t	pos1 = str.find(':');
+		if (pos1 == std::string::npos)
+			throw(ConfigSyntaxException());
+		std::string	key(str.substr(0, pos1)), value(str.substr(pos1 + 1));
+		if (!isDigitStr(key)) // + verification du format de value ?
+			throw (UnexpectedKeyException(key));
+		mmIt++;
+	} while (mmIt != mmIte);
+}
+
+void	Parser::checkCgiPath(t_mmap_range< std::string, std::string >::t range) const {
+	t_mmap_it< std::string, std::string >::t	mmIt = range.first, mmIte = range.second;
+	do {
+		std::string	str = mmIt->second;
+		size_t	pos1 = str.find(':');
+		if (pos1 == std::string::npos) {
+			throw(ConfigSyntaxException());
+		}
+		std::string	key(str.substr(0, pos1)), value(str.substr(pos1 + 1));
+		if (key[0] != '.') // + verification du format de value ?
+			throw (UnexpectedKeyException(key));
+		mmIt++;
+	} while (mmIt != mmIte);
 }
 
 Parser::~Parser() {}

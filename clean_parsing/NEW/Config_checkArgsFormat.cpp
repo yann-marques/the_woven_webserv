@@ -1,14 +1,5 @@
 #include "Config.hpp"
 
-static bool    isDigitStr(std::string str) {
-    size_t    i = 0, ie = str.size();
-
-    while (i < ie && isdigit(str[i]))
-        i++;
-
-    return (i == ie);
-}
-
 std::vector< std::string >    ft_split(std::string str, char sep) {
     std::vector< std::string >    vec;
     size_t    pos = 0;
@@ -70,35 +61,6 @@ static void	checkPortFormat(size_t count, t_mmap_range< std::string, std::string
 	if (it != ite)
 		throw Config::UnexpectedValueException(str);
 
-}
-
-static void	checkErrorPages(t_mmap_range< std::string, std::string >::t mmRange) {
-	t_mmap_it< std::string, std::string >::t	mmIt = mmRange.first, mmIte = mmRange.second;
-	do {
-		std::string	str = mmIt->second;
-		size_t	pos1 = str.find(':');
-		if (pos1 == std::string::npos)
-			throw(Config::ConfigSyntaxException());
-		std::string	key(str.substr(0, pos1)), value(str.substr(pos1 + 1));
-		if (!isDigitStr(key)) // + verification du format de value ?
-			throw (Config::UnexpectedKeyException(key));
-		mmIt++;
-	} while (mmIt != mmIte);
-}
-
-static void	checkCgiPath(t_mmap_range< std::string, std::string >::t range) {
-	t_mmap_it< std::string, std::string >::t	mmIt = range.first, mmIte = range.second;
-	do {
-		std::string	str = mmIt->second;
-		size_t	pos1 = str.find(':');
-		if (pos1 == std::string::npos) {
-			throw(Config::ConfigSyntaxException());
-		}
-		std::string	key(str.substr(0, pos1)), value(str.substr(pos1 + 1));
-		if (key[0] != '.') // + verification du format de value ?
-			throw (Config::UnexpectedKeyException(key));
-		mmIt++;
-	} while (mmIt != mmIte);
 }
 
 void	Config::checkArgsFormat(const std::multimap< std::string, std::string >& args) const {

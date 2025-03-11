@@ -2,6 +2,13 @@
 # define TEMPLATES_TPP
 
 template< typename Key, typename Value >
+struct	t_map_it {
+	typedef typename std::map< Key, Value >::const_iterator	t;
+};
+// std::map< int, std::string >::iterator	mIt;
+// t_map_it< int, std::string >::t	mIt;
+
+template< typename Key, typename Value >
 struct	t_mmap_it {
 	typedef typename std::multimap< Key, Value >::const_iterator	t;
 };

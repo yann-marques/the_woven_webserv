@@ -1,4 +1,5 @@
 #include "Config.hpp"
+#include "Rules.hpp"
 
 Config::Config(): Parser() {
 	setArgsToFind();
@@ -41,6 +42,9 @@ void	Config::setArgsToFind() {
 	_argsToFind.insert("upload");
 }
 
+Config::~Config() {}
+
+/*
 Config::~Config() {
     t_set_it< std::string >::t
         hostKeyIt = _hosts.begin(), hostKeyIte = _hosts.end();
@@ -91,6 +95,7 @@ Config::~Config() {
         hostKeyIt++;
     }
 }
+*/
 /*
 Config::~Config() {
 	t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
@@ -113,8 +118,49 @@ Config::~Config() {
 */
 std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
 	(void) rhs;
-/*	std::cout	<< "########################################################## CONFIG" << std::endl << std::endl;
-	std::set< int >::iterator	portIt = rhs.getPorts().begin(), portIte = rhs.getPorts().end();
+	std::cout	<< "########################################################## CONFIG" << std::endl << std::endl;
+
+	t_set_it< std::string >::t	hostKeyIt = rhs.getHosts().begin(), hostKeyIte = rhs.getHosts().end();
+	while (hostKeyIt != hostKeyIte) {
+		std::cout << "########################################################## HOST: " << *hostKeyIt << std::endl;
+		t_mmap_range< std::string, int >::t	portKeyRange = _ports.equal_range(*hostKeyIt);
+		t_mmap_it< std::string, int >::t
+			portKeyIt = portKeyRange.first, portKeyIte = portKeyRange.second;
+		while (portKeyIt != portKeyIte) {
+			t_mmap_range< int, std::string >::t
+				sNameKeyRange = _serverNames[*hostKeyIt].equal_range(portKeyIt->second);
+			t_mmap_it< int, std::string >::t
+				sNamesKeyIt = sNameKeyRange.first, sNameKeyIte = sNameKeyRange.second;
+			while (sNamesKeyIt != sNameKeyIte) {
+				rhs.getParsedConfig().at(*hostKeyIt).at(portKeyIt->second).at(sNamesKeyIt->second)->printDeep;
+				///
+				sNamesKeyIt++;
+			}
+			portKeyIt++;
+		}
+		hostKeyIt++;
+	}
+/*
+	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
+		hostIt = rhs.getParsedConfig().begin(), hostIte = rhs.getParsedConfig().end();
+	while (hostIt != hostIte) {
+		t_map_it< int, std::map< std::string, Rules* > >::t
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
+		while (portIt != portIte) {
+			t_map_it< std::string, Rules* >::t
+				serverNamesIt = portIt->second.begin(), serverNamesIte = portIte->second.end();
+			while (serverNamesIt != serverNamesIte) {
+				if (serverNamesIt->second)
+					serverNamesIt->second->printDeep(0, serverNamesIt->first);
+				serverNamesIt++;
+			}
+			portIt++;
+		}
+		hostIt++;
+	}
+*/
+//	t_set_it< std::string >::t	hostIt = rhs.getHosts().begin(), hostIte = 
+/*	std::set< int >::iterator	portIt = rhs.getPorts().begin(), portIte = rhs.getPorts().end();
 	while (portIt != portIte) {
 		std::cout << "########################################################## PORT " << *portIt << std::endl;
 		std::multimap< int, std::string >	serverNamesCopy = rhs.getServerNames();

@@ -14,6 +14,7 @@
 
 # include "templates.tpp"
 # include "StrException.hpp"
+# include "utils.hpp"
 
 class	Parser {
 	protected:
@@ -26,6 +27,9 @@ class	Parser {
 
 		virtual void	setArgsToFind() = 0;
 		virtual void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const = 0;
+
+		void	checkErrorPages(t_mmap_range< std::string, std::string >::t mmRange) const;
+		void	checkCgiPath(t_mmap_range< std::string, std::string >::t range) const;
 
 		size_t	endOfScopeIndex(std::string str, size_t pos);
 		std::vector< std::string >	splitScope(std::string fileContent, std::string sep);
