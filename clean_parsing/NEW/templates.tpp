@@ -5,29 +5,21 @@ template< typename Key, typename Value >
 struct	t_map_it {
 	typedef typename std::map< Key, Value >::const_iterator	t;
 };
-// std::map< int, std::string >::iterator	mIt;
-// t_map_it< int, std::string >::t	mIt;
 
 template< typename Key, typename Value >
 struct	t_mmap_it {
 	typedef typename std::multimap< Key, Value >::const_iterator	t;
 };
-// std::multimap< int, std::string >::iterator	mmIt;
-// t_mmap_it< int, std::string >::t	mmIt;
 
 template< typename Key, typename Value >
 struct	t_mmap_range {
 	typedef typename std::pair< typename t_mmap_it< Key, Value >::t, typename t_mmap_it< Key, Value >::t >	t;
 };
-// std::pair< std::multimap< int, std::string >::iterator, std::multimap< int, std::string >::iterator >	mmRange;
-//	t_mmap_range< int, std::string >::t	mmRange;
 
 template< typename Key >
 struct	t_set_it {
 	typedef typename std::set< Key >::iterator	t;
 };
-// std::set< int >::iterator	setIt;
-// t_set_it< int >::t	setIt;
 
 template< typename T >
 void	printVec(const std::vector< T >& vec, std::string tabs) {

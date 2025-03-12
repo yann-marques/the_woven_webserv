@@ -7,7 +7,7 @@ server {
     404: not_found.html;
     500: internal_error.html;
   }
-  auto_index: false;
+  auto_index: true;
   allowed_methods: GET, POST;
   max_body_bytes: 2048;
   cgi_path {

@@ -1,7 +1,21 @@
 #include "Config.hpp"
 
+Config::IsDirException::IsDirException(std::string where):
+	StrException(where + " is a directory") {}
+
+Config::IsDirException::~IsDirException() throw() {}
+
+const char*	Config::IsDirException::what() const throw() {
+	return (_str.c_str());
+}
+
+Config::OpenFileException::OpenFileException(std::string where):
+	StrException("Cannot open file : " + where) {}
+
+Config::OpenFileException::~OpenFileException() throw() {}
+
 const char*	Config::OpenFileException::what() const throw() {
-	return ("Cannot open file: ");
+	return (_str.c_str());
 }
 
 const char*	Config::UnclosedScopeException::what() const throw() {

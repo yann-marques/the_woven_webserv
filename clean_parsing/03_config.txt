@@ -2,7 +2,7 @@ server {
   host:1.1.1.1;
   port: 8080;
   server_names: localhost, site1.com, www.site1.com, www.bloum.fr;
-  root: www/;
+  root: www/, toto/;
   default_pages: index.html, home.html;
   error_pages {
     404: not_found.html;

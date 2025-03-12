@@ -14,7 +14,7 @@
 typedef std::multimap< std::string, std::string >::iterator t_multimap_it;
 typedef std::pair< t_multimap_it, t_multimap_it > t_range;
 
-class	Rules: public Parser {
+class	Rules: public AParser {
 	private:
 		std::string						_locationPath;
 
@@ -41,22 +41,26 @@ class	Rules: public Parser {
 		Rules(const Rules& rhs);
 		Rules&	operator=(const Rules& rhs);
 		Rules&	operator|=(const Rules& rhs);
-
+		
+		std::multimap< std::string, std::string >	parseLocationLine(std::string line);
+		
+		// SETTERS
 		void	setArgsToFind();
-		void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const;
-
-		void	setAutoIndex(std::string str);
+		void	setAutoIndex(t_mmap_range< std::string, std::string >::t range);
 		void	setArgs(std::multimap< std::string, std::string > args);
+		void	setStrArg(std::string& toSet, t_mmap_range< std::string, std::string >::t range);
 		void	setErrorPages(t_range range);
 		void	setCgiPath(t_range range);
 		void	setLocation(t_range range);
 		void	setLocationKey(std::string str);
-		std::multimap< std::string, std::string >	parseLocationLine(std::string line);
 		void	setVector(std::vector< std::string >& vec, t_range range);
-		size_t	parseMaxBodyBytes(std::string str);
+		void	setMaxBodyBytes(t_mmap_range< std::string, std::string >::t range);
+		
+		
+		// CHECKERS
+		void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const;
 
 		// GETTERS
-
 		const std::multimap< std::string, std::string >&	getArgs() const;
 		const std::string&	getLocationPath() const;
 		const std::string&	getRoot() const;
@@ -73,6 +77,7 @@ class	Rules: public Parser {
 		const std::vector< std::string >&	getLocationKeys() const;
 		const std::map< std::string, Rules* >&	getLocation() const;
 
+		// RECURSIVE PRINT
 		void	printDeep(size_t i, std::string name);
 
 		~Rules();
