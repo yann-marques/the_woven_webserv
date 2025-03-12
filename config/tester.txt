@@ -14,7 +14,7 @@ server {
   allowed_methods: GET;
   
   cgi_path {
-    .bla: /usr/bin/php8.3;
+    .bla: tester/ubuntu_cgi_tester;
   }
 
   location: /post_body {

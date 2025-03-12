@@ -207,8 +207,8 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 
 void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 
-	if (_debug)
-		std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
+	//if (_debug)
+	//	std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
 	
 	std::string	rawRequest;
 	vserv->readSocketFD(clientFd, rawRequest);

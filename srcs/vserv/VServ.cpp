@@ -177,7 +177,7 @@ std::string VServ::readRequest(HttpRequest &request) {
 		body = request.getBody();
 	}
 
-	if (!body.empty() && fileIsCGI(request)) {
+	if (fileIsCGI(request)) {
 		std::cout << "file is a cgi" << std::endl;
 		cgiContent = handleCGI(body, request);
 		return (cgiContent);
@@ -247,8 +247,6 @@ ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 		}
 	}
 
-	//std::cout << str.size() << std::endl;
-
 	std::string finalStr = std::string(str);
 	if (isHttpRequestComplete(finalStr)) {
 		_clientBuffers.erase(fd);
@@ -293,13 +291,7 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	
 	while (totalBytesSent < static_cast<ssize_t>(dataSize)) {
 		bytesSent = send(clientFd, data + totalBytesSent, dataSize - totalBytesSent, 0);
-		
-		if (bytesSent == -1) {
-			std::cerr << "send() failed: " << strerror(errno) << std::endl;
-			break;
-		} else {
-			totalBytesSent += bytesSent;
-		}
+		totalBytesSent += bytesSent;
 	}
 	
 	if (totalBytesSent == static_cast<ssize_t>(dataSize)) {
@@ -308,13 +300,6 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 		std::cerr << "Failed to send all data." << std::endl;
 		throw SendPartiallyException();
 	}
-	
-	/* ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
-	if (bytesSent == -1) {
-		throw SendException();
-	} else if (bytesSent < static_cast<ssize_t>(rawResponse.size())) {
-		throw SendPartiallyException();
-	} */
 }
 
 void	VServ::handleBigRequest(HttpRequest &request) {
@@ -559,7 +544,7 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 					}
 					if (bytesRead < 0) {
 						if (result[result.size() - 1] == '\n' && result[result.size() - 2] == '\r') {
-							std::cout << "End of content" << std::endl;
+							std::cout << "End of reading." << std::endl;
 							endOfReading = true;
 							close(fd);
 						}

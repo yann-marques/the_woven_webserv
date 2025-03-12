@@ -133,6 +133,18 @@ void    HttpRequest::log(void) {
         std::cout << userAgent << std::endl;
 }
 
+
+bool    isBodyLineFullDigits(std::string str) {
+    for (size_t i = 0; i < str.length(); ++i) {
+        if (str[i] == '\r' && i > 0) //if i == 0, the line is "\r". 
+            return (true);
+        if (str[i] < '0' || str[i] > '9') {
+            return (false);
+        }
+    }
+    return (true);
+}
+
 void    HttpRequest::parseRequest(const std::string &rawRequest)
 {
     std::istringstream stream(rawRequest);
@@ -172,16 +184,41 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
             }
         }
     }
+    if (line == "\r")
+        std::getline(stream, line);
 
-    while (!line.empty()) {
-        if (line == "\r\n")
+    std::string tranfertType = getHeader("Transfer-Encoding");
+    while (!stream.eof()) {
+        if (!tranfertType.empty() && tranfertType == "chunked" && isBodyLineFullDigits(line)) {
             std::getline(stream, line);
-        _body += line + "\n";
-        if (stream.eof())
-            break;
+            continue;
+        }
+
+        // Remove trailing '\r' if present
+        if (!line.empty() && line[line.size() - 1] == '\r') {
+            line.erase(line.size() - 1, 1);
+        }
+
+        if (!tranfertType.empty())
+            _body += line; // Keep newlines consistent
+        else
+            _body += line + "\n";
         std::getline(stream, line);
     }
 
+    if (!line.empty())
+        _body += line;
+
+    // Ensure the body ends with "\r\n"
+    if (!_body.empty() && _body[_body.size() - 1] == '\n') {
+        _body[_body.size() - 1] = '\r'; // Replace last '\n' with '\r'
+        _body += "\n"; // Add the final '\n'
+    } else {
+        _body += "\r\n";
+    }
+
+    std::cout << '{' << _body << "}" << std::endl;
+    
     if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();
 }
@@ -216,6 +253,7 @@ void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames
     setDefaultsHeaders();
 }
 
+
 //Called before the request is send. This is the last step before sending to the client.
 std::string HttpRequest::makeRawResponse(void) {
     std::ostringstream rawResponse;
@@ -227,16 +265,17 @@ std::string HttpRequest::makeRawResponse(void) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
 
+    std::size_t bodySize = _body.size() - 2; //body is finished by "\r\n" but it's not a part of content-lenght
+
+    std::cout << "SENT BODY SIZE: " << bodySize << std::endl;
+
     if (_method == "HEAD") {
         rawResponse << "Content-Length: " << 0 << "\r\n";
         rawResponse << "\r\n"; 
     } else {
-        std::size_t bodySize = _body.size();
-        bodySize = bodySize <= 2 ? 0 : bodySize;
         rawResponse << "Content-Length: " << bodySize << "\r\n";
         rawResponse << "\r\n"; // End of headers
-        if (bodySize > 0) //if bodysize <= 2, body is == "\r\n". So we add noting.
-            rawResponse << _body;
+        rawResponse << _body;
     }
 
     return rawResponse.str();
