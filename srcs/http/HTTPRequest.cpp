@@ -153,29 +153,33 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
         }
     }
 
-    if (!line.empty() && (line.find('\r') != std::string::npos)) {
-        if (!line.empty() && (line.find("HTTP") != std::string::npos))
-            std::getline(stream, line);
-        while (line != "\r") {
-            size_t pos = line.find(":");
-            if (pos != std::string::npos) {
-                std::string key = line.substr(0, pos);
-                size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
-                std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
-                std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
-                if (!value.empty() && value[value.size() - 1] == '\r') {
-                    value.erase(value.size() - 1);
+    if (rawRequest.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
+        std::cout << "Header found in the request" << std::endl;
+        if (!line.empty()) {
+            while (line != "\r" && !stream.eof()) {
+                size_t pos = line.find(":");
+                if (pos != std::string::npos) {
+                    std::string key = line.substr(0, pos);
+                    size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
+                    std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
+                    std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
+                    if (!value.empty() && value[value.size() - 1] == '\r') {
+                        value.erase(value.size() - 1);
+                    }
+                    _headers[key] = value;
                 }
-                _headers[key] = value;
+                std::getline(stream, line);
             }
-            if (stream.eof())
-                break;
-            std::getline(stream, line);
         }
     }
 
-    while (std::getline(stream, line)) {
+    while (!line.empty()) {
+        if (line == "\r\n")
+            std::getline(stream, line);
         _body += line + "\n";
+        if (stream.eof())
+            break;
+        std::getline(stream, line);
     }
 
     if (_direction == HTTP_RESPONSE)

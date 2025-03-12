@@ -14,7 +14,7 @@ server {
   allowed_methods: GET;
   
   cgi_path {
-    .bla: /usr/bin/cat;
+    .bla: /usr/bin/php8.3;
   }
 
   location: /post_body {
