@@ -156,26 +156,26 @@ std::string VServ::readRequest(HttpRequest &request) {
     char tempBuffer[4096];
 	std::string body;
 
+	//if (request.getMethod() == "GET") {
 	std::string rootPath = makeRootPath(request);
-    int fd = open(rootPath.c_str(), O_RDONLY);
-    if (fd < 0)
+	int fd = open(rootPath.c_str(), O_RDONLY);
+	if (fd < 0)
 		throw OpenFileException();
-
-	if (request.getMethod() == "GET") {
-		while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
-			buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
-		}
-		if (bytesRead < 0 && buffer.empty()) {
-			close(fd);
-			throw OpenFileException();
-		}
+	
+	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
+		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
+	}
+	if (bytesRead < 0 && buffer.empty()) {
 		close(fd);
-		body = std::string(buffer.begin(), buffer.end());
+		throw OpenFileException();
 	}
+	close(fd);
+	body = std::string(buffer.begin(), buffer.end());
+	//}
 
-	if (request.getMethod() == "POST") {
-		body = request.getBody();
-	}
+	//if (request.getMethod() == "POST") {
+	//	body = request.getBody();
+	//}
 
 	if (fileIsCGI(request)) {
 		std::cout << "file is a cgi" << std::endl;
@@ -432,21 +432,21 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
 	std::string interpreter = cgiPaths[request.getCgiExt()];
 	std::cout << interpreter << std::endl;
-	if (interpreter.empty())
-		throw InterpreterEmpty();
 
-	if (pipe(parentToChild) < 0 || pipe(childToParent) < 0)
-		throw PipeException();
-	if ((pid = fork()) < 0)
-		throw ForkException();
-		
+	if (interpreter.empty()) throw InterpreterEmpty();
+
+	if (pipe(parentToChild) < 0 || pipe(childToParent) < 0) throw PipeException();
+	if ((pid = fork()) < 0) throw ForkException();
+
+	fcntl(childToParent[1], F_SETFL, O_NONBLOCK);
+	fcntl(parentToChild[0], F_SETFL, O_NONBLOCK);
+	fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
+	fcntl(childToParent[0], F_SETFL, O_NONBLOCK);	
+	
 	if (pid == 0) {
 		close(childToParent[0]);
 		close(parentToChild[1]);
 
-		fcntl(childToParent[1], O_NONBLOCK);
-		fcntl(parentToChild[0], O_NONBLOCK);
-		
 		if (dup2(childToParent[1], STDOUT_FILENO) < 0)
 			std::cerr << "dup2 failed" << std::endl;
 		close(childToParent[1]);
@@ -470,57 +470,44 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		close(parentToChild[0]);
 		close(childToParent[1]);
 
-		fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
-		fcntl(childToParent[0], F_SETFL, O_NONBLOCK);	
-		
-		// Set up epoll
-        int epollFd = epoll_create(10);
+        int epollFd = epoll_create(2);
         if (epollFd == -1) {
-            std::cerr << "epoll_create1 failed: " << strerror(errno) << std::endl;
+            std::cerr << "epoll_create failed: " << strerror(errno) << std::endl;
             return "";
         }
 
 		struct epoll_event eventWrite, eventRead;
-		eventWrite.events = EPOLLOUT | EPOLLET;
+		eventWrite.events = EPOLLOUT | EPOLLET; 
 		eventWrite.data.fd = parentToChild[1];
 
 		eventRead.events = EPOLLIN | EPOLLET;
 		eventRead.data.fd = childToParent[0];
 
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, parentToChild[1], &eventWrite) == -1) {
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, parentToChild[1], &eventWrite) == -1 ||
+			epoll_ctl(epollFd, EPOLL_CTL_ADD, childToParent[0], &eventRead) == -1) {
             std::cerr << "epoll_ctl failed: " << strerror(errno) << std::endl;
             return "";
         }
 
-		if (epoll_ctl(epollFd, EPOLL_CTL_ADD, childToParent[0], &eventRead) == -1) {
-            std::cerr << "epoll_ctl failed: " << strerror(errno) << std::endl;
-            return "";
-		}
-		
 		ssize_t bodySize = static_cast<ssize_t>(body.size());
 		const char *bodyCStr = body.c_str();
-
-		bool endOfWritting = false;
-		bool endOfReading = false;
+		bool endOfWritting = false, endOfReading = false;
 
 		while (!(endOfWritting && endOfReading)) {
 			struct epoll_event events[2];
+            int nfds = epoll_wait(epollFd, events, 2, -1);
 
-            int nfds = epoll_wait(epollFd, events, 2, -1);  // Wait for writability
-            if (nfds == -1) {
-                std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
-                break;
+            if (nfds <= 0) {
+                std::cerr << "epoll_wait: " << strerror(errno) << std::endl;
+                continue;;
             }
 
-			for (int i = 0; i < nfds; i++)
-			{
+			for (int i = 0; i < nfds; i++) {
 				int fd = events[i].data.fd;
-				if ((events[i].events & EPOLLOUT) && !endOfWritting) {
-					
+				if (fd == parentToChild[1] && !endOfWritting) {
 					while (totalBytesWritten < bodySize) {
 						ssize_t bytesToWrite = totalBytesWritten + chunckSize < bodySize ? chunckSize : bodySize - totalBytesWritten;
 						bytesWritten = write(fd, bodyCStr + totalBytesWritten, bytesToWrite);
-						
 						if (bytesWritten > 0) {
 							totalBytesWritten += bytesWritten;
 						} else {
@@ -534,20 +521,18 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 					}
 				}
 
-				if ((events[i].events & EPOLLIN) && !endOfReading) {
-
+				if (fd == childToParent[0] && !endOfReading) {
 					char buffer[4096];
 					ssize_t bytesRead;
 
-					while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
+					while ((bytesRead = read(childToParent[0], buffer, sizeof(buffer))) > 0) {
 						result.append(buffer, bytesRead);
 					}
-					if (bytesRead < 0) {
-						if (result[result.size() - 1] == '\n' && result[result.size() - 2] == '\r') {
-							std::cout << "End of reading." << std::endl;
-							endOfReading = true;
-							close(fd);
-						}
+
+					if (bytesRead == 0) {
+						std::cout << "EOF we stop" << std::endl; 
+						endOfReading = true;
+						close(fd);
 					}
 				}
 			}
@@ -560,7 +545,7 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 			//throw exit failure
 		}
 	}
-	
+
 	return (result);
 }
 
@@ -600,32 +585,43 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 		if (_debug)
 			std::cout << rootPath << std::endl;
 
-		if (stat(rootPath.c_str(), &path_stat) != 0)
-			throw FileNotExist();
-		
-		if (S_ISREG(path_stat.st_mode)) {
+		if (request.getMethod() == "GET") {
+			if (stat(rootPath.c_str(), &path_stat) != 0)
+				throw FileNotExist();
+			
+			if (S_ISREG(path_stat.st_mode)) {
 
-			std::string rawResponse = readRequest(request);
-			response = HttpRequest(HTTP_RESPONSE, rawResponse);	
-			response.setMethod(reqMethod);
-
-		} else if (S_ISDIR(path_stat.st_mode)) {
-
-			DIR* dir = opendir(rootPath.c_str());
-			if (!dir)
-				throw OpenFolderException();
-
-			if (request.getRules()->getAutoIndex()) {
-				showDirectory(dir, response);
-			} else {
-				std::string rawResponse = readDefaultPages(request);
+				std::string rawResponse = readRequest(request);
 				response = HttpRequest(HTTP_RESPONSE, rawResponse);	
+
+			} else if (S_ISDIR(path_stat.st_mode)) {
+
+				DIR* dir = opendir(rootPath.c_str());
+				if (!dir)
+					throw OpenFolderException();
+
+				if (request.getRules()->getAutoIndex()) {
+					showDirectory(dir, response);
+				} else {
+					std::string rawResponse = readDefaultPages(request);
+					response = HttpRequest(HTTP_RESPONSE, rawResponse);	
+				}
+
+			} else {
+				response.setResponseCode(HTTP_BAD_GATEWAY);
+			}
+		}
+
+		if (request.getMethod() == "POST") {
+			if (fileIsCGI(request)) {
+				std::string requestBody = request.getBody();
+				std::string cgiContent = handleCGI(requestBody, request);
+
+				response = HttpRequest(HTTP_RESPONSE, cgiContent);
 				response.setMethod(reqMethod);
 			}
-
-		} else {
-			response.setResponseCode(HTTP_BAD_GATEWAY);
 		}
+
 
 	} catch (FileNotExist& e) {
 		response.makeError(HTTP_NOT_FOUND);

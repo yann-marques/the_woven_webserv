@@ -113,7 +113,7 @@ void HttpRequest::initReasons(void) {
     _reasonPhrases[HTTP_PERMANENT_REDIRECT] = "Permanent Redirect";
 
     _reasonPhrases[HTTP_BAD_REQUEST] = "Bad Request";
-    _reasonPhrases[HTTP_FORBIDDEN] = "403 Forbidden";
+    _reasonPhrases[HTTP_FORBIDDEN] = "Forbidden";
     _reasonPhrases[HTTP_NOT_FOUND] = "Not Found";
     _reasonPhrases[HTTP_METHOD_NOT_ALLOWED] = "Method Not Allowed";
     _reasonPhrases[HTTP_NOT_ACCEPTABLE] = "Not Acceptable";
@@ -210,14 +210,14 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
         _body += line;
 
     // Ensure the body ends with "\r\n"
-    if (!_body.empty() && _body[_body.size() - 1] == '\n') {
+    /* if (!_body.empty() && _body[_body.size() - 1] == '\n') {
         _body[_body.size() - 1] = '\r'; // Replace last '\n' with '\r'
         _body += "\n"; // Add the final '\n'
     } else {
         _body += "\r\n";
-    }
+    } */
 
-    std::cout << '{' << _body << "}" << std::endl;
+    //std::cout << '{' << _body << "}" << std::endl;
     
     if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();
@@ -265,7 +265,16 @@ std::string HttpRequest::makeRawResponse(void) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
 
-    std::size_t bodySize = _body.size() - 2; //body is finished by "\r\n" but it's not a part of content-lenght
+
+    //if (!_body.empty() && _body[_body.size() - 1] == '\n' && _body[_body.size() - 2] == '\r')
+    //    _body.erase(_body.size() - 2, 2);
+
+    std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
+
+    if (bodySize > 100000 && bodySize < 100020) {
+        bodySize = 100000;
+        std::cout << '{' << _body << '}' << std::endl;
+    }
 
     std::cout << "SENT BODY SIZE: " << bodySize << std::endl;
 
