@@ -29,16 +29,17 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 	}
 }
 
-WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
+WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
 //	signal(SIGINT, handleSignal); // in execution
-
+	(void) fileName;
 	try {
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
 		throw EpollCreateException();
 	
-		_config = Config(filename.c_str());
+//		std::cout << Config(fileName.c_str()) << std::endl;
+		_config = Config(fileName.c_str());
 	//	std::cout << _config << std::endl;
 
 		//parse envp and argv:

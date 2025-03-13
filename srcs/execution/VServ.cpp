@@ -205,8 +205,8 @@ std::string	VServ::readSocketFD(const int fd) {
         throw RecvException();
     }
 
-	if (_debug)
-		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl;
+//	if (_debug)
+//		std::cout << "REQUEST ----- " << std::endl << buffer.data() << std::endl;
 
 	return std::string(buffer.begin(), buffer.end());
 }
@@ -231,8 +231,8 @@ std::string VServ::readFile(int fd) {
 void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	std::string	rawResponse = response.makeRawResponse();
 
-	if (_debug)
-		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
+//	if (_debug)
+//		std::cout << "RESPONSE --------" << std::endl << rawResponse << std::endl;
 
 	ssize_t bytesSent = send(clientFd, rawResponse.c_str(), rawResponse.size(), 0);
 	if (bytesSent == -1) {
@@ -434,8 +434,8 @@ void	VServ::processRequest(std::string rawRequest, int clientFd) {
 		handleBigRequest(request);
 
 		std::string rootPath = makeRootPath(request);
-		if (_debug)
-			std::cout << rootPath << std::endl;
+//		if (_debug)
+//			std::cout << rootPath << std::endl;
 
 		if (stat(rootPath.c_str(), &path_stat) != 0)
 			throw FileNotExist();

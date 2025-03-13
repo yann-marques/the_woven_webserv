@@ -1,7 +1,7 @@
 server {
   port: 8080;
   server_names: example.com, www.example.com;
-  root: /var/www/html/;
+  root: www/;
   default_pages: index.html, home.html;
   error_pages {
     404: not_found.html;

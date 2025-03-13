@@ -15,8 +15,8 @@
 # include <vector>
 # include <set>
 
-# include "parsing/templates.tpp"
-# include "parsing/Rules.hpp"
+# include "templates.tpp"
+# include "Rules.hpp"
 # include "VServ.hpp"
 
 class	WebServ {
@@ -24,7 +24,7 @@ class	WebServ {
 		bool							_debug;
 		int const						_maxClients; 
 		int const						_maxEvents;
-		Config							_config;	// parsed config file
+		Config							_config;
 
 		int								_epollFd;
 		epoll_event						_event;
@@ -34,8 +34,6 @@ class	WebServ {
 		std::set<int>					_clientFds;
 
 		std::size_t						_serverNbr;
-
-		// host->port->VServ(->server_names->Rules)
 
 		std::map<int, VServ*>	_serversFdToServer;
 		std::map<int, VServ*>	_clientsFdToServer;
