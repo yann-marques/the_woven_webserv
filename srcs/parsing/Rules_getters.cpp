@@ -1,4 +1,4 @@
-#include "parsing/Rules.hpp"
+#include "Rules.hpp"
 
 const std::multimap< std::string, std::string >&	Rules::getArgs() const {
 	return (_args);

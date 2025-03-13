@@ -2,6 +2,33 @@
 
 // WebServ::WebServ() {} // private ?
 
+void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config) {
+	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
+		hostIt = config.begin(), hostIte = config.end();
+
+	while (hostIt != hostIte) {
+		std::string	host = hostIt->first;
+		t_map_it< int, std::map< std::string, Rules* > >::t
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
+
+		while (portIt != portIte) {
+			int port = portIt->first;
+			std::map< std::string, Rules* >	sNamesMap = portIt->second;
+			VServ*	server = new VServ(host, port, sNamesMap, _maxClients, _argv, _envp);
+
+			int	sfd = server->getFd();
+			insertServerFd(sfd);
+			setServerToServerFd(sfd, server);
+
+			// set the event for sfd then epoll ctl the server fd
+			setEvent(EPOLLIN, sfd);
+			epollCtlAdd(sfd);
+			portIt++;
+		}
+		hostIt++;
+	}
+}
+
 WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
 //	signal(SIGINT, handleSignal); // in execution
 
@@ -15,41 +42,31 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 	//	std::cout << _config << std::endl;
 
 		//parse envp and argv:
-		std::set<std::string> arg;
-		std::set<std::string> env;
+	//	std::set<std::string> arg;
+	//	std::set<std::string> env;
 
+		// set argv
 		for (size_t i = 0, n = sizeof(argv); i < n; i++) {
 			if (argv[i])
-				arg.insert(argv[i]);
+				_argv.insert(argv[i]);
 		}
+
+		// set envp
 		for (size_t i = 0, n = sizeof(envp); i < n; i++) {
 			if (envp[i])
-				env.insert(envp[i]);
+				_envp.insert(envp[i]);
 		}
 
-		this->_argv = arg;
-		this->_envp = env;
+	//	this->_argv = arg;
+	//	this->_envp = env;
+
+		// debug
 		this->_debug = false;
-		if (arg.find("--debug=yes") != arg.end())
+		if (_argv.find("--debug=yes") != _argv.end())
 			this->_debug = true;
 
-		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
-		while (portIt != portIte) {
-			VServ*	server = new VServ(*portIt, _config.getServerNames().equal_range(*portIt),
-				_config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
+		setVServMap(_config.getParsedConfig());
 
-			//////
-			int	sfd = server->getFd();
-
-			insertServerFd(sfd);
-			setServerToServerFd(sfd, server); 
-
-			// set the event for sfd then epoll ctl the server fd
-			setEvent(EPOLLIN, sfd);
-			epollCtlAdd(sfd);
-
-			portIt++;
-		}
 /*	
 		_serverNbr = _config.getServersNbr();
 		std::cout << "serverNbr = " << _serverNbr << std::endl;
@@ -67,7 +84,58 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 */
 		_epollEvents.resize(_maxEvents);
 	//	listenEvents();
+	} // AParser exceptions
+	catch (AParser::ArgOutOfServerScopeException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (AParser::ConfigSyntaxException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (AParser::UnexpectedKeyException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (AParser::UnexpectedValueException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (AParser::DoubleArgException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (AParser::ForbiddenCharException& e) {
+		std::cerr << e.what() << std::endl;
+	} // Config exceptions
+	catch (Config::IsDirException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::OpenFileException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::UnclosedScopeException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::BadSpacesException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::MissingPortException& e) {
+		std::cerr << e.what() << std::endl;
+	} // Rules exceptions
+	catch (Rules::RedefinedArgException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Rules::InvalidLocationKeyException& e) {
+		std::cerr << e.what() << std::endl;
+	} // WebServ exceptions
+	catch (WebServ::SIGINTException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollCreateException& e) {
+			std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollWaitException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollCtlAddException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollCtlDelException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::UnknownFdException& e) {
+		std::cerr << e.what() << std::endl;
+	} // VServ exceptions
+	catch (VServ::SocketException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (VServ::SetSockOptException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (VServ::BindException& e) {
+		std::cerr << e.what() << std::endl;
+	}
 
+/*
 	} catch (EpollCreateException& e) {
 		std::cerr << e.what() << std::endl;
 	} catch (EpollCtlAddException& e) {
@@ -107,6 +175,7 @@ WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(10
 	} catch (Rules::InvalidLocationKeyException& e) {
 		std::cerr << e.what() << std::endl;
 	}
+*/
 }
 
 // WebServ::WebServ(const Webserv& rhs) {} // private ?

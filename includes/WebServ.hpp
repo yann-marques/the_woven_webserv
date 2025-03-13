@@ -15,6 +15,7 @@
 # include <vector>
 # include <set>
 
+# include "parsing/templates.tpp"
 # include "parsing/Rules.hpp"
 # include "VServ.hpp"
 
@@ -34,8 +35,10 @@ class	WebServ {
 
 		std::size_t						_serverNbr;
 
-		std::map<int, VServ*>			_serversFdToServer;
-		std::map<int, VServ*>			_clientsFdToServer;
+		// host->port->VServ(->server_names->Rules)
+
+		std::map<int, VServ*>	_serversFdToServer;
+		std::map<int, VServ*>	_clientsFdToServer;
 		
 		std::set<std::string>			_envp;
 		std::set<std::string>			_argv;
@@ -48,6 +51,7 @@ class	WebServ {
 		~WebServ();
 
 		//SETTERS
+		void	setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config);
 		void	insertServerFd(int fd);
 		void	insertClientFd(int fd);
 		void	setServerToServerFd(int fd, VServ* rhs);
@@ -87,7 +91,7 @@ class	WebServ {
 				const char*	what() const throw();
 		};
 		class	EpollCtlAddException: public std::exception {
-	public:
+			public:
 				const char*	what() const throw();
 		};
 		class	EpollCtlDelException: public std::exception {

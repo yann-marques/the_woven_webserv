@@ -28,8 +28,8 @@ class	VServ {
 	private:
 		const int					_maxClients; // defined in config file ?
 		// config
+		std::string					_host;
 		int							_port;
-	//	int							_host;
 
 	//	std::string					_root;
 
@@ -48,8 +48,13 @@ class	VServ {
 	public:
 //		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
 		VServ(): _maxClients(1024) {}
-		VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
-			const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+		VServ(std::string host, int port, const std::map< std::string, Rules* >& sNamesMap,
+			int maxClients, std::set< std::string > argv, std::set< std::string > envp);
+		
+		// deprecated:
+//		VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
+//			const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();

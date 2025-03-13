@@ -2,13 +2,18 @@
 # define STREXCEPTION_HPP
 
 # include <exception>
+# include <string>
 
 class	StrException: public std::exception {
 	protected:
 		std::string	_str;
 	public:
-		StrException(std::string str): _str(str) {}
-		virtual ~StrException() throw() {}
+		StrException();
+		StrException(std::string str);
+		StrException(const StrException& rhs);
+		StrException&	operator=(const StrException& rhs);
+
+		virtual ~StrException() throw();
 };
 
 #endif

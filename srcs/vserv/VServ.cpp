@@ -45,6 +45,15 @@ void	VServ::setRulesKeys(std::pair< std::multimap< const int, std::string >::con
 //	_rulesKeys.insert("localhost");
 }
 
+VServ::VServ(std::string host, int port, const std::map< std::string, Rules* >& sNamesMap,
+	int maxClients, std::set< std::string > argv, std::set< std::string > envp):
+	_maxClients(maxClients), _host(host), _port(port), _rules(sNamesMap), _envp(envp), _argv(argv) {
+	setAddress();
+	socketInit();
+}
+
+// deprecated:
+/*
 VServ::VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
 	const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
 	// tmp
@@ -63,7 +72,7 @@ VServ::VServ(int port, std::pair< std::multimap< const int, std::string >::const
 	if (argv.find("--debug=yes") != argv.end())
 		this->_debug = true;
 }
-
+*/
 // VServ::VServ(const VServ& rhs);
 
 VServ&	VServ::operator=(const VServ& rhs) {
