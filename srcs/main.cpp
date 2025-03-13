@@ -1,6 +1,5 @@
 #include "WebServ.hpp"
 
-
 static void	handleSignal(int signal) {
 	if (signal == SIGINT)
 		throw (WebServ::SIGINTException());
@@ -20,7 +19,5 @@ int main(int argc, char **argv, char **envp)
             std::cerr << e.what() << std::endl;
         }
     }
-
-
     return (0);
 }
