@@ -2,7 +2,7 @@
 
 // WebServ::WebServ() {} // private ?
 
-WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(1000), _maxEvents(1000), _config(filename.c_str()) {
+WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(512), _maxEvents(512), _config(filename.c_str()) {
 //	signal(SIGINT, handleSignal); // in execution
 
 	try {

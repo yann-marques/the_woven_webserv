@@ -138,7 +138,7 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
     std::size_t acceptedHexChar = 0;
     std::size_t strSize = str.size();
 
-    if (strSize == 0)
+    if (strSize == 0 || strSize > 7) //6-digit hexadecimal number + 1 for '\r' (FFFFFF) is enough
         return (false);
     for (std::size_t i = 0; i < strSize; ++i) {
         char c = str[i];
@@ -160,7 +160,9 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     std::string line;
 
     while (std::getline(stream, line) && line.empty())
-        ; 
+        ;
+        
+    std::cout << "FIRST LINE : " << line << std::endl;
 
     if (_direction == HTTP_REQUEST) {
         if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
@@ -229,12 +231,14 @@ void    HttpRequest::makeError(int httpCode) {
 
     std::string errorPagePath = stream.str();
 	int fd = open(errorPagePath.c_str(), O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+        std::cout << strerror(errno) << std::endl;   
 		throw OpenFileException();
+    }
 
 	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
-	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
 	close(fd);
+	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
     setDefaultsHeaders();
     setResponseCode(httpCode);
     setBody(rawResponse);
@@ -262,6 +266,8 @@ std::string HttpRequest::makeRawResponse(void) {
     for (it = _headers.begin(); it != _headers.end(); ++it) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
+
+    std::cout << _responseCode << std::endl;
     
     std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
     std::cout << "SENT BODY SIZE: " << bodySize << std::endl;

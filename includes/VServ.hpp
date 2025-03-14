@@ -28,20 +28,21 @@ class WebServ;
 
 class	VServ {
 	private:
-		const int					_maxClients; // defined in config file ?
-		int							_port;
+		const int							_maxClients; // defined in config file ?
+		int									_port;
 
-		WebServ*					_mainInstance;
-		std::map< std::string, Rules* >	_rules;
+		WebServ*							_mainInstance;
+		std::map< std::string, Rules* >		_rules;
 
-		std::set<std::string>		_envp;
-		std::set<std::string>		_argv;
+		std::set<std::string>				_envp;
+		std::set<std::string>				_argv;
 		// ...
-		int							_fd;
-		sockaddr_in					_address;
-		bool						_debug;
+		int									_fd;
+		sockaddr_in							_address;
+		bool								_debug;
 
-		std::map<int, std::string>	_clientBuffers;
+		std::map<int, std::string>			_clientBuffers;
+		std::map<std::string, std::string>	_cachedPages; // <path, content>
 
 
 	public:
@@ -69,13 +70,12 @@ class	VServ {
 		void 				sendRequest(HttpRequest &request, int clientFd);
 		std::string			readRequest(HttpRequest &request);
 		std::string			readDefaultPages(HttpRequest &request);
-		void				showDirectory(DIR* dir, HttpRequest &response);
+		void				showDirectory(HttpRequest &request, HttpRequest &response);
 		void				handleBigRequest(HttpRequest &request);
 		std::string 		makeRootPath(HttpRequest &request);
 		bool				fileIsCGI(HttpRequest &request);
 		std::string			handleCGI(std::string &fileData, HttpRequest &request);
 		std::vector<char*>	makeEnvp(HttpRequest &request);
-		std::string			getPagePath(HttpRequest &request);
 		void				setTargetRules(HttpRequest &req);
 		void 				checkAllowedMethod(HttpRequest& request);
 		bool				isEndedChunckReq(std::string rawRequest);

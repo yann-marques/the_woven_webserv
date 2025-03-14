@@ -7,7 +7,7 @@ VServ::VServ(WebServ *mainInstance, int port, const std::map< std::string, Rules
 	// tmp
 	_port = port;
 //	_host = config.getHost();
-// parse config ...
+//	parse config ...
 	_rules = rules;
 	_mainInstance = mainInstance;
 	setAddress();
@@ -129,7 +129,7 @@ int	VServ::clientAccept(void) {
 	socklen_t clientAddressLength = sizeof(clientAddress);
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
 	if (clientFd < 0)
-		throw (AcceptException());
+	throw (AcceptException());
 	
 	std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
 	return (clientFd);
@@ -139,45 +139,49 @@ std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqRootPath = request.getRootPath();
 	std::string locationPath = request.getRules()->getLocationPath();
 	std::string rqPath = request.getPath().substr(locationPath.size());
-
+	
 	if (!rqRootPath.empty())
-		return (rqRootPath);
+	return (rqRootPath);
 	if (rqPath == "/" || rqPath.empty())
-		return(request.getRules()->getRoot()); /////
+	return(request.getRules()->getRoot()); /////
 	else
-		return (request.getRules()->getRoot() + rqPath); /////
+	return (request.getRules()->getRoot() + rqPath); /////
 }
 
+std::string VServ::readFile(int fd) {
+	ssize_t bytesRead;
+	char tempBuffer[4096];
+	std::string result;
 
-std::string VServ::readRequest(HttpRequest &request) {
-    std::vector<char> buffer;
-    ssize_t bytesRead;
-	std::string cgiContent;
-    char tempBuffer[4096];
-	std::string body;
-
-	//if (request.getMethod() == "GET") {
-	std::string rootPath = makeRootPath(request);
-	int fd = open(rootPath.c_str(), O_RDONLY);
-	if (fd < 0)
-		throw OpenFileException();
-	
 	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
-		buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
+		result.append(tempBuffer, bytesRead);
 	}
-	if (bytesRead < 0 && buffer.empty()) {
+	if (bytesRead < 0 && result.empty()) {
 		close(fd);
 		throw OpenFileException();
-	}
+	}	
 	close(fd);
-	body = std::string(buffer.begin(), buffer.end());
-	//}
+	return result;
+}
 
-	//if (request.getMethod() == "POST") {
-	//	body = request.getBody();
-	//}
+std::string VServ::readRequest(HttpRequest &request) {
+	std::string body;
+	std::string cgiContent;
+	int			fileFd;
+	bool		isReqCGI = fileIsCGI(request);
+	
+	std::string rootPath = makeRootPath(request);
+	if (_cachedPages.count(rootPath) > 0)
+		body = _cachedPages[rootPath]; 
+	else {
+		fileFd = open(rootPath.c_str(), O_RDONLY);
+		if (fileFd < 0)
+			throw OpenFileException();
+		body = readFile(fileFd);
+		_cachedPages[rootPath] = body;
+	}
 
-	if (fileIsCGI(request)) {
+	if (isReqCGI) {
 		std::cout << "file is a cgi" << std::endl;
 		cgiContent = handleCGI(body, request);
 		return (cgiContent);
@@ -187,10 +191,8 @@ std::string VServ::readRequest(HttpRequest &request) {
 }
 
 bool VServ::isEndedChunckReq(std::string rawRequest) {
-	if (rawRequest.find("0\r\n\r\n") != std::string::npos
-	    || rawRequest.find("\r\n0") != std::string::npos)
-	{ //last chunked request
-		std::cout << "Last chuncked. Connection close" << std::endl;
+	if (rawRequest.find("0\r\n\r\n") != std::string::npos) { //last chunked request
+		std::cout << "Last chuncked." << std::endl;
 		return (true);
 	}
 	return (false);	
@@ -256,27 +258,6 @@ ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 	return bytesRead;
 }
 
-std::string VServ::readFile(int fd) {
-	std::vector<char> buffer;
-	ssize_t bytesRead;
-	std::string result;
-	char tempBuffer[4096];
-
-	while (true) {
-		bytesRead = read(fd, tempBuffer, sizeof(tempBuffer));
-		
-		if (bytesRead > 0) {
-			result.append(tempBuffer, bytesRead);
-			//std::cout << "Lopp: [" << result << "]\n\n\n" << std::endl;
-		} else {
-			//close(fd);
-			std::cout << "readFile bytes read: " << bytesRead << std::endl;
-			break;
-		}
-	}	
-
-	return result;
-}
 
 void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	std::string	rawResponse = response.makeRawResponse();
@@ -346,10 +327,15 @@ std::string	VServ::readDefaultPages(HttpRequest &request)
 	return (file);
 }
 
-void	VServ::showDirectory(DIR* dir, HttpRequest &response) {
+void	VServ::showDirectory(HttpRequest &request, HttpRequest &response) {
 	struct dirent* entry;
 	std::vector<std::string> filesName;
 
+	std::string rootPath = makeRootPath(request);
+	DIR* dir = opendir(rootPath.c_str());
+	if (!dir)
+		throw OpenFolderException();
+	
 	while ((entry = readdir(dir)) != NULL) {
 		filesName.push_back(entry->d_name);
 	}
@@ -585,7 +571,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 		if (_debug)
 			std::cout << rootPath << std::endl;
 
-		if (request.getMethod() == "GET") {
+		if (reqMethod == "GET" || reqMethod == "HEAD") {
 			if (stat(rootPath.c_str(), &path_stat) != 0)
 				throw FileNotExist();
 			
@@ -596,12 +582,8 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 
 			} else if (S_ISDIR(path_stat.st_mode)) {
 
-				DIR* dir = opendir(rootPath.c_str());
-				if (!dir)
-					throw OpenFolderException();
-
 				if (request.getRules()->getAutoIndex()) {
-					showDirectory(dir, response);
+					showDirectory(request, response);
 				} else {
 					std::string rawResponse = readDefaultPages(request);
 					response = HttpRequest(HTTP_RESPONSE, rawResponse);	
@@ -649,11 +631,6 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 
 	sendRequest(response, clientFd);
 
-	/* if (isEndedChunckReq(rawRequest)) {
-		_mainInstance->deleteFd(clientFd);
-		return ;
-	} */
-	
 	std::string connectionType = request.getHeader("Connection");
 	if (!connectionType.empty() || (connectionType.find("close") != std::string::npos))  {
 		std::cout << "The request has been closed." << std::endl;	
