@@ -1,7 +1,7 @@
 server {
   port: 8080;
-  server_names: example.com, www.example.com;
-  root: /var/www/html/;
+  server_names: localhost, example.com, www.example.com;
+  root: www/;
   default_pages: index.html, home.html;
   error_pages {
     404: not_found.html;
@@ -11,15 +11,8 @@ server {
   allowed_methods: GET, POST;
   max_body_bytes: 2048;
   cgi_path {
-    .php: /usr/local/cgi-bin/;
+    .php: /usr/bin/php-cgi;
   }
   redirect: /new-location/;
-  upload: /uploads/;
-  location: /api, /admin {
-    cgi_path: /usr/local/api-bin/;
-    allowed_methods: GET, DELETE;
-    error_pages {
-      403: forbidden.html;
-    }
-  }
+  upload: www/uploads/;
 }

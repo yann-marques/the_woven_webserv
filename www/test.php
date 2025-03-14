@@ -1,5 +1,7 @@
 <?php
 
-echo "bonjour";
+phpinfo();
+
+phpinfo(INFO_MODULES);
 
 ?>

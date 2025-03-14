@@ -80,6 +80,7 @@ class	VServ {
 		void 				checkAllowedMethod(HttpRequest& request);
 		bool				isEndedChunckReq(std::string rawRequest);
 		bool				isHttpRequestComplete(const std::string &rawRequest);
+		void				uploadFile(HttpRequest request, std::string content);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -150,6 +151,10 @@ class	VServ {
 			public:
 				const char* what() const throw();
 		};
+		class	ChildProcessException: public std::exception {
+			public:
+				const char* what() const throw();
+		};	
 		class	ServerNameNotFound: public std::exception {
 			public:
 				const char* what() const throw();
@@ -161,5 +166,13 @@ class	VServ {
 		class	MethodNotAllowed: public std::exception {
 			public:
 				const char* what() const throw();
-		};	
+		};
+		class	CreateFileException: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	NoUploadFileName: public std::exception {
+			public:
+				const char* what() const throw();
+		};
 };

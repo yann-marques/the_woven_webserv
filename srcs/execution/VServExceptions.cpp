@@ -68,6 +68,10 @@ const char* VServ::ExecveException::what() const throw() {
 	return ("Execve error. Can't execute the binary cgi");
 }
 
+const char* VServ::ChildProcessException::what() const throw() {
+	return ("Critical error, the process has failed. Can't execute the cgi");
+}
+
 const char* VServ::ServerNameNotFound::what() const throw() {
 	return ("Server name not found in config. Abort.");
 }
@@ -78,4 +82,12 @@ const char* VServ::InterpreterEmpty::what() const throw() {
 
 const char* VServ::MethodNotAllowed::what() const throw() {
 	return ("The method is not allowed. Abort");
+}
+
+const char* VServ::CreateFileException::what() const throw() {
+	return ("Execve error. Can't execute the binary cgi");
+}
+
+const char* VServ::NoUploadFileName::what() const throw() {
+	return ("User need to pass a filename to upload content");
 }

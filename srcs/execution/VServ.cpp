@@ -141,11 +141,11 @@ std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqPath = request.getPath().substr(locationPath.size());
 	
 	if (!rqRootPath.empty())
-	return (rqRootPath);
+		return (rqRootPath);
 	if (rqPath == "/" || rqPath.empty())
-	return(request.getRules()->getRoot()); /////
+		return(request.getRules()->getRoot());
 	else
-	return (request.getRules()->getRoot() + rqPath); /////
+		return (request.getRules()->getRoot() + rqPath);
 }
 
 std::string VServ::readFile(int fd) {
@@ -237,7 +237,6 @@ ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
 		
 		if (bytesRead > 0) {
 			str.append(tempBuffer, bytesRead);
-			//std::cout << "Lopp: [" << str << "]\n\n\n" << std::endl;
 		} else {
 			if (bytesRead == 0) { //client close connection;
 				std::cout << "client close connection." << std::endl;
@@ -527,9 +526,8 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		waitpid(pid, &status, 0);
 		close(parentToChild[1]);
 		close(childToParent[0]);
-		if (WEXITSTATUS(status) != EXIT_SUCCESS) {
-			//throw exit failure
-		}
+		if (WEXITSTATUS(status) != EXIT_SUCCESS)
+			throw ChildProcessException();
 	}
 
 	return (result);
@@ -546,6 +544,24 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 			return ;
 	}
 	throw MethodNotAllowed();
+}
+
+void	VServ::uploadFile(HttpRequest request, std::string content) {
+	std::string uploadFile = request.getRules()->getUpload();
+	std::string locationPath = request.getRules()->getLocationPath();
+	std::string rqPath = request.getPath().substr(locationPath.size());
+
+	if (rqPath == "/" || rqPath.empty())
+		throw NoUploadFileName();
+
+	std::string separator = uploadFile[uploadFile.size() - 1] == '/' ? "" : "/";
+	std::string filePath = uploadFile + separator + rqPath;		
+	std::cout << filePath << std::endl;
+	std::ofstream outFile(filePath.c_str());
+    if (!outFile)
+		throw CreateFileException(); 
+    outFile << content;
+    outFile.close();	
 }
 
 void	VServ::processRequest(std::string rawRequest, int &clientFd) {
@@ -602,6 +618,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 				response = HttpRequest(HTTP_RESPONSE, cgiContent);
 			} else {
 				response = HttpRequest(HTTP_RESPONSE, requestBody);
+				uploadFile(request, requestBody);
 			}
 		}
 
@@ -626,6 +643,10 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	} catch (MethodNotAllowed& e) {
 		response.makeError(HTTP_METHOD_NOT_ALLOWED);
 	} catch (HttpRequest::MalformedHttpHeader& e) {
+		response.makeError(HTTP_BAD_REQUEST);
+	} catch (CreateFileException& e) {
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
+	} catch (NoUploadFileName& e) {
 		response.makeError(HTTP_BAD_REQUEST);
 	}
 
