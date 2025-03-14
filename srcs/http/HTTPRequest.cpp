@@ -137,6 +137,9 @@ void    HttpRequest::log(void) {
 bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length of the chunk in hex
     std::size_t acceptedHexChar = 0;
     std::size_t strSize = str.size();
+
+    if (strSize == 0)
+        return (false);
     for (std::size_t i = 0; i < strSize; ++i) {
         char c = str[i];
         if ((c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) //its a accepted hex letter

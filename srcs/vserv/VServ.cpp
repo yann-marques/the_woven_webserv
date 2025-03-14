@@ -313,7 +313,7 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 			throw EntityTooLarge();
 	} else {
 		std::string body = request.getBody();
-		if (!body.empty() && (body.size() * sizeof(std::string::value_type) > client_max_body_size))
+		if (!body.empty() && body.size() > client_max_body_size)
 			throw EntityTooLarge(); 
 	}
 }
@@ -613,12 +613,13 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 		}
 
 		if (request.getMethod() == "POST") {
+			std::string requestBody = request.getBody();
+			
 			if (fileIsCGI(request)) {
-				std::string requestBody = request.getBody();
 				std::string cgiContent = handleCGI(requestBody, request);
-
 				response = HttpRequest(HTTP_RESPONSE, cgiContent);
-				response.setMethod(reqMethod);
+			} else {
+				response = HttpRequest(HTTP_RESPONSE, requestBody);
 			}
 		}
 
