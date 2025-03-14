@@ -102,7 +102,7 @@ bool	isValidLocationKey(std::string key) {
 	if (key[0] != '/')
 		return (false);
 	size_t	i = 1;
-	while (isalnum(key[i]))
+	while (isalnum(key[i]) || key[i] == '_')
 		i++;
 	return (!key[i]);
 }

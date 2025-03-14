@@ -5,7 +5,7 @@ Rules::Rules(): AParser() {
 	_maxBodyBytes = 1024;
 	_root = "www/";
 	_redirect = "redirect";
-	_upload = "upload";
+	_upload = "";
 
 	_defaultPages.push_back("index");
 	_allowedMethods.push_back("GET");

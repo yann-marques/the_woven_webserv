@@ -25,7 +25,7 @@ server {
       root: /var/www/api/v1/;
       allowed_methods: GET;
 	  cgi_path {
-		.toto: path_to_toto;
+		  .toto: path_to_toto;
 	  }
       location: /users {
         root: /var/www/api/v1/users/;

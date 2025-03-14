@@ -8,6 +8,7 @@
 # include <unistd.h>
 # include <sys/types.h>
 # include <fcntl.h>
+# include <cstring>
 
 # include "Rules.hpp"
 
@@ -18,6 +19,7 @@
 #define DELETE "DELETE"
 #define PUT "PUT"
 #define OPTIONS "OPTIONS"
+#define HEAD "HEAD"
 
 //ERROR CODES
 

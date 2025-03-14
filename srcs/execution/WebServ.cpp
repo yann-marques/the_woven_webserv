@@ -48,6 +48,10 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 				_envp.insert(envp[i]);
 		}
 
+		this->_debug = false;
+		if (_argv.find("--debug=yes") != _argv.end())
+			this->_debug = true;
+
 		setVServMap(_config.getParsedConfig());
 
 		_epollEventsBuff.resize(_maxEvents);
@@ -108,6 +112,12 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 WebServ::~WebServ() {
 	if (_epollFd != -1)
 		close(_epollFd);
+	t_map_it< int, VServ* >::t	it = _VServers.begin(), ite = _VServers.end();
+	while (it != ite) {
+		if (isServerFD(it->first))
+			delete it->second;
+		it++;
+	}
 }
 
 // SETTERS

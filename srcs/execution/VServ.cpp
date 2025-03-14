@@ -18,7 +18,7 @@ VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< 
 	this->_envp = envp;
 	this->_debug = false;
 	if (argv.find("--debug=yes") != argv.end())
-	this->_debug = true;
+		this->_debug = true;
 }
 
 // VServ::VServ(const VServ& rhs);
@@ -585,7 +585,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 		if (_debug)
 			std::cout << rootPath << std::endl;
 
-		if (reqMethod == "GET" || reqMethod == "HEAD") {
+		if (reqMethod == GET || reqMethod == HEAD) {
 			if (stat(rootPath.c_str(), &path_stat) != 0)
 				throw FileNotExist();
 			
@@ -608,7 +608,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 			}
 		}
 
-		if (request.getMethod() == "POST") {
+		if (request.getMethod() == POST) {
 			std::string requestBody = request.getBody();
 			
 			if (fileIsCGI(request)) {
@@ -616,7 +616,8 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 				response = HttpRequest(HTTP_RESPONSE, cgiContent);
 			} else {
 				response = HttpRequest(HTTP_RESPONSE, requestBody);
-				uploadFile(request, requestBody);
+				if (!request.getRules()->getUpload().empty())
+					uploadFile(request, requestBody);
 			}
 		}
 

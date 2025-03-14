@@ -2,9 +2,8 @@
 
 void	AParser::checkErrorPages(t_mmap_range< std::string, std::string >::t range) const {
 	t_mmap_it< std::string, std::string >::t	mmIt = range.first, mmIte = range.second;
-	if (mmIt == mmIte)
-		return ;
-	do {
+
+	while (mmIt != mmIte) {
 		std::string	str = mmIt->second;
 		size_t	pos1 = str.find(':');
 		if (pos1 == std::string::npos)
@@ -13,14 +12,13 @@ void	AParser::checkErrorPages(t_mmap_range< std::string, std::string >::t range)
 		if (!isDigitString(key))
 			throw (UnexpectedKeyException(key));
 		mmIt++;
-	} while (mmIt != mmIte);
+	}
 }
 
 void	AParser::checkCgiPath(t_mmap_range< std::string, std::string >::t range) const {
 	t_mmap_it< std::string, std::string >::t	mmIt = range.first, mmIte = range.second;
-	if (mmIt == mmIte)
-		return ;
-	do {
+
+	while (mmIt != mmIte){
 		std::string	str = mmIt->second;
 		size_t	pos1 = str.find(':');
 		if (pos1 == std::string::npos) {
@@ -30,7 +28,7 @@ void	AParser::checkCgiPath(t_mmap_range< std::string, std::string >::t range) co
 		if (key[0] != '.')
 			throw (UnexpectedKeyException(key));
 		mmIt++;
-	} while (mmIt != mmIte);
+	}
 }
 
 void	AParser::checkArgNoDouble(t_mmap_range< std::string, std::string >::t range, bool f(std::string)) const {
