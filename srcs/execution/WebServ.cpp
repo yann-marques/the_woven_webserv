@@ -2,148 +2,125 @@
 
 // WebServ::WebServ() {} // private ?
 
-WebServ::WebServ(std::string filename, char **argv, char **envp): _maxClients(512), _maxEvents(512), _config(filename.c_str()) {
-//	signal(SIGINT, handleSignal); // in execution
+void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config) {
+	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
+		hostIt = config.begin(), hostIte = config.end();
 
+	while (hostIt != hostIte) {
+		std::string	host = hostIt->first;
+		t_map_it< int, std::map< std::string, Rules* > >::t
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
+
+		while (portIt != portIte) {
+			int port = portIt->first;
+			std::map< std::string, Rules* >	sNamesMap = portIt->second;
+			VServ*	vserv = new VServ(this, host, port, sNamesMap, _maxClients, _argv, _envp);
+			
+			int	sfd = vserv->getFd();
+			_fds[sfd] = SERVER_SOCK;  
+			setVServ(sfd, vserv);
+
+			epollCtlAdd(sfd, EPOLLIN);
+			portIt++;
+		}
+		hostIt++;
+	}
+}
+
+WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
+//	signal(SIGINT, handleSignal); // in execution
+	(void) fileName;
 	try {
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
 			throw EpollCreateException();
 	
-		//_config = Config(filename.c_str());
-		
-		//parse envp and argv:
-		std::set<std::string> arg;
-		std::set<std::string> env;
-
+		_config = Config(fileName.c_str());
+		// set argv
 		for (size_t i = 0, n = sizeof(argv); i < n; i++) {
 			if (argv[i])
-				arg.insert(argv[i]);
+				_argv.insert(argv[i]);
 		}
+		// set envp
 		for (size_t i = 0, n = sizeof(envp); i < n; i++) {
 			if (envp[i])
-				env.insert(envp[i]);
+				_envp.insert(envp[i]);
 		}
 
-		this->_argv = arg;
-		this->_envp = env;
-		this->_debug = false;
-		if (arg.find("--debug=yes") != arg.end())
-			this->_debug = true;
+		setVServMap(_config.getParsedConfig());
 
-		std::set< int >::iterator	portIt = _config.getPorts().begin(), portIte = _config.getPorts().end();
-		while (portIt != portIte) {
-			VServ*	vserv = new VServ(this, *portIt, _config.getParsedConfig().at(*portIt), _maxClients, _argv, _envp);
-
-			//////
-			int	sfd = vserv->getFd();
-
-			//insertVServFd(sfd);
-			_fds[sfd] = SERVER_SOCK;  
-			setVServ(sfd, vserv);
-
-			// set the event for sfd then epoll ctl the server fd
-			epollCtlAdd(sfd, EPOLLIN);
-
-			portIt++;
-		}
-/*	
-		_serverNbr = _config.getServersNbr();
-		std::cout << "serverNbr = " << _serverNbr << std::endl;
-		for (size_t i = 0; i < _serverNbr; i++) { // c.serverConfig : container ? vector
-			VServ*	server = new VServ(_config.getServerConfig(i), _maxClients, _argv, _envp); // epoll ? epollFd en arg ?
-			int	sfd = server->getFd();
-
-			insertServerFd(sfd);
-			setServerToServerFd(sfd, server);
-
-			// set the event for sfd then epoll ctl the server fd
-			setEvent(EPOLLIN, sfd);
-			epollCtlAdd(sfd);
-		}
-*/
 		_epollEventsBuff.resize(_maxEvents);
-		listenEvents();
-
-	} catch (EpollCreateException& e) {
+	//	listenEvents();
+	} // AParser exceptions
+	catch (AParser::ArgOutOfServerScopeException& e) {
 		std::cerr << e.what() << std::endl;
-	} catch (EpollCtlAddException& e) {
+	} catch (AParser::ConfigSyntaxException& e) {
 		std::cerr << e.what() << std::endl;
-	} catch (EpollCtlDelException& e) {
+	} catch (AParser::UnexpectedKeyException& e) {
 		std::cerr << e.what() << std::endl;
-	} catch (UnknownFdException& e) {
+	} catch (AParser::UnexpectedValueException& e) {
 		std::cerr << e.what() << std::endl;
-	} catch (VServ::SocketException& e) {
+	} catch (AParser::DoubleArgException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (AParser::ForbiddenCharException& e) {
+		std::cerr << e.what() << std::endl;
+	} // Config exceptions
+	catch (Config::IsDirException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::OpenFileException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::UnclosedScopeException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::BadSpacesException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Config::MissingPortException& e) {
+		std::cerr << e.what() << std::endl;
+	} // Rules exceptions
+	catch (Rules::RedefinedArgException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (Rules::InvalidLocationKeyException& e) {
+		std::cerr << e.what() << std::endl;
+	} // WebServ exceptions
+	catch (WebServ::SIGINTException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollCreateException& e) {
+			std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollWaitException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollCtlAddException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::EpollCtlDelException& e) {
+		std::cerr << e.what() << std::endl;
+	} catch (WebServ::UnknownFdException& e) {
+		std::cerr << e.what() << std::endl;
+	} // VServ exceptions
+	catch (VServ::SocketException& e) {
 		std::cerr << e.what() << std::endl;
 	} catch (VServ::SetSockOptException& e) {
 		std::cerr << e.what() << std::endl;
 	} catch (VServ::BindException& e) {
 		std::cerr << e.what() << std::endl;
-	} catch (VServ::ListenException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::OpenFileException& e) {
-		std::cerr << e.what() << filename << std::endl;
-	} catch (Config::ArgOutsideServerScopeException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::UnclosedScopeException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::ConfigSyntaxException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::UnexpectedKeyException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::DoubleArgException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::MissingPortException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::MultiplePortsException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::UnexpectedValueException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Rules::RedefinedArgException& e) {
-		std::cerr << e.what() << std::endl;
 	}
+
 }
 
-// WebServ::WebServ(const Webserv& rhs) {} // private ?
-
-// WebServ&	WebServ::operator=(const WebServ& rhs) {} // private ?
-
 WebServ::~WebServ() {
-	// in ~VServ()
-/*
-	int	size = _serverFds.size();
-	for (int i = 0; i < size; i++)
-		if (_serverFds[i] != -1)
-			close(_serverFds[i]);
-*/
 	if (_epollFd != -1)
 		close(_epollFd);
-
-	//for (std::set<int>::iterator it = _VServerFds.begin(); it != _VServerFds.end(); ++it)
-	//	delete getVServ(*it);
-/*
-	size = _clientFds.size();
-
-	for (int i = 0; i < size; i++)
-		close(_clientFds[i]);
-*/
 }
 
 // SETTERS
 
-
 void	WebServ::setVServ(int fd, VServ* rhs) {
 	_VServers[fd] = rhs;
 }
-
 
 // GETTERS
 
 int	WebServ::getEpollFd() const {
 	return (_epollFd);
 }
-
 
 //Renvoie un VServ* associe au FD passe. Si c'est un FD client, ca renvoie le *VServ "attache" a ce client. Si c'est un FD Server, renvoie le *VServ.
 VServ*	WebServ::getVServ(int fd) {
@@ -152,11 +129,6 @@ VServ*	WebServ::getVServ(int fd) {
 
 
 // METHODS
-
-void	WebServ::handleSignal(int signal) {
-	if (signal == SIGINT)
-		throw (SIGINTException());
-}
 
 int	WebServ::epollWait(void) {
 	int numEvents = epoll_wait(_epollFd, _epollEventsBuff.data(), _maxEvents, -1);

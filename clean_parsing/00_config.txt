@@ -1,0 +1,31 @@
+server {
+  port: 8080;
+  server_names: example.com, www.example.com;
+  root: /var/www/html/;
+  default_pages: index.html, home.html;
+  error_pages {
+    404: not_found.html;
+    500: internal_error.html;
+  }
+  auto_index: true;
+  allowed_methods: GET, POST;
+  max_body_bytes: 2048;
+  cgi_path {
+    .php: /usr/local/cgi-bin/;
+  }
+  redirect: /new-location/;
+  upload: /uploads/;
+  location: /api, /admin {
+    location: /pipi {
+      cgi_path {
+      
+      }
+      root:toto/;
+    }
+    
+    allowed_methods: GET, DELETE;
+    error_pages {
+      403: forbidden.html;
+    }
+  }
+}

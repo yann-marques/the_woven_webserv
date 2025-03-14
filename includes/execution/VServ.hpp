@@ -20,7 +20,7 @@
 # include <math.h>
 
 
-# include "parsing/Rules.hpp"
+# include "Rules.hpp"
 # include "HTTPRequest.hpp"
 # include "WebServ.hpp"
 
@@ -28,8 +28,10 @@ class WebServ;
 
 class	VServ {
 	private:
-		const int							_maxClients; // defined in config file ?
-		int									_port;
+		const int					_maxClients; // defined in config file ?
+		// config
+		std::string					_host;
+		int							_port;
 
 		WebServ*							_mainInstance;
 		std::map< std::string, Rules* >		_rules;
@@ -48,12 +50,19 @@ class	VServ {
 	public:
 //		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
 		VServ(): _maxClients(1024) {}
-		VServ(WebServ* mainInstance, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+		VServ(WebServ* mainInstance, std::string host, int port, const std::map< std::string, Rules* >& sNamesMap,
+			int maxClients, std::set< std::string > argv, std::set< std::string > envp);
+		
+		// deprecated:
+//		VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
+//			const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
+
 		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
 		VServ&	operator=(const VServ& rhs);
 		~VServ();
 
 		// SETTERS
+		void	setRulesKeys(std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator >& range);
 		void	setAddress();
 
 		// GETTERS

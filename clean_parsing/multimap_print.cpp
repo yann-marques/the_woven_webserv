@@ -1,4 +1,4 @@
-#include "parsing/Config.hpp"
+#include "Config.hpp"
 
 static void	printRange(t_range range) {
 	t_multimap_it	it = range.first, ite = range.second;

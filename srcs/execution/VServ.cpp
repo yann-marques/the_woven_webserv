@@ -3,8 +3,9 @@
 // VServ::VServ();
 
 
-VServ::VServ(WebServ *mainInstance, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
+VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
 	// tmp
+	_host = host;
 	_port = port;
 //	_host = config.getHost();
 //	parse config ...
@@ -96,20 +97,17 @@ void	VServ::socketInit() {
 	_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fd == -1)
 		throw (SocketException());
-	
-	fcntl(_fd, F_SETFL, O_NONBLOCK); // setNonBlocking
-		
+	fcntl(_fd, F_SETFL, O_NONBLOCK);
+
 	int opt = 1;
 	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
-	throw (SetSockOptException());
-	
+		throw (SetSockOptException());
+
 	if (bind(_fd, (struct sockaddr*)&_address, sizeof(_address)) == -1)
 		throw (BindException());
 
-	if (listen(_fd, _maxClients) == -1)
+	if (listen(_fd, _maxClients) == -1) //mettre dans le epoll
 		throw (ListenException());
-
-	// catch in WebServ constructor
 }
 
 std::string    ip_convert(uint32_t n) {
@@ -127,9 +125,10 @@ std::string    ip_convert(uint32_t n) {
 int	VServ::clientAccept(void) {
 	sockaddr_in clientAddress;
 	socklen_t clientAddressLength = sizeof(clientAddress);
+	
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
 	if (clientFd < 0)
-	throw (AcceptException());
+		throw (AcceptException());
 	
 	std::cout << ip_convert(ntohl(clientAddress.sin_addr.s_addr)) << ' ';
 	return (clientFd);
@@ -364,7 +363,6 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 
 	std::string ext = request.getCgiExt();
 	std::string path = request.getPath();
-
 	if ((startPos = path.find(ext)) != std::string::npos) {
 		startPos += ext.size();
 		if ((endPos = path.find('?')) == std::string::npos)
@@ -634,7 +632,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	} catch (RecvException& e) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (ServerNameNotFound& e) {
-		std::cout << "Server name not found" << std::endl;
+		std::cerr << "Server name not found" << std::endl;
 		return ; //abort. send nothing
 	} catch (InterpreterEmpty& e) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR);

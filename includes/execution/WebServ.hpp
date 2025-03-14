@@ -15,7 +15,8 @@
 # include <vector>
 # include <set>
 
-# include "parsing/Rules.hpp"
+# include "templates.tpp"
+# include "Rules.hpp"
 # include "VServ.hpp"
 
 class VServ;
@@ -30,7 +31,7 @@ class	WebServ {
 		bool							_debug;
 		int const						_maxClients; 
 		int const						_maxEvents;
-		Config							_config;	// parsed config file
+		Config							_config;
 
 		int								_epollFd;
 		std::vector<struct epoll_event> _epollEventsBuff;
@@ -50,6 +51,7 @@ class	WebServ {
 
 		//SETTERS
 		void	setVServ(int fd, VServ* rhs);
+		void	setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config);
 
 		//GETTERS
 		VServ*	getVServ(int fd);
@@ -58,7 +60,6 @@ class	WebServ {
 		//METHODS
 		void	handleServerEvent(VServ* vserv);
 		void	handleClientEvent(int fd, VServ* vserv);
-		void	handleSignal(int signal);
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd, uint32_t events);
@@ -81,7 +82,7 @@ class	WebServ {
 				const char*	what() const throw();
 		};
 		class	EpollCtlAddException: public std::exception {
-	public:
+			public:
 				const char*	what() const throw();
 		};
 		class	EpollCtlDelException: public std::exception {

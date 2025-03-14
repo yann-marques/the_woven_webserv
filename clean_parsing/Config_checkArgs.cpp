@@ -1,4 +1,4 @@
-#include "parsing/Config.hpp"
+#include "Config.hpp"
 
 void	Config::checkPortFormat(size_t count, t_range range) {
 	if (!count)

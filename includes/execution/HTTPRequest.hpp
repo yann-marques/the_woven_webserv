@@ -9,7 +9,7 @@
 # include <sys/types.h>
 # include <fcntl.h>
 
-# include "parsing/Rules.hpp"
+# include "Rules.hpp"
 
 //METHODS
 
