@@ -648,10 +648,10 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 
 	sendRequest(response, clientFd);
 
-	if (isEndedChunckReq(rawRequest)) {
+	/* if (isEndedChunckReq(rawRequest)) {
 		_mainInstance->deleteFd(clientFd);
 		return ;
-	}
+	} */
 	
 	std::string connectionType = request.getHeader("Connection");
 	if (!connectionType.empty() || (connectionType.find("close") != std::string::npos))  {

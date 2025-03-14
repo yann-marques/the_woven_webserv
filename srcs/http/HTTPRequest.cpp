@@ -134,15 +134,21 @@ void    HttpRequest::log(void) {
 }
 
 
-bool    isBodyLineFullDigits(std::string str) {
-    for (size_t i = 0; i < str.length(); ++i) {
-        if (str[i] == '\r' && i > 0) //if i == 0, the line is "\r". 
-            return (true);
-        if (str[i] < '0' || str[i] > '9') {
-            return (false);
-        }
+bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length of the chunk in hex
+    std::size_t acceptedHexChar = 0;
+    std::size_t strSize = str.size();
+    for (std::size_t i = 0; i < strSize; ++i) {
+        char c = str[i];
+        if ((c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) //its a accepted hex letter
+            acceptedHexChar++;
+        else if (c >= '0' && c <= '9')
+            acceptedHexChar++;
+        else if (c == '\r') //only check for \r because std::getline does not return \n char.
+            acceptedHexChar++;
+        else
+            break ; 
     }
-    return (true);
+    return (acceptedHexChar == strSize);
 }
 
 void    HttpRequest::parseRequest(const std::string &rawRequest)
@@ -189,12 +195,11 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
 
     std::string tranfertType = getHeader("Transfer-Encoding");
     while (!stream.eof()) {
-        if (!tranfertType.empty() && tranfertType == "chunked" && isBodyLineFullDigits(line)) {
+        if (!tranfertType.empty() && tranfertType == "chunked" && isBodyChunkSizeLine(line)) {
             std::getline(stream, line);
             continue;
         }
 
-        // Remove trailing '\r' if present
         if (!line.empty() && line[line.size() - 1] == '\r') {
             line.erase(line.size() - 1, 1);
         }
@@ -209,16 +214,6 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     if (!line.empty())
         _body += line;
 
-    // Ensure the body ends with "\r\n"
-    /* if (!_body.empty() && _body[_body.size() - 1] == '\n') {
-        _body[_body.size() - 1] = '\r'; // Replace last '\n' with '\r'
-        _body += "\n"; // Add the final '\n'
-    } else {
-        _body += "\r\n";
-    } */
-
-    //std::cout << '{' << _body << "}" << std::endl;
-    
     if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();
 }
@@ -264,18 +259,8 @@ std::string HttpRequest::makeRawResponse(void) {
     for (it = _headers.begin(); it != _headers.end(); ++it) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
-
-
-    //if (!_body.empty() && _body[_body.size() - 1] == '\n' && _body[_body.size() - 2] == '\r')
-    //    _body.erase(_body.size() - 2, 2);
-
+    
     std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
-
-    if (bodySize > 100000 && bodySize < 100020) {
-        bodySize = 100000;
-        std::cout << '{' << _body << '}' << std::endl;
-    }
-
     std::cout << "SENT BODY SIZE: " << bodySize << std::endl;
 
     if (_method == "HEAD") {
