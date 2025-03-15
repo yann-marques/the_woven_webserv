@@ -91,3 +91,11 @@ const char* VServ::CreateFileException::what() const throw() {
 const char* VServ::NoUploadFileName::what() const throw() {
 	return ("User need to pass a filename to upload content");
 }
+
+const char* VServ::EpollCTLException::what() const throw() {
+	return ("EpollCTL Exception");
+}
+
+const char* VServ::EpollWaitException::what() const throw() {
+	return ("Epoll wait exeception");
+}

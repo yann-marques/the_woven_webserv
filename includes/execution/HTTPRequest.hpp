@@ -96,7 +96,7 @@ class HttpRequest {
         std::string makeRawResponse(void);
         void        setDefaultsHeaders(void);
         void        initReasons(void);
-        void        makeError(int httpCode);
+        void        makeError(int httpCode, HttpRequest request);
         void        generateIndexFile(const std::vector<std::string>& fileNames);
         void        log(void);
 

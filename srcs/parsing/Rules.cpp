@@ -9,9 +9,6 @@ Rules::Rules(): AParser() {
 
 	_defaultPages.push_back("index");
 	_allowedMethods.push_back("GET");
-
-	_errorKeys.insert(404);
-	_errorPages[404] = "404.html";
 }
 
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): AParser() {

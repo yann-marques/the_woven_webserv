@@ -184,4 +184,12 @@ class	VServ {
 			public:
 				const char* what() const throw();
 		};
+		class	EpollWaitException: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	EpollCTLException: public std::exception {
+			public:
+				const char* what() const throw();
+		};
 };

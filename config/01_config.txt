@@ -1,31 +1,29 @@
 server {
   port: 8080;
-  server_names: example.com, www.example.com;
+  server_names: localhost, example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
-  error_pages {
-    404: not_found.html;
-    500: internal_error.html;
-  }
   auto_index: false;
-  allowed_methods: POST;
+  allowed_methods: GET, POST;
   max_body_bytes: 2048;
   redirect: /new-location/;
   upload: /uploads/;
+  
   cgi_path {
     .php: /usr/bin/php-cgi;
-    .py: path_to_popo;
+    .py: /usr/bin/python3;
   }
 
   location: /api, /admin {
     root: www/api;
-    cgi_path {
-      .php: path_to_php;
-      .py: path_to_py;
-    }
-    max_body_bytes: 42;
     auto_index: false;
     allowed_methods: GET, DELETE;
+    max_body_bytes: 42;
+    
+    cgi_path {  
+      .php: /usr/bin/php-cgi;
+      .py: /usr/bin/python3;
+    }
 
     location: /bloblo {
       location: /toto {

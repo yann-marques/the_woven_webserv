@@ -196,7 +196,6 @@ void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
 	vserv->readSocketFD(clientFd, rawRequest);
 
 	if (!rawRequest.empty()) {
-		std::cout << "Request finish" << std::endl;
 		if (_debug)
 			std::cout << "REQUEST ------" << std::endl << rawRequest << std::endl;
 		vserv->processRequest(rawRequest, clientFd);

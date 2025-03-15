@@ -5,11 +5,6 @@ server {
   default_pages: index.html, home.html;
   max_body_bytes: 1G;
 
-  error_pages {
-    404: not_found.html;
-    500: internal_error.html;
-  }
-
   auto_index: false;
   allowed_methods: GET;
   

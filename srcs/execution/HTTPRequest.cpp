@@ -8,7 +8,6 @@ HttpRequest::HttpRequest(RequestDirection direction, std::string &rawRequest) {
     _direction = direction;
     this->initReasons();
     this->parseRequest(rawRequest);
-    // rules = NULL;
 } 
 
 HttpRequest::~HttpRequest(void) {};
@@ -162,8 +161,6 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     while (std::getline(stream, line) && line.empty())
         ;
         
-    std::cout << "FIRST LINE : " << line << std::endl;
-
     if (_direction == HTTP_REQUEST) {
         if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
             std::istringstream requestLine(line);
@@ -171,13 +168,11 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
         }
     
         if (_method.empty() && _path.empty() && _version.empty()) {
-            std::cout << "Malformed header" << std::endl;
             throw MalformedHttpHeader();
         }
     }
 
     if (rawRequest.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
-        std::cout << "Header found in the request" << std::endl;
         if (!line.empty()) {
             while (line != "\r" && !stream.eof()) {
                 size_t pos = line.find(":");
@@ -185,7 +180,6 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
                     std::string key = line.substr(0, pos);
                     size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
                     std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
-                    std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
                     if (!value.empty() && value[value.size() - 1] == '\r') {
                         value.erase(value.size() - 1);
                     }
@@ -223,25 +217,34 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
         setDefaultsHeaders();
 }
 
-void    HttpRequest::makeError(int httpCode) {
+void    HttpRequest::makeError(int httpCode, HttpRequest request){
     std::vector<char> buffer(4096);
 
     std::stringstream stream;
     stream << "default/errors/" << httpCode << ".html";
 
-    std::string errorPagePath = stream.str();
-	int fd = open(errorPagePath.c_str(), O_RDONLY);
-	if (fd < 0) {
-        std::cout << strerror(errno) << std::endl;   
-		throw OpenFileException();
+    std::string errorPagePath;
+    std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
+    if (errorPagesConfig.count(httpCode) > 0) {
+        errorPagePath = errorPagesConfig[httpCode];
+    } else {
+        errorPagePath = stream.str();
     }
 
-	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
-	close(fd);
-	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
-    setDefaultsHeaders();
-    setResponseCode(httpCode);
-    setBody(rawResponse);
+	int fd = open(errorPagePath.c_str(), O_RDONLY);
+	if (fd < 0) {
+        setBody("HTTP 500 Error: Internal server error");
+        std::cerr << "Error: invalid error pages path" << std::endl;
+        setDefaultsHeaders();
+        setResponseCode(500);
+    } else {
+        ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
+        close(fd);
+        std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
+        setDefaultsHeaders();
+        setResponseCode(httpCode);
+        setBody(rawResponse);
+    }
 }
 
 void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {
@@ -266,12 +269,9 @@ std::string HttpRequest::makeRawResponse(void) {
     for (it = _headers.begin(); it != _headers.end(); ++it) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
-
-    std::cout << _responseCode << std::endl;
     
     std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
-    std::cout << "SENT BODY SIZE: " << bodySize << std::endl;
-
+    
     if (_method == "HEAD") {
         rawResponse << "Content-Length: " << 0 << "\r\n";
         rawResponse << "\r\n"; 
