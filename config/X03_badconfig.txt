@@ -1,0 +1,40 @@
+server {
+  port: 8081;
+  server_names: example.com, www.example.com;
+  root: /var/www/html/;
+  default_pages: index.html, home.html;
+  error_pages {
+    404: not_found.html;
+  }
+  auto_index: false;
+  allowed_methods: GET, POST;
+  max_body_bytes: 2048;
+  cgi_path {
+    .php: /usr/bin/php-cgi;
+  }
+  redirect: /welcome/;
+  upload: /uploads/;
+}
+
+server {
+  port: 8080;
+  server_names: api.example.com;
+  root: /var/www/api/;
+  allowed_methods: GET, DELETE;
+  location: /v1 {
+    root: /var/www/api/v1/ewfw49302r4i0)_();
+    allowed_methods: GET;
+  }
+}
+
+server {
+  port: 8443;
+  server_names: secure.example.com;
+  root: /var/www/secure/;
+  default_pages: secure_index.html;
+  error_pages {
+    500: internal_error.html;
+  }
+  auto_index: true;
+  allowed_methods: GET;
+}
