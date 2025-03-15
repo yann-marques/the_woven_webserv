@@ -38,34 +38,23 @@ Config::Config(const Config& rhs): AParser() {
 }
 
 Config&	Config::operator=(const Config& rhs) {
-//	std::cout << rhs << std::endl;
-
 	_hosts = rhs.getHosts();
 	_ports = rhs.getPorts();
 	_serverNames = rhs.getServerNames();
-//	_parsedConfig = rhs.getParsedConfig();
 
-	printMultimap(_hosts, _ports);
-	
-//	const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&
-//		parsedConfigRef = rhs.getParsedConfig();
 	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
 		hostIt = rhs.getParsedConfig().begin(), hostIte = rhs.getParsedConfig().end();
 	while (hostIt != hostIte) {
 		std::string host = hostIt->first;
-		std::cout << "host = " << host << std::endl;
 		t_map_it< int, std::map< std::string, Rules* > >::t
-			portIt = hostIt->second.begin(),
-			portIte = hostIt->second.end();
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
 			while (portIt != portIte) {
 				int	port = portIt->first;
-				std::cout << "port = " << port << std::endl;
 				t_map_it< std::string, Rules* >::t
 					sNamesIt = portIt->second.begin(), sNamesIte = portIt->second.end();
 				while (sNamesIt != sNamesIte) {
 					std::string	serverName = sNamesIt->first;
-					std::cout << "serverName = " << serverName << std::endl;
-					_parsedConfig[host][port][serverName] = new Rules(*(rhs.getParsedConfig().at(host).at(port).at(serverName)));
+					_parsedConfig[host][port][serverName] = new Rules(*(sNamesIt->second));
 					sNamesIt++;
 				}
 				portIt++;

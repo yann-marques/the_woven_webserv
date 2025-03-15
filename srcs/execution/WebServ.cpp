@@ -29,8 +29,6 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 
 WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
 //	signal(SIGINT, handleSignal); // in execution
-	(void) fileName;
-	try {
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
@@ -56,57 +54,6 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 
 		_epollEventsBuff.resize(_maxEvents);
 	//	listenEvents();
-	} // AParser exceptions
-	catch (AParser::ArgOutOfServerScopeException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (AParser::ConfigSyntaxException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (AParser::UnexpectedKeyException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (AParser::UnexpectedValueException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (AParser::DoubleArgException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (AParser::ForbiddenCharException& e) {
-		std::cerr << e.what() << std::endl;
-	} // Config exceptions
-	catch (Config::IsDirException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::OpenFileException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::UnclosedScopeException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::BadSpacesException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Config::MissingPortException& e) {
-		std::cerr << e.what() << std::endl;
-	} // Rules exceptions
-	catch (Rules::RedefinedArgException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (Rules::InvalidLocationKeyException& e) {
-		std::cerr << e.what() << std::endl;
-	} // WebServ exceptions
-	catch (WebServ::SIGINTException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (WebServ::EpollCreateException& e) {
-			std::cerr << e.what() << std::endl;
-	} catch (WebServ::EpollWaitException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (WebServ::EpollCtlAddException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (WebServ::EpollCtlDelException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (WebServ::UnknownFdException& e) {
-		std::cerr << e.what() << std::endl;
-	} // VServ exceptions
-	catch (VServ::SocketException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (VServ::SetSockOptException& e) {
-		std::cerr << e.what() << std::endl;
-	} catch (VServ::BindException& e) {
-		std::cerr << e.what() << std::endl;
-	}
-
 }
 
 WebServ::~WebServ() {

@@ -30,7 +30,7 @@ std::string	Config::setHost(t_mmap_range< std::string, std::string >::t range) {
 
 void	Config::setPort(std::string host, int port) {
 	t_mmap_range< std::string, int >::t	mmRange = _ports.equal_range(host);
-	if (!isInRange< std::string, int >(mmRange, port))
+	if (!isInMMRange< std::string, int >(mmRange, port))
 		_ports.insert(make_pair(host, port));
 }
 
@@ -84,7 +84,7 @@ void	Config::setServerNamesByHost(const t_mmap_range< std::string, std::multimap
 			portMap.insert(std::make_pair(port, serverName));
 			sNamesIt++;
 		}
-		if (!isInRange< int, std::string >(portMap.equal_range(port), "localhost"))
+		if (!isInMMRange< int, std::string >(portMap.equal_range(port), "localhost"))
 			portMap.insert(std::make_pair(port, "localhost"));
 		argsIt++;
 	}

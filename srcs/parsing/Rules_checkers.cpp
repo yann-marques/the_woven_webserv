@@ -7,6 +7,7 @@ void	Rules::checkArgsFormat(const std::multimap< std::string, std::string >& arg
 	checkArgNoDouble(args.equal_range("redirect"), noForbiddenChar);
 	checkArgNoDouble(args.equal_range("upload"), noForbiddenChar);
 
+	checkAllowedMethods(args.equal_range("allowed_methods"));
 	checkErrorPages(args.equal_range("error_pages"));
 	checkCgiPath(args.equal_range("cgi_path"));
 }
