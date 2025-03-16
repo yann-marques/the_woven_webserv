@@ -548,8 +548,8 @@ void	VServ::uploadFile(HttpRequest request, std::string content) {
 void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	struct stat path_stat;	
 	HttpRequest request;
-	HttpRequest response;
-	
+	HttpRequest response;	
+
 	try {
 		request = HttpRequest(HTTP_REQUEST, rawRequest);
 		setTargetRules(request);
@@ -590,9 +590,8 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 			}
 		}
 
-		if (request.getMethod() == POST) {
+		if (reqMethod == POST) {
 			std::string requestBody = request.getBody();
-			
 			if (fileIsCGI(request)) {
 				std::string cgiContent = handleCGI(requestBody, request);
 				response = HttpRequest(HTTP_RESPONSE, cgiContent);
@@ -601,6 +600,17 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 				if (!request.getRules()->getUpload().empty())
 					uploadFile(request, requestBody);
 			}
+		}
+
+		if (reqMethod == DELETE) {
+			std::string emptyContent;
+			response = HttpRequest(HTTP_RESPONSE, emptyContent);
+
+			if (remove(rootPath.c_str()) == 0) {
+				response.setResponseCode(204);	
+			} else 
+				throw FileNotExist();
+
 		}
 
 

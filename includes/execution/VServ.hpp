@@ -18,6 +18,7 @@
 # include <set>
 # include <arpa/inet.h>
 # include <math.h>
+# include <cstdio>
 
 
 # include "Rules.hpp"

@@ -4,7 +4,7 @@ server {
   root: www/;
   default_pages: index.html, home.html;
   auto_index: true;
-  allowed_methods: GET, POST;
+  allowed_methods: GET, POST, DELETE;
   max_body_bytes: 2048;
   redirect: /new-location/;
   upload: /uploads/;
