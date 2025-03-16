@@ -33,8 +33,8 @@ VServ&	VServ::operator=(const VServ& rhs) {
 }
 
 VServ::~VServ() {
-	//	if (_fd != -1)
-	//		close(_fd);
+	if (_fd != -1)
+		close(_fd);
 }
 
 // SETTERS
@@ -505,6 +505,7 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		waitpid(pid, &status, 0);
 		close(parentToChild[1]);
 		close(childToParent[0]);
+		close(epollFd);
 		if (WEXITSTATUS(status) != EXIT_SUCCESS)
 			throw ChildProcessException();
 	}

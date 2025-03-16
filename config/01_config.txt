@@ -3,7 +3,7 @@ server {
   server_names: localhost, example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
-  auto_index: false;
+  auto_index: true;
   allowed_methods: GET, POST;
   max_body_bytes: 2048;
   redirect: /new-location/;
