@@ -39,6 +39,7 @@ class	Config: public AParser {
 		void	checkServerNames(t_mmap_range< std::string, std::string >::t mmRange) const;
 		void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const;
 		
+		void	destruct();
 		~Config();
 
 		// EXCEPTIONS

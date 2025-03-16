@@ -22,7 +22,7 @@ server {
   root: /var/www/api/;
   allowed_methods: GET, DELETE;
   location: /v1 {
-    root: /var/www/api/v1/ewfw49302r4i0)_();
+    root: /var/www/api/v1/ewfw49302r4i0;
     allowed_methods: GET;
   }
 }
@@ -34,6 +34,12 @@ server {
   default_pages: secure_index.html;
   error_pages {
     500: internal_error.html;
+  }
+  location: /popo {
+    location: caca {
+      
+    }
+
   }
   auto_index: true;
   allowed_methods: GET;

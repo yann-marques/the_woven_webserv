@@ -25,10 +25,16 @@ Config::Config(const char* fileName): AParser() {
 		hostArgs.insert(make_pair(host, args));
 	}
 	t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
-	while (hostIt != hostIte) {
-		setServerNamesByHost(hostArgs.equal_range(*hostIt));
-		setArgsByHost(hostArgs.equal_range(*hostIt));
-		hostIt++;
+	try {
+		while (hostIt != hostIte) {
+			setServerNamesByHost(hostArgs.equal_range(*hostIt));
+			setArgsByHost(hostArgs.equal_range(*hostIt));
+			hostIt++;
+		}
+	} catch (Rules::InvalidLocationKeyException& e) {
+		std::cerr << "BLOBLO: " << e.what() << std::endl;
+		destruct();
+		throw (Rules::InvalidLocationKeyException("BLOBLO"));
 	}
 }
 
@@ -93,7 +99,7 @@ std::string	Config::extractFileContent(const char* fileName) {
 	return (fileContent);
 }
 
-Config::~Config() {
+void	Config::destruct() {
 	t_mmap_it< std::string, std::multimap< int, std::string > >::t
 		it = _serverNames.begin(), ite = _serverNames.end();
 	while (it != ite) {
@@ -111,6 +117,10 @@ Config::~Config() {
 		}
 		it++;
 	}
+}
+
+Config::~Config() {
+	destruct();
 }
 
 std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
