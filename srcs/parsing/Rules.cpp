@@ -4,7 +4,7 @@ Rules::Rules(): AParser() {
 	_autoIndex = true;
 	_maxBodyBytes = 1024;
 	_root = "www/";
-	_redirect = "redirect";
+	_redirect = "";
 	_upload = "";
 
 	_defaultPages.push_back("index");
@@ -60,8 +60,8 @@ Rules&	Rules::operator|=(const Rules& rhs) {
 		_allowedMethods = rhs.getAllowedMethods();
 	if (!_args.count("max_body_bytes"))
 		_maxBodyBytes = rhs.getMaxBodyBytes();
-	if (!_args.count("redirect"))
-		_redirect = rhs.getRedirect();
+	//if (!_args.count("redirect"))
+	//	_redirect = rhs.getRedirect();
 	if (!_args.count("upload"))
 		_upload = rhs.getUpload();
 

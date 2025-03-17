@@ -443,10 +443,8 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		close(childToParent[1]);
 
         int epollFd = epoll_create(2);
-        if (epollFd == -1) {
-            std::cerr << "epoll_create failed: " << strerror(errno) << std::endl;
-            return "";
-        }
+        if (epollFd == -1)
+			throw EpollCreateException();
 
 		struct epoll_event eventWrite, eventRead;
 		eventWrite.events = EPOLLOUT | EPOLLET; 
@@ -537,12 +535,28 @@ void	VServ::uploadFile(HttpRequest request, std::string content) {
 
 	std::string separator = uploadFile[uploadFile.size() - 1] == '/' ? "" : "/";
 	std::string filePath = uploadFile + separator + rqPath;		
-	std::cout << filePath << std::endl;
 	std::ofstream outFile(filePath.c_str());
     if (!outFile)
 		throw CreateFileException(); 
     outFile << content;
     outFile.close();	
+}
+
+
+bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
+	std::string redirectLocation = request.getRules()->getRedirect();
+	if (!redirectLocation.empty() && redirectLocation[0] != '/')
+		redirectLocation.insert(0, 1, '/');
+	std::string	reqPath = request.getPath();
+		
+	if (!redirectLocation.empty() && reqPath != redirectLocation) {
+		std::cerr << "Redirect: " << redirectLocation << " for the route: " << reqPath << std::endl;
+		std::string content = "HTTP/1.1 302 Not Found\r\nLocation: " +  redirectLocation + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+		response = HttpRequest(HTTP_RESPONSE, content);
+		response.setResponseCode(302);
+		return (true);	
+	}
+	return (false);
 }
 
 void	VServ::processRequest(std::string rawRequest, int &clientFd) {
@@ -553,6 +567,11 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	try {
 		request = HttpRequest(HTTP_REQUEST, rawRequest);
 		setTargetRules(request);
+
+		if (makeHttpRedirect(request, response)) {
+			sendRequest(response, clientFd);
+			return ;
+		}
 		
 		std::string reqMethod = request.getMethod();
 		response.setMethod(reqMethod);
@@ -615,40 +634,61 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 
 
 	} catch (FileNotExist& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_NOT_FOUND, request);
 	} catch (OpenFileException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_FORBIDDEN, request);
 	} catch (OpenFolderException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_FORBIDDEN, request);
 	} catch (EntityTooLarge& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_PAYLOAD_TOO_LARGE, request);
 	} catch (RecvException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ServerNameNotFound& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (InterpreterEmpty& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ExecveException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (MethodNotAllowed& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_METHOD_NOT_ALLOWED, request);
 	} catch (HttpRequest::MalformedHttpHeader& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_BAD_REQUEST, request);
 	} catch (CreateFileException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (NoUploadFileName& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_BAD_REQUEST, request);
 	} catch (ChildProcessException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (PipeException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ForkException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ExtensionNotFound& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (EpollWaitException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (EpollCTLException& e) {
+		std::cerr << e.what() << std::endl;
+		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+	} catch (EpollCreateException& e) {
+		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	}
 

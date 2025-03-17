@@ -20,7 +20,7 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 			_fds[sfd] = SERVER_SOCK;  
 			setVServ(sfd, vserv);
 
-			epollCtlAdd(sfd, EPOLLIN);
+			epollCtlAdd(sfd, EPOLLIN | EPOLLOUT);
 			portIt++;
 		}
 		hostIt++;
@@ -181,7 +181,7 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	_fds[clientFd] = CLIENT_SOCK;  
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-	epollCtlAdd(clientFd, EPOLLIN | EPOLLET);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 
@@ -221,23 +221,16 @@ void	WebServ::listenEvents(void) {
 				
 			}
 		} catch (UnknownFdException& e) {
-			//deleteFd(fd, _serverFds);
 			std::cerr << "Fatal error: Unknown FD problem.";
 			break;
 		} catch (VServ::AcceptException& e) {
 			std::cout << "AcceptException" << std::endl;
-			//break; ? On stop le VServ ?
-			//deleteFd(fd, _serverFds);
 		} catch (VServ::RecvException& e) {
 			std::cout << "RecvException" << std::endl;
-			//break; ? On stop le VServ ?
-			//deleteFd(fd, _serverFds);
 		} catch (VServ::SendPartiallyException& e) {
 			std::cout << "SendPartiallyException" << std::endl;
-			// Je sais pas trop... c'est dur
 		} catch (VServ::SendException& e) {
 			std::cout << "SendException" << std::endl;
-			// Je sais toujours pas a ce stade... demande trop de mana.
 		}
 	}
 }

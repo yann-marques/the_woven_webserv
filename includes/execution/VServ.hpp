@@ -30,7 +30,7 @@ class WebServ;
 class	VServ {
 	private:
 		const int					_maxClients; // defined in config file ?
-		// config
+
 		std::string					_host;
 		int							_port;
 
@@ -39,7 +39,7 @@ class	VServ {
 
 		std::set<std::string>				_envp;
 		std::set<std::string>				_argv;
-		// ...
+
 		int									_fd;
 		sockaddr_in							_address;
 		bool								_debug;
@@ -91,6 +91,7 @@ class	VServ {
 		bool				isEndedChunckReq(std::string rawRequest);
 		bool				isHttpRequestComplete(const std::string &rawRequest);
 		void				uploadFile(HttpRequest request, std::string content);
+		bool				makeHttpRedirect(HttpRequest &request, HttpRequest &reponse);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -190,6 +191,10 @@ class	VServ {
 				const char* what() const throw();
 		};
 		class	EpollCTLException: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	EpollCreateException: public std::exception {
 			public:
 				const char* what() const throw();
 		};

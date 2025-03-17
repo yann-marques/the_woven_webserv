@@ -161,16 +161,17 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     while (std::getline(stream, line) && line.empty())
         ;
         
-    if (_direction == HTTP_REQUEST) {
-        if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
-            std::istringstream requestLine(line);
-            requestLine >> _method >> _path >> _version;
-        }
-    
+    //if (_direction == HTTP_REQUEST) {
+    if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
+        std::istringstream requestLine(line);
+        requestLine >> _method >> _path >> _version;
+        
         if (_method.empty() && _path.empty() && _version.empty()) {
             throw MalformedHttpHeader();
-        }
     }
+
+    }
+    //}
 
     if (rawRequest.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
         if (!line.empty()) {
@@ -270,14 +271,14 @@ std::string HttpRequest::makeRawResponse(void) {
         rawResponse << it->first << ": " << it->second << "\r\n";
     }
     
-    std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
+    std::size_t bodySize = _body.size();
     
     if (_method == "HEAD") {
         rawResponse << "Content-Length: " << 0 << "\r\n";
-        rawResponse << "\r\n"; 
+        rawResponse << "\r\n";
     } else {
         rawResponse << "Content-Length: " << bodySize << "\r\n";
-        rawResponse << "\r\n"; // End of headers
+        rawResponse << "\r\n";
         rawResponse << _body;
     }
 
