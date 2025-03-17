@@ -17,7 +17,7 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 			VServ*	vserv = new VServ(this, host, port, sNamesMap, _maxClients, _argv, _envp);
 			
 			int	sfd = vserv->getFd();
-			_fds[sfd] = SERVER_SOCK;  
+			setFdType(sfd, SERVER_SOCK);
 			setVServ(sfd, vserv);
 
 			epollCtlAdd(sfd, EPOLLIN | EPOLLOUT);
@@ -126,6 +126,10 @@ void	WebServ::setVServ(int fd, VServ* rhs) {
 	_VServers[fd] = rhs;
 }
 
+void	WebServ::setFdType(int fd, fdType type) {
+	_fds[fd] = type;
+}
+
 // GETTERS
 
 int	WebServ::getEpollFd() const {
@@ -171,6 +175,11 @@ bool WebServ::isClientFD(int fd) {
     return (it != _fds.end() && it->second == CLIENT_SOCK);
 }
 
+bool WebServ::isCGIFd(int fd) {
+    std::map<int, fdType>::iterator it = _fds.find(fd);
+    return (it != _fds.end() && it->second == CGI_FD);
+}
+
 void	WebServ::deleteFd(int fd) {
 	epollCtlDel(fd);
 	close(fd);
@@ -178,7 +187,7 @@ void	WebServ::deleteFd(int fd) {
 
 void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
-	_fds[clientFd] = CLIENT_SOCK;  
+	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
 	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
@@ -186,22 +195,6 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 
 }
-
-void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
-
-	//if (_debug)
-	//	std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
-	
-	std::string	rawRequest;
-	vserv->readSocketFD(clientFd, rawRequest);
-
-	if (!rawRequest.empty()) {
-		if (_debug)
-			std::cout << "REQUEST ------" << std::endl << rawRequest << std::endl;
-		vserv->processRequest(rawRequest, clientFd);
-	}
-}
-
 
 void	WebServ::listenEvents(void) {
 	while (true) {
@@ -216,8 +209,10 @@ void	WebServ::listenEvents(void) {
 
 				if (isServerFD(fd))
 					handleServerEvent(vserv);
-				if (isClientFD(fd))
-					handleClientEvent(fd, vserv);
+				else if (isClientFD(fd))
+					vserv->processRequest(fd);				
+				else if (isCGIFd(fd))
+					vserv->(fd);
 				
 			}
 		} catch (UnknownFdException& e) {

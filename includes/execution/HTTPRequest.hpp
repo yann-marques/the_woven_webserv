@@ -10,6 +10,7 @@
 # include <fcntl.h>
 # include <cstring>
 
+# include "VServ.hpp"
 # include "Rules.hpp"
 
 //METHODS
@@ -49,12 +50,13 @@ enum RequestDirection {
 
 class HttpRequest {
     private:
+        int                                 _clientFd;
         std::string                         _method;
         std::string                         _version;
         std::string                         _path;
         std::string                         _server;
         int                                 _responseCode;
-        std::string                         _body;
+        t_binary                            _body;
         std::string                         _rootPath;
         std::map<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
@@ -63,11 +65,11 @@ class HttpRequest {
         RequestDirection                    _direction;
 
         //METHODS
-        void        parseRequest(const std::string &rawRequest);
+        void        parseRequest(const t_binary &rawRequest);
 
     public:
         HttpRequest(void);
-        HttpRequest(RequestDirection direction, std::string &rawRequest);
+        HttpRequest(RequestDirection direction, t_binary &rawRequest);
         ~HttpRequest(void);
 
         //GETTERS
@@ -75,22 +77,24 @@ class HttpRequest {
         std::string getVersion(void) const;
         std::string getPath(void) const;
         std::string getHeader(const std::string &key) const;
-        std::string getBody(void) const;
+        t_binary getBody(void) const;
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
         std::map<std::string, std::string> getHeaders(void) const;
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
+        int         getClientFD(void) const;
 
         //SETTERS
         void    setMethod(std::string &method);
         void    setResponseCode(int code);
         void    setVersion(const std::string &str);
         void    setHeaders(std::map<std::string, std::string> &headers);
-        void    setBody(const std::string &body);
+        void    setBody(const t_binary &body);
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
-        void    setCgiExt(std::string ext); 
+        void    setCgiExt(std::string ext);
+        void    setClientFD(int fd); 
 
         //METHODS:
         std::string makeRawResponse(void);

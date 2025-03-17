@@ -49,7 +49,7 @@ std::map<std::string, std::string>  HttpRequest::getHeaders(void) const {
     return (this->_headers);
 }
 
-std::string HttpRequest::getBody() const
+t_binary HttpRequest::getBody() const
 { 
     return this->_body;
 }
@@ -64,6 +64,10 @@ Rules*  HttpRequest::getRules() const {
 
 std::string HttpRequest::getCgiExt(void) const {
     return _cgiExt;
+}
+
+int HttpRequest::getClientFD(void) const {
+    return _clientFd;
 }
 
 //SETTERS
@@ -84,7 +88,7 @@ void    HttpRequest::setHeaders(std::map<std::string, std::string> &headers) {
     this->_headers = headers;
 }
 
-void    HttpRequest::setBody(const std::string &body) {
+void    HttpRequest::setBody(const t_binary &body) {
     this->_body = body;
 }
 
@@ -98,6 +102,10 @@ void    HttpRequest::setRules(Rules* rules) {
 
 void    HttpRequest::setCgiExt(std::string ext) {
     _cgiExt = ext;
+}
+
+void    HttpRequest::setClientFD(int fd) {
+    _clientFd = fd;
 }
 
 //METHODS
@@ -153,7 +161,7 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
     return (acceptedHexChar == strSize);
 }
 
-void    HttpRequest::parseRequest(const std::string &rawRequest)
+void    HttpRequest::parseRequest(const t_binary &rawRequest)
 {
     std::istringstream stream(rawRequest);
     std::string line;
@@ -256,7 +264,6 @@ void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames
     }
     html += "  </ul>\n</nav></html>\n";
     setBody(html);
-    setDefaultsHeaders();
 }
 
 

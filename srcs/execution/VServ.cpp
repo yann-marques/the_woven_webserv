@@ -71,15 +71,13 @@ void	VServ::setTargetRules(HttpRequest &req) {
 	if (httpHost.empty()) {
 		std::cout << std::endl << "Host not found on http header." << std::endl;
 		httpHost = "localhost:";
-		//throw ServerNameNotFound();
 	}
 
 	std::string serverName = split(httpHost, ':')[0];
 
-	if (!_rules.count(serverName))
-		throw ServerNameNotFound();
 	Rules*	ptr = _rules[serverName];
-
+	_rules.count(serverName) == 0 ? ptr = _rules.begin()->second : ptr = _rules[serverName];
+	 
 	std::vector<std::string> vec = split(req.getPath(), '/');
 	for (size_t i = 0, n = vec.size(); i < n; i++) {
 		if (!vec[i].empty()) {
@@ -147,45 +145,50 @@ std::string	VServ::makeRootPath(HttpRequest &request) {
 		return (request.getRules()->getRoot() + rqPath);
 }
 
-std::string VServ::readFile(int fd) {
-	ssize_t bytesRead;
-	char tempBuffer[4096];
+t_binary VServ::readFile(std::string rootPath) {
 	std::string result;
+	std::string line;
 
-	while ((bytesRead = read(fd, tempBuffer, sizeof(tempBuffer))) > 0) {
-		result.append(tempBuffer, bytesRead);
-	}
-	if (bytesRead < 0 && result.empty()) {
-		close(fd);
-		throw OpenFileException();
+	std::ifstream inputFile(rootPath.c_str(), std::ios_base::binary);
+	
+    inputFile.seekg(0, std::ios::end);
+    std::streamsize length = inputFile.tellg();
+    inputFile.seekg(0, std::ios::beg);
+
+    if (length <= 0)
+		return std::vector<unsigned char>();
+ 
+	t_binary buffer(length);
+	if (inputFile.fail()) {
+		throw FileNotExist();
+	} else {
+		if (!inputFile.read(reinterpret_cast<char*>(buffer.data()), length))
+			throw ReadFileException();
 	}	
-	close(fd);
-	return result;
+
+	return buffer;
 }
 
-std::string VServ::readRequest(HttpRequest &request) {
-	std::string body;
-	std::string cgiContent;
-	int			fileFd;
-	bool		isReqCGI = fileIsCGI(request);
+void	VServ::readRequest(HttpRequest &request) {
+	t_binary	body;
+	//bool		isReqCGI = fileIsCGI(request);
 	
 	std::string rootPath = makeRootPath(request);
 	if (_cachedPages.count(rootPath) > 0)
 		body = _cachedPages[rootPath]; 
 	else {
-		fileFd = open(rootPath.c_str(), O_RDONLY);
-		if (fileFd < 0)
-			throw OpenFileException();
-		body = readFile(fileFd);
+		body = readFile(rootPath);
 		_cachedPages[rootPath] = body;
 	}
 
-	if (isReqCGI) {
-		cgiContent = handleCGI(body, request);
-		return (cgiContent);
-	}
+	request.setBody(body);
+	int	clientFd = request.getClientFD();
+	_clientRequests[clientFd] = request;
 
-    return (body);
+	//if (isReqCGI) {
+	//	cgiContent = handleCGI(body, request);
+	//	return (cgiContent);
+	//}
 }
 
 bool VServ::isEndedChunckReq(std::string rawRequest) {
@@ -195,62 +198,66 @@ bool VServ::isEndedChunckReq(std::string rawRequest) {
 	return (false);	
 }
 
-bool VServ::isHttpRequestComplete(const std::string &rawRequest) {
+bool VServ::isHttpRequestComplete(t_binary &clientBuffer) {
 
-	size_t headerEnd = rawRequest.find("\r\n\r\n");
-	if (headerEnd == std::string::npos) {
-		return false;  // Headers not fully received yet
+	const std::string headerEndSeq = "\r\n\r\n";
+    const std::string contentLengthKey = "Content-Length: ";
+    const std::string transferEncodingKey = "Transfer-Encoding: chunked";
+
+    t_binary::iterator it = std::search(clientBuffer.begin(), clientBuffer.end(), headerEndSeq.begin(), headerEndSeq.end());
+
+    if (it == clientBuffer.end()) {
+        return false;
 	}
 
-	size_t contentLengthPos = rawRequest.find("Content-Length: ");
-	if (contentLengthPos != std::string::npos) {
-		size_t start = contentLengthPos + 16;  // Skip "Content-Length: "
-		size_t end = rawRequest.find("\r\n", start);
-		if (end != std::string::npos) {
-			int contentLength = atoi(rawRequest.substr(start, end - start).c_str());
-			size_t bodyStart = headerEnd + 4;  // "\r\n\r\n"
-			if (rawRequest.size() >= bodyStart + contentLength) {
-				return true;  // Full request (headers + body) received
-			}
-			return false;  // Waiting for more body data
-		}
-	} else {
-		if (rawRequest.find("Transfer-Encoding: chunked") != std::string::npos
-			&& !isEndedChunckReq(rawRequest))
-			return false;
-	}
+    size_t headerEnd = it - clientBuffer.begin() + 4; // "\r\n\r\n" length
 
-	return true;
+    std::string rawRequest(clientBuffer.begin(), clientBuffer.end());
+
+    // Check for "Content-Length"
+    size_t contentLengthPos = rawRequest.find(contentLengthKey);
+    if (contentLengthPos != std::string::npos) {
+        contentLengthPos += contentLengthKey.size();
+        size_t endPos = rawRequest.find("\r\n", contentLengthPos);
+        if (endPos != std::string::npos) {
+            int contentLength = atoi(rawRequest.substr(contentLengthPos, endPos - contentLengthPos).c_str());
+            return clientBuffer.size() >= headerEnd + contentLength;
+        }
+    }
+
+    if (rawRequest.find(transferEncodingKey) != std::string::npos) {
+        return isEndedChunckReq(rawRequest);
+    }
+
+    return true;
+
 }
 
-ssize_t	VServ::readSocketFD(int fd, std::string &buffer) {
-	std::string&	str = _clientBuffers[fd];
-	ssize_t		bytesRead;
-	char 		tempBuffer[4096];
+//return false until there is nothing to read in the CLIENT_SOCK
+bool	VServ::readSocketFD(int fd) {
+	t_binary&		clientBuffer = _clientBuffers[fd];
+	ssize_t			bytesRead;
+	t_binary		tempBuffer(4096);
 
-	buffer = "";	
 	while (true) {
-		bytesRead = read(fd, tempBuffer, sizeof(tempBuffer));
+		bytesRead = read(fd, tempBuffer.data(), tempBuffer.size());
 		
 		if (bytesRead > 0) {
-			str.append(tempBuffer, bytesRead);
+			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.end());
 		} else {
 			if (bytesRead == 0) { //client close connection;
 				_clientBuffers.erase(fd);
 				_mainInstance->deleteFd(fd);
-				return (bytesRead);
+				return false;
 			}
 			break;
 		}
 	}
 
-	std::string finalStr = std::string(str);
-	if (isHttpRequestComplete(finalStr)) {
-		_clientBuffers.erase(fd);
-		buffer = finalStr;
-	}
+	if (isHttpRequestComplete(clientBuffer))
+		return true;
 
-	return bytesRead;
+	return false;
 }
 
 
@@ -290,7 +297,7 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 	}
 }
 
-std::string	VServ::readDefaultPages(HttpRequest &request) 
+void	VServ::readDefaultPages(HttpRequest &request) 
 {
 	std::vector<std::string> defaultPages = request.getRules()->getDefaultPages();
 	bool	defaultPageIsFind = false;
@@ -308,16 +315,15 @@ std::string	VServ::readDefaultPages(HttpRequest &request)
 		if (stat(indexPath.c_str(), &path_stat) == 0 && S_ISREG(path_stat.st_mode)) {
 			defaultPageIsFind = true;
 			request.setRootPath(indexPath);
-			file = readRequest(request);
+			readRequest(request);
 			break;
 		}
 	}
 	if (!defaultPageIsFind)
 		throw FileNotExist();
-	return (file);
 }
 
-void	VServ::showDirectory(HttpRequest &request, HttpRequest &response) {
+void	VServ::showDirectory(HttpRequest &request) {
 	struct dirent* entry;
 	std::vector<std::string> filesName;
 
@@ -330,10 +336,10 @@ void	VServ::showDirectory(HttpRequest &request, HttpRequest &response) {
 		filesName.push_back(entry->d_name);
 	}
 	closedir(dir);
-	response.generateIndexFile(filesName);
+	request.generateIndexFile(filesName);
 }
 
-bool	VServ::fileIsCGI(HttpRequest &request) {
+bool	VServ::isCGI(HttpRequest &request) {
 	std::istringstream stream(request.getPath());
 	std::string segment;
 
@@ -395,15 +401,12 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
 	return (env);
 }
 
-std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
+void	VServ::executeCGI(HttpRequest &request) {
 	int					parentToChild[2], childToParent[2];
 	pid_t				pid;
 	std::vector<char*>	env;
-	std::string			result;
 	int 				status;
-	ssize_t				bytesWritten = 0;
-	ssize_t				totalBytesWritten = 0;
-	const ssize_t 		chunckSize = 16384;  // 64 KB chunk size for cross platform pipe buff limit
+	//const ssize_t 		chunckSize = 16384;  // 64 KB chunk size for cross platform pipe buff limit
 
 	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
 	std::string interpreter = cgiPaths[request.getCgiExt()];
@@ -416,7 +419,12 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 	fcntl(childToParent[1], F_SETFL, O_NONBLOCK);
 	fcntl(parentToChild[0], F_SETFL, O_NONBLOCK);
 	fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
-	fcntl(childToParent[0], F_SETFL, O_NONBLOCK);	
+	fcntl(childToParent[0], F_SETFL, O_NONBLOCK);
+	
+	_mainInstance->epollCtlAdd(childToParent[1], EPOLLOUT | EPOLLET);
+	_mainInstance->epollCtlAdd(parentToChild[0], EPOLLIN | EPOLLET);
+	_mainInstance->setFdType(childToParent[1], CGI_FD);
+	_mainInstance->setFdType(parentToChild[0], CGI_FD);
 	
 	if (pid == 0) {
 		close(childToParent[0]);
@@ -442,31 +450,20 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 		close(parentToChild[0]);
 		close(childToParent[1]);
 
-        int epollFd = epoll_create(2);
-        if (epollFd == -1)
-			throw EpollCreateException();
+		int status;
+		pid_t result = waitpid(pid, &status, WNOHANG);
 
-		struct epoll_event eventWrite, eventRead;
-		eventWrite.events = EPOLLOUT | EPOLLET; 
-		eventWrite.data.fd = parentToChild[1];
+		if (result == 0) {
+			return true;  // Process is still running
+		} else if (result == pid) {
+			return false; // Process has exited
+		}
 
-		eventRead.events = EPOLLIN | EPOLLET;
-		eventRead.data.fd = childToParent[0];
-
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, parentToChild[1], &eventWrite) == -1 ||
-			epoll_ctl(epollFd, EPOLL_CTL_ADD, childToParent[0], &eventRead) == -1) {
-				throw EpollCTLException();
-        }
-
-		ssize_t bodySize = static_cast<ssize_t>(body.size());
-		const char *bodyCStr = body.c_str();
-		bool endOfWritting = false, endOfReading = false;
-
-		while (!(endOfWritting && endOfReading)) {
+		/* while (!(endOfWritting && endOfReading)) {
 			struct epoll_event events[2];
-            int nfds = epoll_wait(epollFd, events, 2, -1);
+           	int nfds = epoll_wait(epollFd, events, 2, -1);
             if (nfds < 0)
-                throw EpollWaitException();
+            	throw EpollWaitException();
 
 			for (int i = 0; i < nfds; i++) {
 				int fd = events[i].data.fd;
@@ -498,18 +495,22 @@ std::string	VServ::handleCGI(std::string &body, HttpRequest &request) {
 					}
 				}
 			}
-		}
+		} */
 
-		waitpid(pid, &status, 0);
-		close(parentToChild[1]);
-		close(childToParent[0]);
-		close(epollFd);
-		if (WEXITSTATUS(status) != EXIT_SUCCESS)
-			throw ChildProcessException();
+		//waitpid(pid, &status, 0);
+		//close(parentToChild[1]);
+		//close(childToParent[0]);
+		//close(epollFd);
+		//if (WEXITSTATUS(status) != EXIT_SUCCESS)
+		//	throw ChildProcessException();
 	}
 
-	return (result);
+	//return (result);
 }
+
+
+
+
 
 void	VServ::checkAllowedMethod(HttpRequest& request) {
 	std::string method = request.getMethod();
@@ -525,7 +526,7 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 }
 
 
-void	VServ::uploadFile(HttpRequest request, std::string content) {
+void	VServ::uploadFile(HttpRequest request, t_binary content) {
 	std::string uploadFile = request.getRules()->getUpload();
 	std::string locationPath = request.getRules()->getLocationPath();
 	std::string rqPath = request.getPath().substr(locationPath.size());
@@ -559,78 +560,51 @@ bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
 	return (false);
 }
 
-void	VServ::processRequest(std::string rawRequest, int &clientFd) {
+void	VServ::processRequest(int &clientFd) {
 	struct stat path_stat;	
+	t_binary	clientBuffer;
 	HttpRequest request;
-	HttpRequest response;	
 
 	try {
-		request = HttpRequest(HTTP_REQUEST, rawRequest);
+		if (!readSocketFD(clientFd))
+			return ;
+
+		clientBuffer = _clientBuffers[clientFd];
+		request = HttpRequest(HTTP_REQUEST, clientBuffer);
 		setTargetRules(request);
 
-		if (makeHttpRedirect(request, response)) {
-			sendRequest(response, clientFd);
-			return ;
-		}
+		//if (makeHttpRedirect(request, response)) {
+		//	sendRequest(response, clientFd);
+		//	return ;
+		//}
 		
 		std::string reqMethod = request.getMethod();
-		response.setMethod(reqMethod);
-		
-		if (!_debug)
-			request.log();
-		
-		checkAllowedMethod(request);
-		handleBigRequest(request);
+		request.log();
+		checkAllowedMethod(request); //check also in processResponse 
+		// handleBigRequest(request); handle in response
 
 		std::string rootPath = makeRootPath(request);
-		if (_debug)
-			std::cout << rootPath << std::endl;
 
 		if (reqMethod == GET || reqMethod == HEAD) {
-			if (stat(rootPath.c_str(), &path_stat) != 0)
-				throw FileNotExist();
-			
+			if (stat(rootPath.c_str(), &path_stat) != 0) return ;
 			if (S_ISREG(path_stat.st_mode)) {
-
-				std::string rawResponse = readRequest(request);
-				response = HttpRequest(HTTP_RESPONSE, rawResponse);	
-
+				readRequest(request);
 			} else if (S_ISDIR(path_stat.st_mode)) {
-
-				if (request.getRules()->getAutoIndex()) {
-					showDirectory(request, response);
-				} else {
-					std::string rawResponse = readDefaultPages(request);
-					response = HttpRequest(HTTP_RESPONSE, rawResponse);	
-				}
-
-			} else {
-				response.setResponseCode(HTTP_BAD_GATEWAY);
+				request.getRules()->getAutoIndex() ? showDirectory(request) : readDefaultPages(request);
 			}
 		}
 
 		if (reqMethod == POST) {
-			std::string requestBody = request.getBody();
-			if (fileIsCGI(request)) {
-				std::string cgiContent = handleCGI(requestBody, request);
-				response = HttpRequest(HTTP_RESPONSE, cgiContent);
-			} else {
-				response = HttpRequest(HTTP_RESPONSE, requestBody);
-				if (!request.getRules()->getUpload().empty())
-					uploadFile(request, requestBody);
-			}
+			t_binary requestBody = request.getBody();
+			if (!isCGI(request) && !request.getRules()->getUpload().empty()) uploadFile(request, requestBody);
 		}
 
 		if (reqMethod == DELETE) {
-			std::string emptyContent;
-			response = HttpRequest(HTTP_RESPONSE, emptyContent);
-
-			if (remove(rootPath.c_str()) == 0) {
-				response.setResponseCode(204);	
-			} else 
-				throw FileNotExist();
-
+			remove(rootPath.c_str());
 		}
+
+		if (isCGI(request))
+			handleCGI(request);
 
 
 	} catch (FileNotExist& e) {
@@ -648,9 +622,6 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	} catch (RecvException& e) {
 		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
-	} catch (ServerNameNotFound& e) {
-		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (InterpreterEmpty& e) {
 		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
@@ -659,7 +630,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (MethodNotAllowed& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_METHOD_NOT_ALLOWED, request);
+		return ;
 	} catch (HttpRequest::MalformedHttpHeader& e) {
 		std::cerr << e.what() << std::endl;
 		response.makeError(HTTP_BAD_REQUEST, request);
