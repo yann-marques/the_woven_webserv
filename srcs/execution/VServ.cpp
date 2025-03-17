@@ -76,9 +76,11 @@ void	VServ::setTargetRules(HttpRequest &req) {
 
 	std::string serverName = split(httpHost, ':')[0];
 
+	Rules*	ptr;
 	if (!_rules.count(serverName))
-		throw ServerNameNotFound();
-	Rules*	ptr = _rules[serverName];
+		ptr = _rules.begin()->second;
+	else
+		ptr = _rules[serverName];
 
 	std::vector<std::string> vec = split(req.getPath(), '/');
 	for (size_t i = 0, n = vec.size(); i < n; i++) {
