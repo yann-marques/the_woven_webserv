@@ -98,6 +98,10 @@ std::string	Config::extractFileContent(const char* fileName) {
 	return (fileContent);
 }
 
+const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&	Config::getParsedConfig() const {
+	return (_parsedConfig);
+}
+
 void	Config::destruct() {
 	t_mmap_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
 		hostIt = _parsedConfig.begin(), hostIte = _parsedConfig.end();

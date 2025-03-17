@@ -21,7 +21,7 @@ EXE_LST = HTTPReqExceptions.cpp HTTPRequest.cpp VServ.cpp \
 SRC_EXE= $(addprefix $(DIR_SRCS)/$(DIR_EXE)/, $(EXE_LST))
 OBJ_EXE= $(addprefix $(DIR_OBJS)/$(DIR_EXE)/, $(EXE_LST:.cpp=.o))
 
-PRS_LST= AParser_checkers.cpp check_utils.cpp Config_getters.cpp Rules_exceptions.cpp \
+PRS_LST= AParser_checkers.cpp check_utils.cpp Rules_exceptions.cpp \
 	AParser.cpp Config_checkers.cpp Config_setters.cpp Rules_getters.cpp \
 	AParser_exceptions.cpp Config.cpp Rules_checkers.cpp Rules_setters.cpp \
 	AParser_setters.cpp Config_exceptions.cpp Rules.cpp StrException.cpp 

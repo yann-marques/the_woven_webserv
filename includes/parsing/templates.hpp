@@ -47,32 +47,6 @@ struct t_container_range {
 	typedef typename std::pair< typename t_container_it< Container >::t, typename t_container_it< Container >::t >	t;
 };
 
-/*
-template< typename T >
-void	printVec(const std::vector< T >& vec, const std::string& tabs);
-
-template< typename T, typename U >
-void	printMap(const std::set< T >& keys, const std::map< T, U >& map, const std::string& tabs);
-
-template< typename Key, typename Value >
-void	printMultimap(const std::set< Key >& keys, const std::multimap< Key, Value >& mmap);
-
-template< typename Key, typename Value >
-bool	isInMMRange(typename t_mmap_range< Key, Value >::t& range, const Value& toFind);
-	
-template< typename T >
-bool	isInVecRange(typename t_vec_range< T >::t& range, const T& value);
-*/
-
-/*
-template< typename Container, typename T >
-bool	isInRange(typename t_container_range< Container >::t range, T value) {
-	typename t_container_it< Container >::t	it = range.first, ite = range.second;
-	while (it != ite && *it != value)
-		it++;
-	return (it != ite);
-}
-*/
 template< typename T >
 void	printVec(const std::vector< T >& vec, const std::string& tabs) {
 	for (size_t i = 0, n = vec.size(); i < n; i++)

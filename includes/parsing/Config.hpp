@@ -17,7 +17,7 @@ class	Config: public AParser {
 
 		std::string	extractFileContent(const char* fileName);
 
-		// GETTERS
+		// GETTER
 		const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&	getParsedConfig() const;
 		
 		// SETTERS
