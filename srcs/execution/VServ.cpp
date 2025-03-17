@@ -132,6 +132,13 @@ int	VServ::clientAccept(void) {
 	return (clientFd);
 }
 
+void	VServ::eraseClient(int fd) {
+	_clientRequestBuffer.erase(fd);
+	_clientResponseBuffer.erase(fd);
+	_clientRequests.erase(fd);
+	_clientReponses.erase(fd);				
+}
+
 std::string	VServ::makeRootPath(HttpRequest &request) {
 	std::string rqRootPath = request.getRootPath();
 	std::string locationPath = request.getRules()->getLocationPath();
@@ -235,7 +242,7 @@ bool VServ::isHttpRequestComplete(t_binary &clientBuffer) {
 
 //return false until there is nothing to read in the CLIENT_SOCK
 bool	VServ::readSocketFD(int fd) {
-	t_binary&		clientBuffer = _clientBuffers[fd];
+	t_binary&		clientBuffer = _clientRequestBuffer[fd];
 	ssize_t			bytesRead;
 	t_binary		tempBuffer(4096);
 
@@ -246,8 +253,8 @@ bool	VServ::readSocketFD(int fd) {
 			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.end());
 		} else {
 			if (bytesRead == 0) { //client close connection;
-				_clientBuffers.erase(fd);
 				_mainInstance->deleteFd(fd);
+				eraseClient(fd);
 				return false;
 			}
 			break;
@@ -450,14 +457,8 @@ void	VServ::executeCGI(HttpRequest &request) {
 		close(parentToChild[0]);
 		close(childToParent[1]);
 
-		int status;
-		pid_t result = waitpid(pid, &status, WNOHANG);
-
-		if (result == 0) {
-			return true;  // Process is still running
-		} else if (result == pid) {
-			return false; // Process has exited
-		}
+		//int status;
+		//pid_t result = waitpid(pid, &status, WNOHANG);
 
 		/* while (!(endOfWritting && endOfReading)) {
 			struct epoll_event events[2];
@@ -509,8 +510,38 @@ void	VServ::executeCGI(HttpRequest &request) {
 }
 
 
+void	VServ::talkToCgi(epoll_event event) {
+	const ssize_t 		chunckSize = 16384;  // 64 KB chunk size for cross platform pipe buff limit
+	int 				fd = event.data.fd;
+	t_binary& 			clientRequestBuffer = _clientRequestBuffer[fd];
+	t_binary& 			clientReponseBuffer = _clientResponseBuffer[fd];
+	t_binary  			readingBuffer(4096);
 
+	if (event.events & EPOLLOUT) {
+		while (_cgiBytesWritting < clientBuffer.size()) {
+			ssize_t bytesWritten = write(fd, clientBuffer.data() + _cgiBytesWritting, chunckSize);
+			if (bytesWritten > 0)
+				_cgiBytesWriting += bytesWritten;
+			else
+				break ;
+		}
+		if (_cgiBytesWritting >= clientBuffer.size()) {
+			_mainInstance->epollCtlDel(fd);
+			close(fd);
+		}
+	}	
 
+	if (event.events & EPOLLIN) {
+		while ((ssize_t bytesRead = read(fd, readingBuffer.data(), chunckSize) > 0)) {
+			clientReponseBuffer.insert(readingBuffer.begin(), readingBuffer.begin(), readingBuffer.end());
+		}
+		if (bytesRead == 0) {
+			std::cout << "End of reading the CGI result." << std::endl;
+			_mainInstance->epollCtlDel(fd);
+			close(fd);
+		}
+	}
+}
 
 void	VServ::checkAllowedMethod(HttpRequest& request) {
 	std::string method = request.getMethod();
@@ -524,7 +555,6 @@ void	VServ::checkAllowedMethod(HttpRequest& request) {
 	}
 	throw MethodNotAllowed();
 }
-
 
 void	VServ::uploadFile(HttpRequest request, t_binary content) {
 	std::string uploadFile = request.getRules()->getUpload();
@@ -562,14 +592,13 @@ bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
 
 void	VServ::processRequest(int &clientFd) {
 	struct stat path_stat;	
-	t_binary	clientBuffer;
 	HttpRequest request;
 
 	try {
 		if (!readSocketFD(clientFd))
 			return ;
 
-		clientBuffer = _clientBuffers[clientFd];
+		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd];
 		request = HttpRequest(HTTP_REQUEST, clientBuffer);
 		setTargetRules(request);
 
@@ -577,7 +606,7 @@ void	VServ::processRequest(int &clientFd) {
 		//	sendRequest(response, clientFd);
 		//	return ;
 		//}
-		
+
 		std::string reqMethod = request.getMethod();
 		request.log();
 		checkAllowedMethod(request); //check also in processResponse 
@@ -604,69 +633,83 @@ void	VServ::processRequest(int &clientFd) {
 		}
 
 		if (isCGI(request))
-			handleCGI(request);
+			executeCGI(request);
+
+		_clientRequests[clientFd] = request;
 
 
 	} catch (FileNotExist& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_NOT_FOUND, request);
+		//response.makeError(HTTP_NOT_FOUND, request);
 	} catch (OpenFileException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_FORBIDDEN, request);
+		//response.makeError(HTTP_FORBIDDEN, request);
 	} catch (OpenFolderException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_FORBIDDEN, request);
+		//response.makeError(HTTP_FORBIDDEN, request);
 	} catch (EntityTooLarge& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_PAYLOAD_TOO_LARGE, request);
+		//response.makeError(HTTP_PAYLOAD_TOO_LARGE, request);
 	} catch (RecvException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (InterpreterEmpty& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ExecveException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (MethodNotAllowed& e) {
 		std::cerr << e.what() << std::endl;
 		return ;
 	} catch (HttpRequest::MalformedHttpHeader& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_BAD_REQUEST, request);
+		//response.makeError(HTTP_BAD_REQUEST, request);
 	} catch (CreateFileException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (NoUploadFileName& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_BAD_REQUEST, request);
+		//response.makeError(HTTP_BAD_REQUEST, request);
 	} catch (ChildProcessException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (PipeException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//esponse.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ForkException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (ExtensionNotFound& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (EpollWaitException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (EpollCTLException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	} catch (EpollCreateException& e) {
 		std::cerr << e.what() << std::endl;
-		response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
+		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	}
 
-	sendRequest(response, clientFd);
+	//sendRequest(response, clientFd);
 
 	std::string connectionType = request.getHeader("Connection");
 	if (!connectionType.empty() || (connectionType.find("close") != std::string::npos))  {
 		_mainInstance->deleteFd(clientFd);
+		eraseClient(clientFd);
+	}
+}
+
+
+
+void processReponse(int &clientFd) {
+
+	try {
+		t_binary	clientReponseBuffer = _clientResponseBuffer[clientFd];
+
+
 	}
 }

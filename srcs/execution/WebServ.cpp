@@ -201,7 +201,8 @@ void	WebServ::listenEvents(void) {
 		try {
 			int nbEvents = epollWait();
 			for (int i = 0; i < nbEvents; i++) {
-				int fd = _epollEventsBuff[i].data.fd;
+				epoll_event event = _epollEventsBuff[i];
+				int fd = event.data.fd;
 
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
@@ -209,10 +210,12 @@ void	WebServ::listenEvents(void) {
 
 				if (isServerFD(fd))
 					handleServerEvent(vserv);
-				else if (isClientFD(fd))
-					vserv->processRequest(fd);				
+				else if (isClientFD(fd) && (event.events & EPOLLIN))
+					vserv->processRequest(fd);
+				else if (isClientFD(fd) && (event.events & EPOLLOUT))
+					vserv->processReponse(fd);
 				else if (isCGIFd(fd))
-					vserv->(fd);
+					vserv->talkToCgi(fd);
 				
 			}
 		} catch (UnknownFdException& e) {

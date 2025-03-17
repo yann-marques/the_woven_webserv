@@ -47,9 +47,13 @@ class	VServ {
 		sockaddr_in											_address;
 		bool												_debug;
 
-		std::map<int, t_binary>								_clientBuffers;
+		size_t												_cgiBytesWriting;
+		std::map<int, t_binary>								_clientRequestBuffer;
+		std::map<int, t_binary>								_clientReponseBuffer;
+
 		std::map<int, HttpRequest>							_clientRequests;
-		std::map<int, HttpRequest>							_clientReponses;
+		std::map<int, HttpRequest>							_clientResponses;
+
 		std::map<std::string, t_binary>						_cachedPages; // <path, content>
 
 
