@@ -1,7 +1,14 @@
 #include "WebServ.hpp"
 
-const char*	WebServ::SIGINTException::what() const throw() {
-	return ("Signal received: interrupting the server.");
+WebServ::SignalException::SignalException(int signal) {
+	std::string	sigStr = signal == SIGINT ? "SIGINT" : SIGQUIT ? "SIGQUIT" : "";
+	_str = (sigStr + " received: interrupting the server.");
+}
+
+WebServ::SignalException::~SignalException() throw() {}
+
+const char*	WebServ::SignalException::what() const throw() {
+	return (_str.c_str());
 }
 
 const char*	WebServ::EpollCreateException::what() const throw() {

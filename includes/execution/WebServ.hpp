@@ -69,8 +69,11 @@ class	WebServ {
 		bool	isClientFD(int fd);
 
 		// EXCEPTIONS
-		class	SIGINTException: public std::exception {
+		class	SignalException: public StrException {
 			public:
+				SignalException(int signal);
+				~SignalException() throw();
+
 				const char*	what() const throw();
 		};
 		class	EpollCreateException: public std::exception {
