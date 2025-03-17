@@ -8,33 +8,33 @@ Config::Config(): AParser() {
 Config::Config(const char* fileName): AParser() {
 	setArgsToFind();
 
-	std::string	fileContent = extractFileContent(fileName);
-	if (!bracketsAreClosed(fileContent))
-		throw UnclosedScopeException();
-
-	std::vector< std::string >	serverLines = splitScope(fileContent, "server");
-	deleteBrackets(serverLines);
-	std::multimap< std::string, std::multimap< std::string, std::string > >	hostArgs;
-	for (size_t i = 0, n = serverLines.size(); i < n; i++) {
-		std::multimap< std::string, std::string >	args = parseLine(serverLines[i]);
-		checkArgsFormat(args);
-
-		std::string	host = setHost(args.equal_range("host"));
-		setPort(host, std::atoi(args.equal_range("port").first->second.c_str()));
-
-		hostArgs.insert(make_pair(host, args));
-	}
-	t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
 	try {
+		std::string	fileContent = extractFileContent(fileName);
+		if (!bracketsAreClosed(fileContent))
+			throw UnclosedScopeException();
+
+		std::vector< std::string >	serverLines = splitScope(fileContent, "server");
+		deleteBrackets(serverLines);
+		std::multimap< std::string, std::multimap< std::string, std::string > >	hostArgs;
+		for (size_t i = 0, n = serverLines.size(); i < n; i++) {
+			std::multimap< std::string, std::string >	args = parseLine(serverLines[i]);
+			checkArgsFormat(args);
+
+			std::string	host = setHost(args.equal_range("host"));
+			setPort(host, std::atoi(args.equal_range("port").first->second.c_str()));
+
+			hostArgs.insert(make_pair(host, args));
+		}
+		t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
 		while (hostIt != hostIte) {
 			setServerNamesByHost(hostArgs.equal_range(*hostIt));
 			setArgsByHost(hostArgs.equal_range(*hostIt));
 			hostIt++;
 		}
-	} catch (Rules::InvalidLocationKeyException& e) {
-		std::cerr << "BLOBLO: " << e.what() << std::endl;
+	} catch (std::exception& e) {
+		std::cerr << e.what() << std::endl;
 		destruct();
-		throw (Rules::InvalidLocationKeyException("BLOBLO"));
+		throw(e);
 	}
 }
 

@@ -36,8 +36,8 @@ server {
     500: internal_error.html;
   }
   location: /popo {
-    location: caca {
-      
+    location: /caca {
+      root:toto;
     }
 
   }

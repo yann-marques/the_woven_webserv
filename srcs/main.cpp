@@ -69,7 +69,7 @@ int main(int argc, char **argv, char **envp)
 	    	std::cerr << e.what() << std::endl;
 	    } catch (VServ::BindException& e) {
 	    	std::cerr << e.what() << std::endl;
-	    }
+	    } catch (std::exception& e) {}
     }
     return (0);
 }
