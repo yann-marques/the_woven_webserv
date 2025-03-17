@@ -18,22 +18,6 @@ void	Config::setArgsToFind() {
 	_argsToFind.insert("upload");
 }
 
-std::string	Config::setHost(t_mmap_range< std::string, std::string >::t range) {
-	std::string	host;
-	if (range.first == range.second)
-		host = "127.0.0.1";
-	else
-		host = range.first->second;
-	_hosts.insert(host);
-	return (host);
-}
-
-void	Config::setPort(std::string host, int port) {
-	t_mmap_range< std::string, int >::t	mmRange = _ports.equal_range(host);
-	if (!isInMMRange< std::string, int >(mmRange, port))
-		_ports.insert(make_pair(host, port));
-}
-
 void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string, std::string > >::t range) {
 	t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
 		argsIt = range.first, argsIte = range.second;
@@ -62,29 +46,4 @@ void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string
 			hostRef[port]["localhost"] = new Rules(args, defaultRules, "/");
 		argsIt++;
 	}
-}
-
-void	Config::setServerNamesByHost(const t_mmap_range< std::string, std::multimap< std::string, std::string > >::t& range) {
-	t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
-		argsIt = range.first, argsIte = range.second;
-	std::string	host = argsIt->first;
-	std::multimap< int, std::string >	portMap;
-	while (argsIt != argsIte) {
-		std::string	portStr = argsIt->second.find("port")->second;
-		int	port = std::atoi(argsIt->second.find("port")->second.c_str());
-		t_mmap_range< std::string, std::string >::t
-			sNamesRange = argsIt->second.equal_range("server_names");
-		t_mmap_it< std::string, std::string >::t
-			sNamesIt = sNamesRange.first, sNamesIte = sNamesRange.second;
-		while (sNamesIt != sNamesIte) {
-			std::string	serverName = sNamesIt->second;
-			portMap.insert(std::make_pair(port, serverName));
-			sNamesIt++;
-		}
-		if (!isInMMRange< int, std::string >(portMap.equal_range(port), "localhost"))
-			portMap.insert(std::make_pair(port, "localhost"));
-		argsIt++;
-	}
-	_serverNames.insert(make_pair(host, portMap));
-	
 }
