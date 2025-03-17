@@ -23,7 +23,7 @@ server {
 
 server {
   port: 8080;
-  server_names: site2.com, www.site2.com;
+  server_names: localhost, site1.com, www.site2.com;
   root: /var/www/site2/;
   default_pages: main.html;
   error_pages {

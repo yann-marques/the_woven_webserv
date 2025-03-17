@@ -111,8 +111,10 @@ void	Config::destruct() {
 			std::string serverName = portIt->second;
 			std::map< std::string, Rules* >&
 				sNameRef = _parsedConfig[host][port];
-			if (sNameRef.count(serverName))
+			if (sNameRef.count(serverName) && sNameRef[serverName] != NULL) {
 				delete sNameRef[serverName];
+				sNameRef[serverName] = NULL;
+			}
 			portIt++;
 		}
 		it++;
