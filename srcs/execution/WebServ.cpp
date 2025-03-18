@@ -156,8 +156,10 @@ void	WebServ::epollCtlAdd(int fd, uint32_t events) {
 	event.events = events;
 	event.data.fd = fd;
 	
-	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1)
+	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
+		std::cout << "ERROR: " << strerror(errno) << std::endl;
 		throw (EpollCtlAddException());
+	}
 }
 
 void	WebServ::epollCtlDel(int fd) {
@@ -190,7 +192,7 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 
@@ -204,18 +206,19 @@ void	WebServ::listenEvents(void) {
 				epoll_event event = _epollEventsBuff[i];
 				int fd = event.data.fd;
 
+				
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
-					throw UnknownFdException();
-
+				throw UnknownFdException();
+				
 				if (isServerFD(fd))
 					handleServerEvent(vserv);
 				else if (isClientFD(fd) && (event.events & EPOLLIN))
 					vserv->processRequest(fd);
 				else if (isClientFD(fd) && (event.events & EPOLLOUT))
-					vserv->processReponse(fd);
+					vserv->processResponse(fd);
 				else if (isCGIFd(fd))
-					vserv->talkToCgi(fd);
+					vserv->talkToCgi(event);
 				
 			}
 		} catch (UnknownFdException& e) {

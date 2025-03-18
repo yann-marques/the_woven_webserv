@@ -49,7 +49,9 @@ class	VServ {
 
 		size_t												_cgiBytesWriting;
 		std::map<int, t_binary>								_clientRequestBuffer;
-		std::map<int, t_binary>								_clientReponseBuffer;
+		std::map<int, t_binary>								_clientResponseBuffer;
+
+		std::map<int, int>									_clientFdsPipeCGI;
 
 		std::map<int, HttpRequest>							_clientRequests;
 		std::map<int, HttpRequest>							_clientResponses;
@@ -83,16 +85,19 @@ class	VServ {
 		// METHODS
 		void						socketInit();
 		int							clientAccept(void);
+		void						eraseClient(int fd);
 		bool 						readSocketFD(int fd);
 		std::vector<unsigned char>	readFile(std::string rootPath);
 		void						readRequest(HttpRequest &request);
 		void						sendRequest(HttpRequest &request, int clientFd);
 		void						processRequest(int &clientFd);
+		void						processResponse(int &clientFd);
 		void						readDefaultPages(HttpRequest &request);
 		void						showDirectory(HttpRequest &request);
 		void						handleBigRequest(HttpRequest &request);
 		std::string 				makeRootPath(HttpRequest &request);
 		bool						isCGI(HttpRequest &request);
+		void						talkToCgi(epoll_event event);
 		void						executeCGI(HttpRequest &request);
 		std::vector<char*>			makeEnvp(HttpRequest &request);
 		void						setTargetRules(HttpRequest &req);

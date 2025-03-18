@@ -136,7 +136,7 @@ void	VServ::eraseClient(int fd) {
 	_clientRequestBuffer.erase(fd);
 	_clientResponseBuffer.erase(fd);
 	_clientRequests.erase(fd);
-	_clientReponses.erase(fd);				
+	_clientResponses.erase(fd);				
 }
 
 std::string	VServ::makeRootPath(HttpRequest &request) {
@@ -253,6 +253,7 @@ bool	VServ::readSocketFD(int fd) {
 			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.end());
 		} else {
 			if (bytesRead == 0) { //client close connection;
+				std::cout << "Client close connection" << std::endl;
 				_mainInstance->deleteFd(fd);
 				eraseClient(fd);
 				return false;
@@ -269,18 +270,17 @@ bool	VServ::readSocketFD(int fd) {
 
 
 void	VServ::sendRequest(HttpRequest &response, int clientFd) {
-	std::string	rawResponse = response.makeRawResponse();
+	t_binary	rawResponse = response.makeRawResponse();
 
 	if (_debug)
-		std::cout << "RESPONSE --------" << std::endl << "{" << rawResponse << "}" << std::endl << std::endl << std::endl << std::endl;
+		std::cout << "RESPONSE --------" << std::endl << "{" << rawResponse.data() << "}" << std::endl << std::endl << std::endl << std::endl;
 
 	ssize_t totalBytesSent = 0;
 	ssize_t bytesSent = 0;
-	const char* data = rawResponse.c_str();
 	size_t dataSize = rawResponse.size();
 	
 	while (totalBytesSent < static_cast<ssize_t>(dataSize)) {
-		bytesSent = send(clientFd, data + totalBytesSent, dataSize - totalBytesSent, 0);
+		bytesSent = send(clientFd, rawResponse.data() + totalBytesSent, dataSize - totalBytesSent, 0);
 		totalBytesSent += bytesSent;
 	}
 	
@@ -298,7 +298,7 @@ void	VServ::handleBigRequest(HttpRequest &request) {
 		if (contentBytes > client_max_body_size)
 			throw EntityTooLarge();
 	} else {
-		std::string body = request.getBody();
+		t_binary body = request.getBody();
 		if (!body.empty() && body.size() > client_max_body_size)
 			throw EntityTooLarge(); 
 	}
@@ -412,7 +412,7 @@ void	VServ::executeCGI(HttpRequest &request) {
 	int					parentToChild[2], childToParent[2];
 	pid_t				pid;
 	std::vector<char*>	env;
-	int 				status;
+	//int 				status;
 	//const ssize_t 		chunckSize = 16384;  // 64 KB chunk size for cross platform pipe buff limit
 
 	std::map< std::string, std::string > cgiPaths = request.getRules()->getCgiPath(); 
@@ -427,11 +427,6 @@ void	VServ::executeCGI(HttpRequest &request) {
 	fcntl(parentToChild[0], F_SETFL, O_NONBLOCK);
 	fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
 	fcntl(childToParent[0], F_SETFL, O_NONBLOCK);
-	
-	_mainInstance->epollCtlAdd(childToParent[1], EPOLLOUT | EPOLLET);
-	_mainInstance->epollCtlAdd(parentToChild[0], EPOLLIN | EPOLLET);
-	_mainInstance->setFdType(childToParent[1], CGI_FD);
-	_mainInstance->setFdType(parentToChild[0], CGI_FD);
 	
 	if (pid == 0) {
 		close(childToParent[0]);
@@ -454,92 +449,57 @@ void	VServ::executeCGI(HttpRequest &request) {
 		if (execve(interpreter.c_str(), argv, env.data()) < 0)
 			throw ExecveException();
 	} else {
-		close(parentToChild[0]);
 		close(childToParent[1]);
+		close(parentToChild[0]);
+		
+		_mainInstance->setVServ(parentToChild[1], this);
+		_mainInstance->setVServ(childToParent[0], this);
+		_mainInstance->setFdType(parentToChild[1], CGI_FD);
+		_mainInstance->setFdType(childToParent[0], CGI_FD);
+		_mainInstance->epollCtlAdd(parentToChild[1], EPOLLOUT | EPOLLET);
+		_mainInstance->epollCtlAdd(childToParent[0], EPOLLIN | EPOLLET);
 
-		//int status;
-		//pid_t result = waitpid(pid, &status, WNOHANG);
-
-		/* while (!(endOfWritting && endOfReading)) {
-			struct epoll_event events[2];
-           	int nfds = epoll_wait(epollFd, events, 2, -1);
-            if (nfds < 0)
-            	throw EpollWaitException();
-
-			for (int i = 0; i < nfds; i++) {
-				int fd = events[i].data.fd;
-				if (fd == parentToChild[1] && !endOfWritting) {
-					while (totalBytesWritten < bodySize) {
-						ssize_t bytesToWrite = totalBytesWritten + chunckSize < bodySize ? chunckSize : bodySize - totalBytesWritten;
-						bytesWritten = write(fd, bodyCStr + totalBytesWritten, bytesToWrite);
-						if (bytesWritten > 0)
-							totalBytesWritten += bytesWritten;
-						else
-							break ;
-					}
-					if (totalBytesWritten >= bodySize) {
-						endOfWritting = true;
-						close(fd);
-					}
-				}
-
-				if (fd == childToParent[0] && !endOfReading) {
-					char buffer[4096];
-					ssize_t bytesRead;
-
-					while ((bytesRead = read(childToParent[0], buffer, sizeof(buffer))) > 0) {
-						result.append(buffer, bytesRead);
-					}
-					if (bytesRead == 0) {
-						endOfReading = true;
-						close(fd);
-					}
-				}
-			}
-		} */
-
-		//waitpid(pid, &status, 0);
-		//close(parentToChild[1]);
-		//close(childToParent[0]);
-		//close(epollFd);
-		//if (WEXITSTATUS(status) != EXIT_SUCCESS)
-		//	throw ChildProcessException();
+		_clientFdsPipeCGI[parentToChild[1]] = request.getClientFD();
+		_clientFdsPipeCGI[childToParent[0]] = request.getClientFD();
 	}
-
-	//return (result);
 }
 
 
 void	VServ::talkToCgi(epoll_event event) {
 	const ssize_t 		chunckSize = 16384;  // 64 KB chunk size for cross platform pipe buff limit
 	int 				fd = event.data.fd;
-	t_binary& 			clientRequestBuffer = _clientRequestBuffer[fd];
-	t_binary& 			clientReponseBuffer = _clientResponseBuffer[fd];
-	t_binary  			readingBuffer(4096);
+	int					clientFd = _clientFdsPipeCGI[fd];
+	HttpRequest			request = _clientRequests[clientFd];			
+	t_binary			requestBody = request.getBody();
+	t_binary& 			clientResponseBuffer = _clientResponseBuffer[clientFd];
+	t_binary  			readingBuffer(chunckSize);
+	_cgiBytesWriting = 0;
 
 	if (event.events & EPOLLOUT) {
-		while (_cgiBytesWritting < clientBuffer.size()) {
-			ssize_t bytesWritten = write(fd, clientBuffer.data() + _cgiBytesWritting, chunckSize);
+		while (_cgiBytesWriting < requestBody.size()) {
+			ssize_t bytesToWrite = _cgiBytesWriting + chunckSize <  requestBody.size() ? chunckSize : requestBody.size() - _cgiBytesWriting;
+			ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting, bytesToWrite);
 			if (bytesWritten > 0)
 				_cgiBytesWriting += bytesWritten;
 			else
 				break ;
 		}
-		if (_cgiBytesWritting >= clientBuffer.size()) {
+		if (_cgiBytesWriting >= requestBody.size()) {
 			_mainInstance->epollCtlDel(fd);
 			close(fd);
 		}
 	}	
 
 	if (event.events & EPOLLIN) {
-		while ((ssize_t bytesRead = read(fd, readingBuffer.data(), chunckSize) > 0)) {
-			clientReponseBuffer.insert(readingBuffer.begin(), readingBuffer.begin(), readingBuffer.end());
+		ssize_t bytesRead;
+		while ((bytesRead = read(fd, readingBuffer.data(), readingBuffer.size())) > 0) {
+			clientResponseBuffer.insert(clientResponseBuffer.end(), readingBuffer.begin(), readingBuffer.end());
 		}
-		if (bytesRead == 0) {
-			std::cout << "End of reading the CGI result." << std::endl;
-			_mainInstance->epollCtlDel(fd);
-			close(fd);
-		}
+	}
+	
+	if (!(event.events & EPOLLIN) && !(event.events & EPOLLOUT)) {
+		_mainInstance->epollCtlDel(fd);
+		close(fd);
 	}
 }
 
@@ -569,21 +529,23 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
 	std::ofstream outFile(filePath.c_str());
     if (!outFile)
 		throw CreateFileException(); 
-    outFile << content;
+    outFile << content.data();
     outFile.close();	
 }
 
 
 bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
-	std::string redirectLocation = request.getRules()->getRedirect();
+	std::string redirectLocation = request.getRules()->getRedirect(); 
 	if (!redirectLocation.empty() && redirectLocation[0] != '/')
 		redirectLocation.insert(0, 1, '/');
 	std::string	reqPath = request.getPath();
 		
 	if (!redirectLocation.empty() && reqPath != redirectLocation) {
 		std::cerr << "Redirect: " << redirectLocation << " for the route: " << reqPath << std::endl;
-		std::string content = "HTTP/1.1 302 Not Found\r\nLocation: " +  redirectLocation + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-		response = HttpRequest(HTTP_RESPONSE, content);
+		std::string responseStr = "HTTP/1.1 302 Not Found\r\nLocation: " +  redirectLocation + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+		t_binary rawResponse(responseStr.begin(), responseStr.end());
+		response.setBody(rawResponse);
+		//response = HttpRequest(HTTP_RESPONSE, content);
 		response.setResponseCode(302);
 		return (true);	
 	}
@@ -594,12 +556,16 @@ void	VServ::processRequest(int &clientFd) {
 	struct stat path_stat;	
 	HttpRequest request;
 
+	std::cout << "processRequest" << std::endl;
+
 	try {
 		if (!readSocketFD(clientFd))
 			return ;
+			
+		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd]; //end of using this buffer;
+		request = HttpRequest(HTTP_REQUEST, clientRequestBuffer);
+		request.setClientFD(clientFd);
 
-		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd];
-		request = HttpRequest(HTTP_REQUEST, clientBuffer);
 		setTargetRules(request);
 
 		//if (makeHttpRedirect(request, response)) {
@@ -694,22 +660,30 @@ void	VServ::processRequest(int &clientFd) {
 		//response.makeError(HTTP_INTERNAL_SERVER_ERROR, request);
 	}
 
-	//sendRequest(response, clientFd);
-
-	std::string connectionType = request.getHeader("Connection");
-	if (!connectionType.empty() || (connectionType.find("close") != std::string::npos))  {
-		_mainInstance->deleteFd(clientFd);
-		eraseClient(clientFd);
-	}
+	//std::string connectionType = request.getHeader("Connection");
+	//if (!connectionType.empty() || (connectionType.find("close") != std::string::npos))  {
+	//	_mainInstance->deleteFd(clientFd);
+	//	eraseClient(clientFd);
+	//}
 }
 
 
 
-void processReponse(int &clientFd) {
-
+void VServ::processResponse(int &clientFd) {
+	HttpRequest response;	
+	std::cout << "processResponse" << std::endl;
+	
 	try {
-		t_binary	clientReponseBuffer = _clientResponseBuffer[clientFd];
+		HttpRequest request = _clientRequests[clientFd];
+		t_binary	clientResponseBuffer = _clientResponseBuffer[clientFd];
 
+		std::cout << responseBuffer.data() << std::endl;
 
+		response.setDefaultsHeaders();
+		response.setBody(clientResponseBuffer);
+
+		//sendRequest(response, clientFd);
+	} catch(std::exception &e) {
+		std::cout << "Error: " << e.what() << std::endl; 
 	}
 }

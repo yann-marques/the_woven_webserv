@@ -85,7 +85,7 @@ const char* VServ::MethodNotAllowed::what() const throw() {
 }
 
 const char* VServ::CreateFileException::what() const throw() {
-	return ("Execve error. Can't execute the binary cgi");
+	return ("Error, can't create file exception");
 }
 
 const char* VServ::NoUploadFileName::what() const throw() {

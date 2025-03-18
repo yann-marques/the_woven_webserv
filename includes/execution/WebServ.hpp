@@ -24,7 +24,7 @@ class VServ;
 enum fdType {
     SERVER_SOCK,
     CLIENT_SOCK,
-	CGI_FD;
+	CGI_FD
 };
 
 class	WebServ {

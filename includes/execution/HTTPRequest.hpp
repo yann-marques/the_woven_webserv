@@ -10,7 +10,7 @@
 # include <fcntl.h>
 # include <cstring>
 
-# include "VServ.hpp"
+//# include "VServ.hpp"
 # include "Rules.hpp"
 
 //METHODS
@@ -48,6 +48,8 @@ enum RequestDirection {
     HTTP_RESPONSE
 };
 
+typedef std::vector<unsigned char> t_binary;
+
 class HttpRequest {
     private:
         int                                 _clientFd;
@@ -64,14 +66,12 @@ class HttpRequest {
         std::string                         _cgiExt;
         RequestDirection                    _direction;
 
-        //METHODS
-        void        parseRequest(const t_binary &rawRequest);
-
-    public:
+        
+        public:
         HttpRequest(void);
         HttpRequest(RequestDirection direction, t_binary &rawRequest);
         ~HttpRequest(void);
-
+        
         //GETTERS
         std::string getMethod(void) const;
         std::string getVersion(void) const;
@@ -84,7 +84,7 @@ class HttpRequest {
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
         int         getClientFD(void) const;
-
+        
         //SETTERS
         void    setMethod(std::string &method);
         void    setResponseCode(int code);
@@ -95,9 +95,10 @@ class HttpRequest {
         void    setRules(Rules* rules);
         void    setCgiExt(std::string ext);
         void    setClientFD(int fd); 
-
+        
         //METHODS:
-        std::string makeRawResponse(void);
+        t_binary    makeRawResponse(void);
+        void        parseRequest(const t_binary &rawRequest);
         void        setDefaultsHeaders(void);
         void        initReasons(void);
         void        makeError(int httpCode, HttpRequest request);

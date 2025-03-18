@@ -4,7 +4,7 @@ HttpRequest::HttpRequest() {
     this->initReasons();
 }
 
-HttpRequest::HttpRequest(RequestDirection direction, std::string &rawRequest) {
+HttpRequest::HttpRequest(RequestDirection direction, t_binary &rawRequest) {
     _direction = direction;
     this->initReasons();
     this->parseRequest(rawRequest);
@@ -145,6 +145,7 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
     std::size_t acceptedHexChar = 0;
     std::size_t strSize = str.size();
 
+    if (str[strSize - 1] != '\r') return false;
     if (strSize == 0 || strSize > 7) //6-digit hexadecimal number + 1 for '\r' (FFFFFF) is enough
         return (false);
     for (std::size_t i = 0; i < strSize; ++i) {
@@ -163,25 +164,22 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
 
 void    HttpRequest::parseRequest(const t_binary &rawRequest)
 {
-    std::istringstream stream(rawRequest);
+    std::string rawRequestStr(rawRequest.begin(), rawRequest.end());
+    std::istringstream stream(rawRequestStr);
     std::string line;
 
     while (std::getline(stream, line) && line.empty())
         ;
         
-    //if (_direction == HTTP_REQUEST) {
     if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
         std::istringstream requestLine(line);
         requestLine >> _method >> _path >> _version;
         
-        if (_method.empty() && _path.empty() && _version.empty()) {
+        if (_method.empty() && _path.empty() && _version.empty())
             throw MalformedHttpHeader();
     }
 
-    }
-    //}
-
-    if (rawRequest.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
+    if (rawRequestStr.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
         if (!line.empty()) {
             while (line != "\r" && !stream.eof()) {
                 size_t pos = line.find(":");
@@ -199,35 +197,44 @@ void    HttpRequest::parseRequest(const t_binary &rawRequest)
         }
     }
     if (line == "\r")
-        std::getline(stream, line);
+       std::getline(stream, line);
+
+
+    //size_t bodyStart = rawRequestStr.find("\r\n\r\n"); //this pos is the same in the rawRequest str and in the t_binary vector
 
     std::string tranfertType = getHeader("Transfer-Encoding");
+    size_t currentPos = stream.tellg();
+    
     while (!stream.eof()) {
+        size_t lineStartPos = currentPos;
         if (!tranfertType.empty() && tranfertType == "chunked" && isBodyChunkSizeLine(line)) {
             std::getline(stream, line);
             continue;
         }
 
-        if (!line.empty() && line[line.size() - 1] == '\r') {
-            line.erase(line.size() - 1, 1);
-        }
+        if (!line.empty() && line[line.size() - 1] == '\r')
+           line.erase(line.size() - 1, 1);
+        
+        //if (!tranfertType.empty())
+        _body.insert(_body.end(), rawRequest.begin() + lineStartPos, rawRequest.begin() + lineStartPos + line.size()); // Keep newlines consistent
+        //else
+           // _body += line + "\n";
 
-        if (!tranfertType.empty())
-            _body += line; // Keep newlines consistent
-        else
-            _body += line + "\n";
+        currentPos += line.size() + 1;
         std::getline(stream, line);
     }
 
-    if (!line.empty())
-        _body += line;
+    _body.insert(_body.end(), '\0');
+
+    //if (!line.empty())
+    //    _body += line;
 
     if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();
 }
 
 void    HttpRequest::makeError(int httpCode, HttpRequest request){
-    std::vector<char> buffer(4096);
+    t_binary buffer(4096);
 
     std::stringstream stream;
     stream << "default/errors/" << httpCode << ".html";
@@ -242,17 +249,18 @@ void    HttpRequest::makeError(int httpCode, HttpRequest request){
 
 	int fd = open(errorPagePath.c_str(), O_RDONLY);
 	if (fd < 0) {
-        setBody("HTTP 500 Error: Internal server error");
-        std::cerr << "Error: invalid error pages path" << std::endl;
+        std::string internalErrorString = "HTTP 500 Error: Internal server error";
+        t_binary body(internalErrorString.begin(), internalErrorString.end());
+        setBody(body);
         setDefaultsHeaders();
         setResponseCode(500);
+        std::cerr << "Error: invalid error pages path" << std::endl;
     } else {
-        ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
+        read(fd, buffer.data(), buffer.size());
         close(fd);
-        std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
         setDefaultsHeaders();
         setResponseCode(httpCode);
-        setBody(rawResponse);
+        setBody(buffer);
     }
 }
 
@@ -263,33 +271,38 @@ void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames
         html += "    <li><a href=\"" + (*it) + "\">" + (*it) + "</a></li>\n";
     }
     html += "  </ul>\n</nav></html>\n";
-    setBody(html);
+    t_binary body(html.begin(), html.end());
+    setBody(body);
 }
 
 
 //Called before the request is send. This is the last step before sending to the client.
-std::string HttpRequest::makeRawResponse(void) {
-    std::ostringstream rawResponse;
+t_binary    HttpRequest::makeRawResponse(void) {
+    std::ostringstream  httpHeaders;
+    t_binary            rawResponse;
 
-    rawResponse << _version << " " << _responseCode << " " << _reasonPhrases[_responseCode] << "\r\n";
+    httpHeaders << _version << " " << _responseCode << " " << _reasonPhrases[_responseCode] << "\r\n";
 
     std::map<std::string, std::string>::const_iterator it;
     for (it = _headers.begin(); it != _headers.end(); ++it) {
-        rawResponse << it->first << ": " << it->second << "\r\n";
+        httpHeaders << it->first << ": " << it->second << "\r\n";
     }
     
     std::size_t bodySize = _body.size();
     
     if (_method == "HEAD") {
-        rawResponse << "Content-Length: " << 0 << "\r\n";
-        rawResponse << "\r\n";
+        httpHeaders << "Content-Length: " << 0 << "\r\n";
+        httpHeaders << "\r\n";
     } else {
-        rawResponse << "Content-Length: " << bodySize << "\r\n";
-        rawResponse << "\r\n";
-        rawResponse << _body;
+        httpHeaders << "Content-Length: " << bodySize << "\r\n";
+        httpHeaders << "\r\n";
     }
 
-    return rawResponse.str();
+    std::string headersStr = httpHeaders.str();    
+    rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
+    rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.
+
+    return (rawResponse);
 }
 
 void HttpRequest::setDefaultsHeaders(void) {
