@@ -4,10 +4,9 @@ A web server in cpp98, by Yann Marques and Louis Charvet \
 42 school project: webserv
 
 ## Configuration file syntax explanation
-<pre>
 The arguments must be inside of server scopes, and must be formated as follows: \
-	key: value; \
-except for cgi_path and error_pages: \
+<pre>	key: value;
+</pre>except for cgi_path and error_pages: \
 	cgi_path { \
 		key: value; \
 		... \
