@@ -337,7 +337,10 @@ void	VServ::showDirectory(HttpRequest &request, HttpRequest &response) {
 		throw OpenFolderException();
 	
 	while ((entry = readdir(dir)) != NULL) {
-		filesName.push_back(entry->d_name);
+		std::string	fileName = entry->d_name;
+		if (entry->d_type == DT_DIR && fileName != "." && fileName != "..")
+			fileName += '/';
+		filesName.push_back(fileName);
 	}
 	closedir(dir);
 	response.generateIndexFile(filesName);
