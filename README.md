@@ -44,7 +44,7 @@ Here is a detailed configuration file template, observing the following rules: \
 + Here commentaries are preceded by # but are not handled in the configuration file
 <pre>
 server {
-	port:<int / ;			# mandatory
+	port: [int] ;			# mandatory
 	host:<string / ;			# format: IP "1.222.33.4"
 	server_names: / string / , ... ;
 	auto_index:<string / ;			# "true", "yes", "1", "false", "no", "0" allowed
