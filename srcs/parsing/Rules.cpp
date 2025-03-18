@@ -9,8 +9,6 @@ Rules::Rules(): AParser() {
 	_defaultPages.push_back("index.html");
 
 	_allowedMethods.push_back("GET");
-	_allowedMethods.push_back("POST");
-	_allowedMethods.push_back("DELETE");
 }
 
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): AParser() {

@@ -15,7 +15,7 @@
 # include <vector>
 # include <set>
 
-# include "templates.hpp"
+# include "templates.tpp"
 # include "Rules.hpp"
 # include "VServ.hpp"
 

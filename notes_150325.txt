@@ -1,9 +1,0 @@
-Le probleme semble apparaitre a partir
-du moment ou on entre dans le parsing de
-location (ou on traite la locationKey),
-a partir du 2e bloc server.
-
-Ca merde a partir du Rules.cpp:107
-
-un des deux leaks disparait quand on set hostRef[port][serverName]
-à NULL avant l'allocation dans la boucle intérieure, ligne 58/60

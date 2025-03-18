@@ -5,11 +5,11 @@ Welcome to the Woven Webserv !
 A web server in cpp98, by Yann Marques and Louis Charvet
 42 school project: webserv
 
-/////////////////////////////////////////////
-/////// Configuration file syntax explanation
-/////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////// Configuration file syntax explanation
+///////////////////////////////////////////////////////////////////////////////
 
-The arguments must be inside of server {} scopes, and must be formated as follows:
+The arguments must be inside of server scopes, and must be formated as follows:
 	key: value;
 except for cgi_path and error_pages:
 	cgi_path {
@@ -37,17 +37,17 @@ Some keys may take multiple values:
 	server_names, default_pages, allowed_methods, location.
 
 The definition of port is mandatory.
-Other arguments can be ignored (they would be set by defaultvalues -- see below).
+Other arguments can be ignored. In this case, they would be set by default
+values ; see below.
 
-///////////////////////////////////
-/////// Configuration file template
-///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////// Configuration file template
+///////////////////////////////////////////////////////////////////////////////
 
 Here is a detailed configuration file template, observing the following rules:
 : separates key from value
-Expected value types are between < >
+Expected value types are between < > (only in this example)
 , separates multiple values for the same key
-... means etc.
 ; ends the value definition
 
 Commentaries are preceded by # (not allowed in the configuration file)
@@ -56,11 +56,14 @@ server {
 	port:				<int> ;				# mandatory
 	host:				<string> ;			# format: IP "1.222.33.4"
 	server_names:		<string> , ... ;
-	auto_index:			<string> ;			# "true", "yes", "1", "false", "no", "0" allowed
-	max_body_byte:		<int / string> ;	# can be only digits, or contains M, K, G
-											# "1K" means 1,024 bytes
-												# "1M34" means 1,048,576 + 34 = 1,048,610 bytes
-												# "1G" means 1,073,741,824 bytes
+	auto_index:			<string> ;			# "true", "yes", "1",
+												# "false", "no", "0" allowed
+	max_body_byte:		<int / string> ;	# can be only digits, or contain
+												# M, K, G
+												# "1K" is 1,024 bytes
+												# "1M34" is 1,048,576 + 34
+												# = 1,048,610 bytes
+												# "1G" is 1,073,741,824 bytes
 	root:				<string> ;
 	redirect:			<string> ;
 	upload:				<string> ;
@@ -75,8 +78,9 @@ server {
 		...
 	}
 	location: <string> , ... {
-		...									# You can redefine arguments in location, except
-												# port, host, server_names
+		...									# You can redefine arguments in
+												# location, except port, host,
+												# server_names
 		location: <string>, ... {			# You can also nest locations
 			...
 		}
@@ -87,19 +91,19 @@ server {
 	...
 }
 
-//////////////////////
-/////// Default values
-//////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////// Default values
+///////////////////////////////////////////////////////////////////////////////
 
 host:				127.0.0.1;
 server_names:		localhost;
 auto_index:			true;
 max_body_bytes:		1024;
 root:				www/;
-redirect:			;			# no default redirect
-upload:				;			# no default upload
+redirect:			;					# no default redirect
+upload:				;					# no default upload
 default_pages:		index, index.html;
 allowed_methods:	GET;
-error_pages:		;			# no default error_page
-cgi_path:			;			# no default cgi_path
-location:			;			# no default location
+error_pages:		;					# no default error_page
+cgi_path:			;					# no default cgi_path
+location:			;					# no default location

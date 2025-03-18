@@ -42,10 +42,8 @@ void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string
 				hostRef[port][serverName] = new Rules(args, defaultRules, "/");
 			serverNamesIt++;
 		}
-		// experimental
 		if (!hostRef[port].count(hostName))
 			hostRef[port][hostName] = new Rules(args, defaultRules, "/");
-		//
 		if (!hostRef[port].count("localhost"))
 			hostRef[port]["localhost"] = new Rules(args, defaultRules, "/");
 		argsIt++;
