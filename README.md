@@ -44,14 +44,14 @@ Here is a detailed configuration file template, observing the following rules: \
 + Here commentaries are preceded by # but are not handled in the configuration file
 <pre>
 server {
-	port: [int] ;			# mandatory
+	port: [int] ;				# mandatory
 	host: [string] ;			# format: IP "1.222.33.4"
 	server_names: [string] , ... ;
 	auto_index: [string] ;			# "true", "yes", "1", "false", "no", "0" allowed
 	max_body_byte: [int / string] ;		# can be only digits, or contain M, K, G
-					# "1K" is 1,024 bytes
-					# "1M34" is 1,048,576 + 34 = 1,048,610 bytes
-					# "1G" is 1,073,741,824 bytes
+						# "1K" is 1,024 bytes
+						# "1M34" is 1,048,576 + 34 = 1,048,610 bytes
+						# "1G" is 1,073,741,824 bytes
 	root: [string] ;
 	redirect: [string] ;
 	upload: [string] ;
@@ -62,12 +62,12 @@ server {
 		...
 	}
 	cgi_path {
-		[string] : [string] ;			# Key must start with a .
+		[string] : [string] ;		# Key must start with a .
 		...
 	}
 	location: [string] , ... {
-		...			# You can redefine arguments in location, except:
-					# port, host, server\_names
+		...				# You can redefine arguments in location, except:
+						# port, host, server\_names
 		location: [string], ... {	# You can also nest locations
 			...
 		}
