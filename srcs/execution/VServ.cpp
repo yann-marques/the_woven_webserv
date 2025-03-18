@@ -76,9 +76,11 @@ void	VServ::setTargetRules(HttpRequest &req) {
 
 	std::string serverName = split(httpHost, ':')[0];
 
+	Rules*	ptr;
 	if (!_rules.count(serverName))
-		throw ServerNameNotFound();
-	Rules*	ptr = _rules[serverName];
+		ptr = _rules.begin()->second;
+	else
+		ptr = _rules[serverName];
 
 	std::vector<std::string> vec = split(req.getPath(), '/');
 	for (size_t i = 0, n = vec.size(); i < n; i++) {
@@ -335,7 +337,10 @@ void	VServ::showDirectory(HttpRequest &request, HttpRequest &response) {
 		throw OpenFolderException();
 	
 	while ((entry = readdir(dir)) != NULL) {
-		filesName.push_back(entry->d_name);
+		std::string	fileName = entry->d_name;
+		if (entry->d_type == DT_DIR && fileName != "." && fileName != "..")
+			fileName += '/';
+		filesName.push_back(fileName);
 	}
 	closedir(dir);
 	response.generateIndexFile(filesName);

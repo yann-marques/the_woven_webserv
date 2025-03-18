@@ -22,9 +22,10 @@ server {
 }
 
 server {
+  host: 127.0.0.1;
   port: 8080;
-  server_names: site2.com, www.site2.com;
-  root: /var/www/site2/;
+  server_names: localhost, site1.com, www.site2.com;
+  root: www/toto/;
   default_pages: main.html;
   error_pages {
     403: forbidden.html;
@@ -50,7 +51,7 @@ server {
 server {
   port: 8080;
   server_names: site3.com;
-  root: /var/www/site3/;
+  root: www/;
   default_pages: landing.html;
   error_pages {
     404: missing.html;

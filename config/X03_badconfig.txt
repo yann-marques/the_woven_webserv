@@ -35,6 +35,12 @@ server {
   error_pages {
     500: internal_error.html;
   }
+  location: /popo {
+    location: /caca {
+      root:toto;
+    }
+
+  }
   auto_index: true;
   allowed_methods: GET;
 }

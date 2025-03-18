@@ -1,7 +1,7 @@
 #include "AParser.hpp"
 
 const char*	AParser::ArgOutOfServerScopeException::what() const throw() {
-	return ("Argument found out of server scopes.");
+	return ("Argument found out of server scopes");
 }
 
 const char*	AParser::ConfigSyntaxException::what() const throw() {

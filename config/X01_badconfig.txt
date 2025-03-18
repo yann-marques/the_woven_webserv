@@ -1,7 +1,7 @@
 server {
-  port: 8080;
+  port: 80;
   server_names: example.com, www.example.com;
-  root: www/;
+  root: /var/www/html/;
   default_pages: index.html, home.html;
   error_pages {
     404: not_found.html;
@@ -34,30 +34,8 @@ server {
         location: /profile {
           root: /var/www/api/v1/users/profile/;
           allowed_methods: GET;
+          auto_index: oui;
         }
-      }
-    }
-    location: /v2 {
-      root: /var/www/api/v2/;
-      allowed_methods: GET, POST;
-      location: /admin {
-        root: /var/www/api/v2/admin/;
-        allowed_methods: GET, DELETE;
-        cgi_path {
-          .sh: /bin/bash;
-        }
-      }
-    }
-  }
-  location: /blog {
-    root: /var/www/blog/;
-    allowed_methods: GET;
-    location: /posts {
-      root: /var/www/blog/posts/;
-      allowed_methods: GET;
-      location: /comments {
-        root: /var/www/blog/posts/comments/;
-        allowed_methods: POST;
       }
     }
   }

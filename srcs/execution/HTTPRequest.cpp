@@ -268,7 +268,7 @@ std::string HttpRequest::makeRawResponse(void) {
     }
 
     std::cout << _responseCode << std::endl;
-    
+
     std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
     std::cout << "SENT BODY SIZE: " << bodySize << std::endl;
 

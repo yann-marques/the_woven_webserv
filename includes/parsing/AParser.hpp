@@ -1,5 +1,5 @@
-#ifndef AParser_HPP
-# define AParser_HPP
+#ifndef APARSER_HPP
+# define APARSER_HPP
 
 # include <iostream>
 # include <fstream>
@@ -43,6 +43,7 @@ class	AParser {
 		void	checkErrorPages(t_mmap_range< std::string, std::string >::t mmRange) const;
 		void	checkCgiPath(t_mmap_range< std::string, std::string >::t range) const;
 		void	checkArgNoDouble(t_mmap_range< std::string, std::string >::t range, bool f(std::string)) const;
+		void	checkAllowedMethods(t_mmap_range< std::string, std::string >::t mmRange) const;
 		virtual void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const = 0;
 
 		virtual	~AParser();

@@ -4,14 +4,11 @@ Rules::Rules(): AParser() {
 	_autoIndex = true;
 	_maxBodyBytes = 1024;
 	_root = "www/";
-	_redirect = "redirect";
-	_upload = "";
 
 	_defaultPages.push_back("index");
-	_allowedMethods.push_back("GET");
+	_defaultPages.push_back("index.html");
 
-	_errorKeys.insert(404);
-	_errorPages[404] = "404.html";
+	_allowedMethods.push_back("GET");
 }
 
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): AParser() {
