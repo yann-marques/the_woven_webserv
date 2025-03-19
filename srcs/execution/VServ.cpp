@@ -279,8 +279,10 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	}
 	if (bytesSent == 0) {
 		std::cout << "All bytes has been sent." << std::endl;
-		_mainInstance->deleteFd(clientFd);
+		_mainInstance->epollCtlDel(clientFd);
+		//_mainInstance->deleteFd(clientFd);
 		eraseClient(clientFd);
+		_totalBytesSent = 0;
 	}
 }
 
