@@ -34,6 +34,7 @@ std::string HttpRequest::getHeader(const std::string& key) const
 {
     std::map<std::string, std::string>::const_iterator it = this->_headers.find(key);
     return (it != this->_headers.end()) ? it->second : "";
+	// doesn't work with cookies
 }
 
 std::string HttpRequest::getRawHeaders(void) const {
@@ -46,7 +47,7 @@ std::string HttpRequest::getRawHeaders(void) const {
     return (fullHeaders);
 }
 
-std::map<std::string, std::string>  HttpRequest::getHeaders(void) const {
+std::multimap<std::string, std::string>  HttpRequest::getHeaders(void) const {
     return (this->_headers);
 }
 
@@ -81,7 +82,7 @@ void    HttpRequest::setVersion(const std::string &version) {
     this->_version = version;
 }
 
-void    HttpRequest::setHeaders(std::map<std::string, std::string> &headers) {
+void    HttpRequest::setHeaders(std::multimap<std::string, std::string> &headers) {
     this->_headers = headers;
 }
 
@@ -176,6 +177,7 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
         }
     }
 
+    std::map< std::string, std::string >    receivedCookies;
     if (rawRequest.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
         std::cout << "Header found in the request" << std::endl;
         if (!line.empty()) {
@@ -186,10 +188,12 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
                     size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
                     std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
                     std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
+                    if (key == "Cookie")
+						receivedCookies = parseCookies(value);
                     if (!value.empty() && value[value.size() - 1] == '\r') {
                         value.erase(value.size() - 1);
                     }
-                    _headers[key] = value;
+                    _headers.insert(make_pair(key, value));
                 }
                 std::getline(stream, line);
             }
@@ -219,8 +223,10 @@ void    HttpRequest::parseRequest(const std::string &rawRequest)
     if (!line.empty())
         _body += line;
 
-    if (_direction == HTTP_RESPONSE)
+    if (_direction == HTTP_RESPONSE) {
         setDefaultsHeaders();
+		setCookies(receivedCookies);
+    }
 }
 
 void    HttpRequest::makeError(int httpCode) {
@@ -282,6 +288,44 @@ std::string HttpRequest::makeRawResponse(void) {
     }
 
     return rawResponse.str();
+}
+
+std::map< std::string, std::string >	HttpRequest::parseCookies(std::string line) {
+	std::map< std::string, std::string >	cookieMap;
+
+	while (!line. empty()) {
+		size_t	pos1 = line.find('='), pos2 = line.find(';');
+		std::string cookieKey = line.substr(0, pos1),
+		cookieValue = line.substr(pos1 + 1, pos2 - pos1 - 1);
+		cookieMap.insert(make_pair(cookieKey, cookieValue));
+		if (pos2 != std::string::npos)
+			pos2++;
+		line.erase(0, pos2);
+	}
+	return (cookieMap);
+}
+
+static std::string	getTimeStamp() {
+	std::time_t	time = std::time(NULL);
+	return (std::string(std::asctime(std::localtime(&time))));
+}
+
+void    HttpRequest::setCookies(std::map< std::string, std::string > receivedCookies) {
+	std::string	timeStamp = '\"' + getTimeStamp() + '\"',
+				cookieValue = timeStamp + "; Max-Age=300; HttpOnly";
+
+	if (!receivedCookies.count("sessionStart")) {
+		_cookiesToSet.insert(make_pair("sessionStart", cookieValue));
+		_headers.insert(make_pair("Set-Cookie", "sessionStart=" + cookieValue));
+	}
+	_cookiesToSet.insert(make_pair("actualTime", cookieValue));
+	_headers.insert(make_pair("Set-Cookie", "actualTime=" + cookieValue));
+/*
+	t_map_it< std::string, std::string >::t	it = cookies.begin(), ite = cookies.end();
+	while (it != ite) {
+		it++;
+	}
+*/
 }
 
 void HttpRequest::setDefaultsHeaders(void) {

@@ -389,7 +389,7 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
     env.push_back( strdup(("SCRIPT_FILENAME=" + rootPath).c_str()) );
 
 	//ADD REQUEST HEADERS
-	std::map<std::string, std::string> headers = request.getHeaders();
+	std::multimap<std::string, std::string> headers = request.getHeaders();
 	for (std::map<std::string, std::string>::iterator header = headers.begin(); header != headers.end(); header++) {
         std::string envVar = "HTTP_" + header->first;
         for (std::string::iterator it = envVar.begin(); it != envVar.end(); it++) *it = toupper(*it);

@@ -9,6 +9,7 @@
 # include <sys/types.h>
 # include <fcntl.h>
 # include <cstring>
+# include <ctime>
 
 # include "Rules.hpp"
 
@@ -56,11 +57,14 @@ class HttpRequest {
         int                                 _responseCode;
         std::string                         _body;
         std::string                         _rootPath;
-        std::map<std::string, std::string>  _headers;
+        std::multimap<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
         Rules*                              _rules;
         std::string                         _cgiExt;
         RequestDirection                    _direction;
+
+        //BONUS
+        std::map< std::string, std::string >    _cookiesToSet;
 
         //METHODS
         void        parseRequest(const std::string &rawRequest);
@@ -78,7 +82,7 @@ class HttpRequest {
         std::string getBody(void) const;
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
-        std::map<std::string, std::string> getHeaders(void) const;
+        std::multimap<std::string, std::string> getHeaders(void) const;
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
 
@@ -86,11 +90,14 @@ class HttpRequest {
         void    setMethod(std::string &method);
         void    setResponseCode(int code);
         void    setVersion(const std::string &str);
-        void    setHeaders(std::map<std::string, std::string> &headers);
+        void    setHeaders(std::multimap<std::string, std::string> &headers);
         void    setBody(const std::string &body);
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
-        void    setCgiExt(std::string ext); 
+        void    setCgiExt(std::string ext);
+        // BONUS
+        std::map< std::string, std::string >	parseCookies(std::string line);
+        void    setCookies(std::map< std::string, std::string > cookies);
 
         //METHODS:
         std::string makeRawResponse(void);
