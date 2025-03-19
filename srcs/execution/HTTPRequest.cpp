@@ -162,75 +162,146 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
     return (acceptedHexChar == strSize);
 }
 
-void    HttpRequest::parseRequest(const t_binary &rawRequest)
-{
-    std::string rawRequestStr(rawRequest.begin(), rawRequest.end());
-    std::istringstream stream(rawRequestStr);
-    std::string line;
+const unsigned char* find_sequence(const t_binary& buffer, const char* sequence) {
+    size_t buffer_size = buffer.size();
+    size_t sequence_len = std::strlen(sequence);
 
-    while (std::getline(stream, line) && line.empty())
-        ;
-        
-    if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
-        std::istringstream requestLine(line);
-        requestLine >> _method >> _path >> _version;
-        
-        if (_method.empty() && _path.empty() && _version.empty())
-            throw MalformedHttpHeader();
+    if (sequence_len == 0 || sequence_len > buffer_size) {
+        return NULL;
     }
 
-    if (rawRequestStr.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
-        if (!line.empty()) {
-            while (line != "\r" && !stream.eof()) {
-                size_t pos = line.find(":");
-                if (pos != std::string::npos) {
-                    std::string key = line.substr(0, pos);
-                    size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
-                    std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
-                    if (!value.empty() && value[value.size() - 1] == '\r') {
-                        value.erase(value.size() - 1);
-                    }
-                    _headers[key] = value;
-                }
-                std::getline(stream, line);
+    for (size_t i = 0; i <= buffer_size - sequence_len; ++i) {
+        if (std::memcmp(&buffer[i], sequence, sequence_len) == 0) {
+            return &buffer[i];  // Return pointer to match in vector
+        }
+    }
+
+    return NULL;
+}
+
+bool is_hex_line(const t_binary& buffer, size_t start, size_t end) {
+    if (start >= end) return false; // Empty line check
+
+    for (size_t i = start; i < end; ++i) {
+        if (!std::isxdigit(buffer[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+size_t find_next_line(const t_binary& buffer, size_t start) {
+    while (start < buffer.size() - 1) {
+        if (buffer[start] == '\r' && buffer[start + 1] == '\n') {
+            return start + 2; // Return position after \r\n
+        }
+        ++start;
+    }
+    return buffer.size(); // End of buffer
+}
+
+
+void HttpRequest::parseRequest(const t_binary &rawRequest) {
+    std::size_t pos = 0;
+
+    //LINE INFOS PARSING
+
+    const unsigned char* lineInfosPos = find_sequence(rawRequest, "HTTP");
+    if (lineInfosPos) { //HTTP INFOS
+
+        for (;pos < rawRequest.size(); ++pos) {
+            if (rawRequest[pos] == ' ') {
+                pos++;
+                break;
             }
+            _method += rawRequest[pos];
+        }
+
+        for (; pos < rawRequest.size(); ++pos) {
+            if (rawRequest[pos] == ' ') {
+                pos++;
+                break;
+            }
+            _path += rawRequest[pos];
+        }
+
+        for (; pos < rawRequest.size(); ++pos) {
+            if (rawRequest[pos] == '\n') {
+                pos++;
+                break;
+            }
+            if (rawRequest[pos] != '\r')
+                _version += rawRequest[pos];
         }
     }
-    if (line == "\r")
-       std::getline(stream, line);
+    //END OF PARSING LINE INFOS
 
 
-    //size_t bodyStart = rawRequestStr.find("\r\n\r\n"); //this pos is the same in the rawRequest str and in the t_binary vector
-
-    std::string tranfertType = getHeader("Transfer-Encoding");
-    size_t currentPos = stream.tellg();
+    //PARSING HEADERS
+    std::string endHeaderKey = "\r\n\r\n";
     
-    while (!stream.eof()) {
-        size_t lineStartPos = currentPos;
-        if (!tranfertType.empty() && tranfertType == "chunked" && isBodyChunkSizeLine(line)) {
-            std::getline(stream, line);
-            continue;
+    const unsigned char* endOfHeadersPos = find_sequence(rawRequest, endHeaderKey.c_str());
+    size_t endHeadersIndex = endOfHeadersPos - &rawRequest[0]; // Convert pointer to index
+    if (endOfHeadersPos) { // If headers are present
+
+        while (pos < endHeadersIndex) {
+            std::string key;
+            std::string value;
+
+            // Read key
+            while (pos < endHeadersIndex && rawRequest[pos] != ':') {
+                key += rawRequest[pos++];
+            }
+
+            // Skip ':' and spaces
+            if (pos < endHeadersIndex && rawRequest[pos] == ':') pos++;
+            while (pos < endHeadersIndex && rawRequest[pos] == ' ') pos++;
+            
+            while (pos < endHeadersIndex && rawRequest[pos] != '\r') {
+                value += rawRequest[pos++];
+            }
+
+            // Skip '\r\n'
+            if (pos < endHeadersIndex && rawRequest[pos] == '\r') pos++;
+            if (pos < endHeadersIndex && rawRequest[pos] == '\n') pos++;
+
+            _headers[key] = value;
         }
+    }
+    //END OF PARSING HEADERS
 
-        if (!line.empty() && line[line.size() - 1] == '\r')
-           line.erase(line.size() - 1, 1);
-        
-        //if (!tranfertType.empty())
-        _body.insert(_body.end(), rawRequest.begin() + lineStartPos, rawRequest.begin() + lineStartPos + line.size()); // Keep newlines consistent
-        //else
-           // _body += line + "\n";
 
-        currentPos += line.size() + 1;
-        std::getline(stream, line);
+    //PARSING BODY
+    
+    if (lineInfosPos && endOfHeadersPos) { //IT REQUEST IN BINARY
+        std::string tranfertType = getHeader("Transfer-Encoding");
+        bool isChuncked = tranfertType == "chunked";
+        while (pos < rawRequest.size()) {
+            // Find the end of the current line
+            size_t lineEnd = find_next_line(rawRequest, pos);
+            
+            // Check if it's a chunk size line (hexadecimal)
+            if (isChuncked && is_hex_line(rawRequest, pos, lineEnd - 2)) {
+                pos = lineEnd; // Skip the chunk size line
+                continue;
+            }
+    
+            // Copy body data until \r\n
+            while (pos < rawRequest.size() && !(rawRequest[pos] == '\r' && rawRequest[pos + 1] == '\n')) {
+                _body.push_back(rawRequest[pos]);
+                pos++;
+            }
+    
+            pos += 2; // Skip \r\n after the chunk
+        }
+    } else { //NOT A REQUEST, JUST A FILE OR OTHER
+        _body = rawRequest;
     }
 
-    _body.insert(_body.end(), '\0');
-
-    //if (!line.empty())
-    //    _body += line;
-
-    if (_direction == HTTP_RESPONSE)
+    if (_direction == HTTP_RESPONSE) {
+        std::cout << "Body size after parsing reponse: " << _body.size() << std::endl;
         setDefaultsHeaders();
+    }
 }
 
 void    HttpRequest::makeError(int httpCode, HttpRequest request){
@@ -289,6 +360,8 @@ t_binary    HttpRequest::makeRawResponse(void) {
     }
     
     std::size_t bodySize = _body.size();
+
+    std::cout << "bodySize in makeReponse " << bodySize << std::endl;
     
     if (_method == "HEAD") {
         httpHeaders << "Content-Length: " << 0 << "\r\n";
@@ -297,7 +370,7 @@ t_binary    HttpRequest::makeRawResponse(void) {
         httpHeaders << "Content-Length: " << bodySize << "\r\n";
         httpHeaders << "\r\n";
     }
-
+    
     std::string headersStr = httpHeaders.str();    
     rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
     rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.

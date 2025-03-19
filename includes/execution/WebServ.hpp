@@ -65,6 +65,7 @@ class	WebServ {
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd, uint32_t events);
+		void	epollCtlMod(int fd, uint32_t events);
 		void	epollCtlDel(int fd);
 		void	deleteFd(int fd);
 		bool	isServerFD(int fd);

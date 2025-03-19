@@ -162,6 +162,17 @@ void	WebServ::epollCtlAdd(int fd, uint32_t events) {
 	}
 }
 
+void	WebServ::epollCtlMod(int fd, uint32_t events) {
+	epoll_event event;
+	event.events = events;
+	event.data.fd = fd;
+	
+	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event) == -1) {
+		std::cout << "ERROR: " << strerror(errno) << std::endl;
+		throw (EpollCtlAddException());
+	}
+}
+
 void	WebServ::epollCtlDel(int fd) {
 	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) //the EVENT can be null.
 		throw (EpollCtlDelException());
@@ -192,7 +203,7 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 

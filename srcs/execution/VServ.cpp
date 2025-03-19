@@ -178,7 +178,6 @@ t_binary VServ::readFile(std::string rootPath) {
 
 void	VServ::readRequest(HttpRequest &request) {
 	t_binary	body;
-	//bool		isReqCGI = fileIsCGI(request);
 	
 	std::string rootPath = makeRootPath(request);
 	if (_cachedPages.count(rootPath) > 0)
@@ -191,11 +190,6 @@ void	VServ::readRequest(HttpRequest &request) {
 	request.setBody(body);
 	int	clientFd = request.getClientFD();
 	_clientRequests[clientFd] = request;
-
-	//if (isReqCGI) {
-	//	cgiContent = handleCGI(body, request);
-	//	return (cgiContent);
-	//}
 }
 
 bool VServ::isEndedChunckReq(std::string rawRequest) {
@@ -270,20 +264,19 @@ bool	VServ::readSocketFD(int fd) {
 
 
 void	VServ::sendRequest(HttpRequest &response, int clientFd) {
+	
+	std::cout << "REQUEST SENT" << std::endl;
 	t_binary	rawResponse = response.makeRawResponse();
-
-	if (_debug)
-		std::cout << "RESPONSE --------" << std::endl << "{" << rawResponse.data() << "}" << std::endl << std::endl << std::endl << std::endl;
 
 	ssize_t totalBytesSent = 0;
 	ssize_t bytesSent = 0;
 	size_t dataSize = rawResponse.size();
-	
+
 	while (totalBytesSent < static_cast<ssize_t>(dataSize)) {
 		bytesSent = send(clientFd, rawResponse.data() + totalBytesSent, dataSize - totalBytesSent, 0);
 		totalBytesSent += bytesSent;
 	}
-	
+
 	if (totalBytesSent != static_cast<ssize_t>(dataSize))
 		throw SendPartiallyException();
 }
@@ -475,6 +468,9 @@ void	VServ::talkToCgi(epoll_event event) {
 	t_binary  			readingBuffer(chunckSize);
 	_cgiBytesWriting = 0;
 
+
+	std::cout << "Talk to cgi" << std::endl;
+
 	if (event.events & EPOLLOUT) {
 		while (_cgiBytesWriting < requestBody.size()) {
 			ssize_t bytesToWrite = _cgiBytesWriting + chunckSize <  requestBody.size() ? chunckSize : requestBody.size() - _cgiBytesWriting;
@@ -499,6 +495,7 @@ void	VServ::talkToCgi(epoll_event event) {
 	
 	if (!(event.events & EPOLLIN) && !(event.events & EPOLLOUT)) {
 		_mainInstance->epollCtlDel(fd);
+		_mainInstance->epollCtlMod(clientFd, EPOLLOUT | EPOLLET);
 		close(fd);
 	}
 }
@@ -574,7 +571,7 @@ void	VServ::processRequest(int &clientFd) {
 		//}
 
 		std::string reqMethod = request.getMethod();
-		request.log();
+		//request.log();
 		checkAllowedMethod(request); //check also in processResponse 
 		// handleBigRequest(request); handle in response
 
@@ -600,6 +597,9 @@ void	VServ::processRequest(int &clientFd) {
 
 		if (isCGI(request))
 			executeCGI(request);
+		else
+			_mainInstance->epollCtlMod(clientFd, EPOLLOUT | EPOLLET);
+
 
 		_clientRequests[clientFd] = request;
 
@@ -674,15 +674,20 @@ void VServ::processResponse(int &clientFd) {
 	std::cout << "processResponse" << std::endl;
 	
 	try {
+		_mainInstance->epollCtlDel(clientFd);
 		HttpRequest request = _clientRequests[clientFd];
+		t_binary	reqBody = request.getBody();
 		t_binary	clientResponseBuffer = _clientResponseBuffer[clientFd];
 
-		std::cout << responseBuffer.data() << std::endl;
+		if (clientResponseBuffer.size() > 0) {
+			std::cout << "From clientReponseBuffer (CGI)" << std::endl;
+			response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
+		} else {
+			std::cout << "From response buffer (NO CGI): " << reqBody.size() << std::endl;
+			response = HttpRequest(HTTP_RESPONSE, reqBody);
+		}
 
-		response.setDefaultsHeaders();
-		response.setBody(clientResponseBuffer);
-
-		//sendRequest(response, clientFd);
+		sendRequest(response, clientFd);
 	} catch(std::exception &e) {
 		std::cout << "Error: " << e.what() << std::endl; 
 	}
