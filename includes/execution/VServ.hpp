@@ -48,6 +48,8 @@ class	VServ {
 		bool												_debug;
 
 		size_t												_cgiBytesWriting;
+		size_t												_totalBytesSent;
+
 		std::map<int, t_binary>								_clientRequestBuffer;
 		std::map<int, t_binary>								_clientResponseBuffer;
 

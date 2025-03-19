@@ -7,6 +7,7 @@ VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< 
 	// tmp
 	_host = host;
 	_port = port;
+	_totalBytesSent = 0;
 //	_host = config.getHost();
 //	parse config ...
 	_rules = rules;
@@ -162,7 +163,7 @@ t_binary VServ::readFile(std::string rootPath) {
     std::streamsize length = inputFile.tellg();
     inputFile.seekg(0, std::ios::beg);
 
-    if (length <= 0)
+	if (length <= 0)
 		return std::vector<unsigned char>();
  
 	t_binary buffer(length);
@@ -264,21 +265,23 @@ bool	VServ::readSocketFD(int fd) {
 
 
 void	VServ::sendRequest(HttpRequest &response, int clientFd) {
-	
 	std::cout << "REQUEST SENT" << std::endl;
 	t_binary	rawResponse = response.makeRawResponse();
 
-	ssize_t totalBytesSent = 0;
 	ssize_t bytesSent = 0;
 	size_t dataSize = rawResponse.size();
-
-	while (totalBytesSent < static_cast<ssize_t>(dataSize)) {
-		bytesSent = send(clientFd, rawResponse.data() + totalBytesSent, dataSize - totalBytesSent, 0);
-		totalBytesSent += bytesSent;
+	
+	while (_totalBytesSent < dataSize) {
+		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent, 4096, 0);
+		if (bytesSent < 0)
+			break ;
+		_totalBytesSent += bytesSent;
 	}
-
-	if (totalBytesSent != static_cast<ssize_t>(dataSize))
-		throw SendPartiallyException();
+	if (bytesSent == 0) {
+		std::cout << "All bytes has been sent." << std::endl;
+		_mainInstance->deleteFd(clientFd);
+		eraseClient(clientFd);
+	}
 }
 
 void	VServ::handleBigRequest(HttpRequest &request) {
@@ -494,8 +497,9 @@ void	VServ::talkToCgi(epoll_event event) {
 	}
 	
 	if (!(event.events & EPOLLIN) && !(event.events & EPOLLOUT)) {
+		std::cout << "CGI Finished to read" << std::endl;
 		_mainInstance->epollCtlDel(fd);
-		_mainInstance->epollCtlMod(clientFd, EPOLLOUT | EPOLLET);
+		_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
 		close(fd);
 	}
 }
@@ -598,7 +602,7 @@ void	VServ::processRequest(int &clientFd) {
 		if (isCGI(request))
 			executeCGI(request);
 		else
-			_mainInstance->epollCtlMod(clientFd, EPOLLOUT | EPOLLET);
+			_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
 
 
 		_clientRequests[clientFd] = request;
@@ -674,20 +678,29 @@ void VServ::processResponse(int &clientFd) {
 	std::cout << "processResponse" << std::endl;
 	
 	try {
-		_mainInstance->epollCtlDel(clientFd);
 		HttpRequest request = _clientRequests[clientFd];
 		t_binary	reqBody = request.getBody();
 		t_binary	clientResponseBuffer = _clientResponseBuffer[clientFd];
-
-		if (clientResponseBuffer.size() > 0) {
-			std::cout << "From clientReponseBuffer (CGI)" << std::endl;
-			response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
-		} else {
-			std::cout << "From response buffer (NO CGI): " << reqBody.size() << std::endl;
-			response = HttpRequest(HTTP_RESPONSE, reqBody);
+		
+		if (_clientResponses.count(clientFd) > 0) {
+			response = _clientResponses[clientFd];
+			sendRequest(response, clientFd);
+			return ;
 		}
 
-		sendRequest(response, clientFd);
+		if (clientResponseBuffer.size() > 0) {
+			response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
+			std::cout << "From clientReponseBuffer (CGI): " << clientResponseBuffer.size() << std::endl;
+		} else if (reqBody.size() > 0) {
+			std::cout << "From response buffer (NO CGI): " << reqBody.size() << std::endl;
+			response = HttpRequest(HTTP_RESPONSE, reqBody);
+		} else {
+			std::cout << "No body to make reponse at all. Abort. " << clientFd << std::endl;
+			return ;
+		}
+		
+		_clientResponses[clientFd] = response;
+		
 	} catch(std::exception &e) {
 		std::cout << "Error: " << e.what() << std::endl; 
 	}

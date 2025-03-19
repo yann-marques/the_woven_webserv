@@ -273,7 +273,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
 
     //PARSING BODY
     
-    if (lineInfosPos && endOfHeadersPos) { //IT REQUEST IN BINARY
+    if (lineInfosPos || endOfHeadersPos) { //ITS HTTP REQUEST IN BINARY
         std::string tranfertType = getHeader("Transfer-Encoding");
         bool isChuncked = tranfertType == "chunked";
         while (pos < rawRequest.size()) {
@@ -299,7 +299,6 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
     }
 
     if (_direction == HTTP_RESPONSE) {
-        std::cout << "Body size after parsing reponse: " << _body.size() << std::endl;
         setDefaultsHeaders();
     }
 }
@@ -361,8 +360,6 @@ t_binary    HttpRequest::makeRawResponse(void) {
     
     std::size_t bodySize = _body.size();
 
-    std::cout << "bodySize in makeReponse " << bodySize << std::endl;
-    
     if (_method == "HEAD") {
         httpHeaders << "Content-Length: " << 0 << "\r\n";
         httpHeaders << "\r\n";
