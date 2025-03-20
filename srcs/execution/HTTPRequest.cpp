@@ -4,11 +4,10 @@ HttpRequest::HttpRequest() {
     this->initReasons();
 }
 
-HttpRequest::HttpRequest(RequestDirection direction, std::string &rawRequest) {
+HttpRequest::HttpRequest(RequestDirection direction, t_binary &rawRequest) {
     _direction = direction;
     this->initReasons();
     this->parseRequest(rawRequest);
-    // rules = NULL;
 } 
 
 HttpRequest::~HttpRequest(void) {};
@@ -51,7 +50,7 @@ std::multimap<std::string, std::string>  HttpRequest::getHeaders(void) const {
     return (this->_headers);
 }
 
-std::string HttpRequest::getBody() const
+t_binary HttpRequest::getBody() const
 { 
     return this->_body;
 }
@@ -66,6 +65,10 @@ Rules*  HttpRequest::getRules() const {
 
 std::string HttpRequest::getCgiExt(void) const {
     return _cgiExt;
+}
+
+int HttpRequest::getClientFD(void) const {
+    return _clientFd;
 }
 
 //SETTERS
@@ -86,7 +89,7 @@ void    HttpRequest::setHeaders(std::multimap<std::string, std::string> &headers
     this->_headers = headers;
 }
 
-void    HttpRequest::setBody(const std::string &body) {
+void    HttpRequest::setBody(const t_binary &body) {
     this->_body = body;
 }
 
@@ -100,6 +103,10 @@ void    HttpRequest::setRules(Rules* rules) {
 
 void    HttpRequest::setCgiExt(std::string ext) {
     _cgiExt = ext;
+}
+
+void    HttpRequest::setClientFD(int fd) {
+    _clientFd = fd;
 }
 
 //METHODS
@@ -139,6 +146,7 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
     std::size_t acceptedHexChar = 0;
     std::size_t strSize = str.size();
 
+    if (str[strSize - 1] != '\r') return false;
     if (strSize == 0 || strSize > 7) //6-digit hexadecimal number + 1 for '\r' (FFFFFF) is enough
         return (false);
     for (std::size_t i = 0; i < strSize; ++i) {
@@ -155,98 +163,176 @@ bool    isBodyChunkSizeLine(std::string str) { //detect if the str is the length
     return (acceptedHexChar == strSize);
 }
 
-void    HttpRequest::parseRequest(const std::string &rawRequest)
-{
-    std::istringstream stream(rawRequest);
-    std::string line;
+const unsigned char* find_sequence(const t_binary& buffer, const char* sequence) {
+    size_t buffer_size = buffer.size();
+    size_t sequence_len = std::strlen(sequence);
 
-    while (std::getline(stream, line) && line.empty())
-        ;
-        
-    std::cout << "FIRST LINE : " << line << std::endl;
+    if (sequence_len == 0 || sequence_len > buffer_size) {
+        return NULL;
+    }
 
-    if (_direction == HTTP_REQUEST) {
-        if (!line.empty() && (line.find("HTTP") != std::string::npos)) {
-            std::istringstream requestLine(line);
-            requestLine >> _method >> _path >> _version;
-        }
-    
-        if (_method.empty() && _path.empty() && _version.empty()) {
-            std::cout << "Malformed header" << std::endl;
-            throw MalformedHttpHeader();
+    for (size_t i = 0; i <= buffer_size - sequence_len; ++i) {
+        if (std::memcmp(&buffer[i], sequence, sequence_len) == 0) {
+            return &buffer[i];  // Return pointer to match in vector
         }
     }
 
-    if (rawRequest.find("\r\n\r\n") != std::string::npos) { //header found in the rawRequest.
-        std::cout << "Header found in the request" << std::endl;
-        if (!line.empty()) {
-            while (line != "\r" && !stream.eof()) {
-                size_t pos = line.find(":");
-                if (pos != std::string::npos) {
-                    std::string key = line.substr(0, pos);
-                    size_t jumpSize = (line[pos + 1] == ' ' ? 2 : 1);
-                    std::string value = line.substr(pos + jumpSize); //skip ":" or ": "
-                    std::cout << "jumpSize: " << jumpSize << " key:" << key << " value:" << value << std::endl;
-                    if (key == "Cookie")
-                        parseRequestCookies(value);
-                    if (!value.empty() && value[value.size() - 1] == '\r') {
-                        value.erase(value.size() - 1);
-                    }
-                    _headers.insert(make_pair(key, value));
-                }
-                std::getline(stream, line);
+    return NULL;
+}
+
+bool is_hex_line(const t_binary& buffer, size_t start, size_t end) {
+    if (start >= end) return false; // Empty line check
+
+    for (size_t i = start; i < end; ++i) {
+        if (!std::isxdigit(buffer[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+size_t find_next_line(const t_binary& buffer, size_t start) {
+    while (start < buffer.size() - 1) {
+        if (buffer[start] == '\r' && buffer[start + 1] == '\n') {
+            return start + 2; // Return position after \r\n
+        }
+        ++start;
+    }
+    return buffer.size(); // End of buffer
+}
+
+
+void HttpRequest::parseRequest(const t_binary &rawRequest) {
+    std::size_t pos = 0;
+
+    //LINE INFOS PARSING
+
+    const unsigned char* lineInfosPos = find_sequence(rawRequest, "HTTP");
+    if (lineInfosPos) { //HTTP INFOS
+
+        for (;pos < rawRequest.size(); ++pos) {
+            if (rawRequest[pos] == ' ') {
+                pos++;
+                break;
             }
+            _method += rawRequest[pos];
+        }
+
+        for (; pos < rawRequest.size(); ++pos) {
+            if (rawRequest[pos] == ' ') {
+                pos++;
+                break;
+            }
+            _path += rawRequest[pos];
+        }
+
+        for (; pos < rawRequest.size(); ++pos) {
+            if (rawRequest[pos] == '\n') {
+                pos++;
+                break;
+            }
+            if (rawRequest[pos] != '\r')
+                _version += rawRequest[pos];
         }
     }
-    if (line == "\r")
-        std::getline(stream, line);
+    //END OF PARSING LINE INFOS
 
-    std::string tranfertType = getHeader("Transfer-Encoding");
-    while (!stream.eof()) {
-        if (!tranfertType.empty() && tranfertType == "chunked" && isBodyChunkSizeLine(line)) {
-            std::getline(stream, line);
-            continue;
+
+    //PARSING HEADERS
+    std::string endHeaderKey = "\r\n\r\n";
+    
+    const unsigned char* endOfHeadersPos = find_sequence(rawRequest, endHeaderKey.c_str());
+    size_t endHeadersIndex = endOfHeadersPos - &rawRequest[0]; // Convert pointer to index
+    if (endOfHeadersPos) { // If headers are present
+
+        while (pos < endHeadersIndex) {
+            std::string key;
+            std::string value;
+
+            // Read key
+            while (pos < endHeadersIndex && rawRequest[pos] != ':') {
+                key += rawRequest[pos++];
+            }
+
+            // Skip ':' and spaces
+            if (pos < endHeadersIndex && rawRequest[pos] == ':') pos++;
+            while (pos < endHeadersIndex && rawRequest[pos] == ' ') pos++;
+            
+            while (pos < endHeadersIndex && rawRequest[pos] != '\r') {
+                value += rawRequest[pos++];
+            }
+
+            // Skip '\r\n'
+            if (pos < endHeadersIndex && rawRequest[pos] == '\r') pos++;
+            if (pos < endHeadersIndex && rawRequest[pos] == '\n') pos++;
+
+            _headers.insert(make_pair(key, value));
         }
-
-        if (!line.empty() && line[line.size() - 1] == '\r') {
-            line.erase(line.size() - 1, 1);
-        }
-
-        if (!tranfertType.empty())
-            _body += line; // Keep newlines consistent
-        else
-            _body += line + "\n";
-        std::getline(stream, line);
     }
+    //END OF PARSING HEADERS
 
-    if (!line.empty())
-        _body += line;
+
+    //PARSING BODY
+    
+    if (lineInfosPos || endOfHeadersPos) { //ITS HTTP REQUEST IN BINARY
+        std::string tranfertType = getHeader("Transfer-Encoding");
+        bool isChuncked = tranfertType == "chunked";
+        while (pos < rawRequest.size()) {
+            // Find the end of the current line
+            size_t lineEnd = find_next_line(rawRequest, pos);
+            
+            // Check if it's a chunk size line (hexadecimal)
+            if (isChuncked && is_hex_line(rawRequest, pos, lineEnd - 2)) {
+                pos = lineEnd; // Skip the chunk size line
+                continue;
+            }
+    
+            // Copy body data until \r\n
+            while (pos < rawRequest.size() && !(rawRequest[pos] == '\r' && rawRequest[pos + 1] == '\n')) {
+                _body.push_back(rawRequest[pos]);
+                pos++;
+            }
+    
+            pos += 2; // Skip \r\n after the chunk
+        }
+    } else { //NOT A REQUEST, JUST A FILE OR OTHER
+        _body = rawRequest;
+    }
 
     if (_direction == HTTP_RESPONSE) {
         setDefaultsHeaders();
-	//	setCookies(receivedCookies);
     }
 }
 
-void    HttpRequest::makeError(int httpCode) {
-    std::vector<char> buffer(4096);
+void    HttpRequest::makeError(int httpCode, HttpRequest request){
+    t_binary buffer(4096);
 
     std::stringstream stream;
     stream << "default/errors/" << httpCode << ".html";
 
-    std::string errorPagePath = stream.str();
-	int fd = open(errorPagePath.c_str(), O_RDONLY);
-	if (fd < 0) {
-        std::cout << strerror(errno) << std::endl;   
-		throw OpenFileException();
+    std::string errorPagePath;
+    std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
+    if (errorPagesConfig.count(httpCode) > 0) {
+        errorPagePath = errorPagesConfig[httpCode];
+    } else {
+        errorPagePath = stream.str();
     }
 
-	ssize_t bytesRead = read(fd, buffer.data(), buffer.size());
-	close(fd);
-	std::string rawResponse(buffer.begin(), buffer.begin() + bytesRead);
-    setDefaultsHeaders();
-    setResponseCode(httpCode);
-    setBody(rawResponse);
+	int fd = open(errorPagePath.c_str(), O_RDONLY);
+	if (fd < 0) {
+        std::string internalErrorString = "HTTP 500 Error: Internal server error";
+        t_binary body(internalErrorString.begin(), internalErrorString.end());
+        setBody(body);
+        setDefaultsHeaders();
+        setResponseCode(500);
+        std::cerr << "Error: invalid error pages path" << std::endl;
+    } else {
+        read(fd, buffer.data(), buffer.size());
+        close(fd);
+        setDefaultsHeaders();
+        setResponseCode(httpCode);
+        setBody(buffer);
+    }
 }
 
 void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {
@@ -256,41 +342,38 @@ void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames
         html += "    <li><a href=\"" + (*it) + "\">" + (*it) + "</a></li>\n";
     }
     html += "  </ul>\n</nav></html>\n";
-    setBody(html);
-    setDefaultsHeaders();
+    t_binary body(html.begin(), html.end());
+    setBody(body);
 }
 
 
 //Called before the request is send. This is the last step before sending to the client.
-std::string HttpRequest::makeRawResponse(void) {
-    std::ostringstream rawResponse;
-///////
-	std::cout	<< "/////// in makeRawResponse: _body" << std::endl
-				<< _body << std::endl
-				<< "/////// end of _body" << std::endl;
+t_binary    HttpRequest::makeRawResponse(void) {
+    std::ostringstream  httpHeaders;
+    t_binary            rawResponse;
 
-    rawResponse << _version << " " << _responseCode << " " << _reasonPhrases[_responseCode] << "\r\n";
+    httpHeaders << _version << " " << _responseCode << " " << _reasonPhrases[_responseCode] << "\r\n";
 
     std::map<std::string, std::string>::const_iterator it;
     for (it = _headers.begin(); it != _headers.end(); ++it) {
-        rawResponse << it->first << ": " << it->second << "\r\n";
+        httpHeaders << it->first << ": " << it->second << "\r\n";
     }
-
-    std::cout << _responseCode << std::endl;
-
-    std::size_t bodySize = _body.size(); //body is finished by "\r\n" but it's not a part of content-lenght
-    std::cout << "SENT BODY SIZE: " << bodySize << std::endl;
+    
+    std::size_t bodySize = _body.size();
 
     if (_method == "HEAD") {
-        rawResponse << "Content-Length: " << 0 << "\r\n";
-        rawResponse << "\r\n"; 
+        httpHeaders << "Content-Length: " << 0 << "\r\n";
+        httpHeaders << "\r\n";
     } else {
-        rawResponse << "Content-Length: " << bodySize << "\r\n";
-        rawResponse << "\r\n"; // End of headers
-        rawResponse << _body;
+        httpHeaders << "Content-Length: " << bodySize << "\r\n";
+        httpHeaders << "\r\n";
     }
+    
+    std::string headersStr = httpHeaders.str();    
+    rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
+    rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.
 
-    return rawResponse.str();
+    return (rawResponse);
 }
 
 void	HttpRequest::parseRequestCookies(std::string line) {

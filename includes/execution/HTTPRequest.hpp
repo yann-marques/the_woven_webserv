@@ -11,6 +11,7 @@
 # include <cstring>
 # include <ctime>
 
+//# include "VServ.hpp"
 # include "Rules.hpp"
 
 //METHODS
@@ -48,14 +49,17 @@ enum RequestDirection {
     HTTP_RESPONSE
 };
 
+typedef std::vector<unsigned char> t_binary;
+
 class HttpRequest {
     private:
+        int                                 _clientFd;
         std::string                         _method;
         std::string                         _version;
         std::string                         _path;
         std::string                         _server;
         int                                 _responseCode;
-        std::string                         _body;
+        t_binary                            _body;
         std::string                         _rootPath;
         std::multimap<std::string, std::string>  _headers; //
         std::map<int, std::string>          _reasonPhrases;
@@ -71,40 +75,39 @@ class HttpRequest {
 
     public:
         HttpRequest(void);
-        HttpRequest(RequestDirection direction, std::string &rawRequest);
+        HttpRequest(RequestDirection direction, t_binary &rawRequest);
         ~HttpRequest(void);
-
+        
         //GETTERS
         std::string getMethod(void) const;
         std::string getVersion(void) const;
         std::string getPath(void) const;
         std::string getHeader(const std::string &key) const;
-        std::string getBody(void) const;
+        t_binary getBody(void) const;
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
         std::multimap<std::string, std::string> getHeaders(void) const;
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
-
+        int         getClientFD(void) const;
+        
         //SETTERS
         void    setMethod(std::string &method);
         void    setResponseCode(int code);
         void    setVersion(const std::string &str);
-        void    setHeaders(std::multimap<std::string, std::string> &headers);
-        void    setBody(const std::string &body);
+        void    setHeaders(std::map<std::string, std::string> &headers);
+        void    setBody(const t_binary &body);
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
         void    setCgiExt(std::string ext);
-        // BONUS
-        void	parseRequestCookies(std::string line);
-        void    setResponseCookies(const std::map< std::string, std::string >& requestCookies);
-        const   std::map< std::string, std::string >&   getCookies() const;
-
+        void    setClientFD(int fd); 
+        
         //METHODS:
-        std::string makeRawResponse(void);
+        t_binary    makeRawResponse(void);
+        void        parseRequest(const t_binary &rawRequest);
         void        setDefaultsHeaders(void);
         void        initReasons(void);
-        void        makeError(int httpCode);
+        void        makeError(int httpCode, HttpRequest request);
         void        generateIndexFile(const std::vector<std::string>& fileNames);
         void        log(void);
 

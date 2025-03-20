@@ -37,7 +37,7 @@ const char*	VServ::ReadFileException::what() const throw() {
 }
 
 const char*	VServ::FileNotExist::what() const throw() {
-	return ("Fail to get infos about the file");
+	return ("Fail to get infos about the file. File not exist.");
 }
 
 const char*	VServ::OpenFileException::what() const throw() {
@@ -69,7 +69,7 @@ const char* VServ::ExecveException::what() const throw() {
 }
 
 const char* VServ::ChildProcessException::what() const throw() {
-	return ("Critical error, the process has failed. Can't execute the cgi");
+	return ("ChildProcessException, the process has failed. Maybe CGI script not found.");
 }
 
 const char* VServ::ServerNameNotFound::what() const throw() {
@@ -85,9 +85,22 @@ const char* VServ::MethodNotAllowed::what() const throw() {
 }
 
 const char* VServ::CreateFileException::what() const throw() {
-	return ("Execve error. Can't execute the binary cgi");
+	return ("Error, can't create file exception");
 }
 
 const char* VServ::NoUploadFileName::what() const throw() {
 	return ("User need to pass a filename to upload content");
+}
+
+const char* VServ::EpollCreateException::what() const throw() {
+	return ("EpollCreate exception");
+}
+
+
+const char* VServ::EpollCTLException::what() const throw() {
+	return ("EpollCTL Exception");
+}
+
+const char* VServ::EpollWaitException::what() const throw() {
+	return ("Epoll wait exeception");
 }

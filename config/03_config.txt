@@ -24,8 +24,8 @@ server {
 server {
   host: 127.0.0.1;
   port: 8080;
-  server_names: localhost, site1.com, www.site2.com;
-  root: www/toto/;
+  server_names: site1.com, site2.com, www.site2.com;
+  root: /var/www/site2/;
   default_pages: main.html;
   error_pages {
     403: forbidden.html;

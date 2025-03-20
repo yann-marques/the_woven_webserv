@@ -18,6 +18,8 @@
 # include <set>
 # include <arpa/inet.h>
 # include <math.h>
+# include <cstdio>
+# include <fstream>
 
 
 # include "Rules.hpp"
@@ -26,25 +28,37 @@
 
 class WebServ;
 
+typedef std::vector<unsigned char> t_binary;
+
 class	VServ {
 	private:
-		const int					_maxClients; // defined in config file ?
-		// config
-		std::string					_host;
-		int							_port;
+		const int											_maxClients; // defined in config file ?
 
-		WebServ*							_mainInstance;
-		std::map< std::string, Rules* >		_rules;
+		std::string											_host;
+		int													_port;
 
-		std::set<std::string>				_envp;
-		std::set<std::string>				_argv;
-		// ...
-		int									_fd;
-		sockaddr_in							_address;
-		bool								_debug;
+		WebServ*											_mainInstance;
+		std::map< std::string, Rules* >						_rules;
 
-		std::map<int, std::string>			_clientBuffers;
-		std::map<std::string, std::string>	_cachedPages; // <path, content>
+		std::set<std::string>								_envp;
+		std::set<std::string>								_argv;
+
+		int													_fd;
+		sockaddr_in											_address;
+		bool												_debug;
+
+		size_t												_cgiBytesWriting;
+		size_t												_totalBytesSent;
+
+		std::map<int, t_binary>								_clientRequestBuffer;
+		std::map<int, t_binary>								_clientResponseBuffer;
+
+		std::map<int, int>									_clientFdsPipeCGI;
+
+		std::map<int, HttpRequest>							_clientRequests;
+		std::map<int, HttpRequest>							_clientResponses;
+
+		std::map<std::string, t_binary>						_cachedPages; // <path, content>
 
 
 	public:
@@ -71,25 +85,29 @@ class	VServ {
 		int	getFd() const;
 
 		// METHODS
-		void				socketInit();
-		int					clientAccept(void);
-		ssize_t 			readSocketFD(int fd, std::string &buffer);
-		std::string 		readFile(int fd);
-		void				processRequest(std::string rawRequest, int &clientFd);
-		void 				sendRequest(HttpRequest &request, int clientFd);
-		std::string			readRequest(HttpRequest &request);
-		std::string			readDefaultPages(HttpRequest &request);
-		void				showDirectory(HttpRequest &request, HttpRequest &response);
-		void				handleBigRequest(HttpRequest &request);
-		std::string 		makeRootPath(HttpRequest &request);
-		bool				fileIsCGI(HttpRequest &request);
-		std::string			handleCGI(std::string &fileData, HttpRequest &request);
-		std::vector<char*>	makeEnvp(HttpRequest &request);
-		void				setTargetRules(HttpRequest &req);
-		void 				checkAllowedMethod(HttpRequest& request);
-		bool				isEndedChunckReq(std::string rawRequest);
-		bool				isHttpRequestComplete(const std::string &rawRequest);
-		void				uploadFile(HttpRequest request, std::string content);
+		void						socketInit();
+		int							clientAccept(void);
+		void						eraseClient(int fd);
+		bool 						readSocketFD(int fd);
+		std::vector<unsigned char>	readFile(std::string rootPath);
+		void						readRequest(HttpRequest &request);
+		void						sendRequest(HttpRequest &request, int clientFd);
+		void						processRequest(int &clientFd);
+		void						processResponse(int &clientFd);
+		void						readDefaultPages(HttpRequest &request);
+		void						showDirectory(HttpRequest &request);
+		void						handleBigRequest(HttpRequest &request);
+		std::string 				makeRootPath(HttpRequest &request);
+		bool						isCGI(HttpRequest &request);
+		void						talkToCgi(epoll_event event);
+		void						executeCGI(HttpRequest &request);
+		std::vector<char*>			makeEnvp(HttpRequest &request);
+		void						setTargetRules(HttpRequest &req);
+		void 						checkAllowedMethod(HttpRequest& request);
+		bool						isEndedChunckReq(std::string rawRequest);
+		bool						isHttpRequestComplete(t_binary &clientBuffer);
+		void						uploadFile(HttpRequest request, t_binary content);
+		bool						makeHttpRedirect(HttpRequest &request, HttpRequest &reponse);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {
@@ -181,6 +199,18 @@ class	VServ {
 				const char* what() const throw();
 		};
 		class	NoUploadFileName: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	EpollWaitException: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	EpollCTLException: public std::exception {
+			public:
+				const char* what() const throw();
+		};
+		class	EpollCreateException: public std::exception {
 			public:
 				const char* what() const throw();
 		};

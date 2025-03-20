@@ -5,16 +5,13 @@ server {
   default_pages: index.html, home.html;
   max_body_bytes: 1G;
 
-  error_pages {
-    404: not_found.html;
-    500: internal_error.html;
-  }
-
   auto_index: false;
   allowed_methods: GET;
   
   cgi_path {
     .bla: tester/ubuntu_cgi_tester;
+    .php: /usr/bin/php-cgi;
+    .py: /usr/bin/python3;
   }
 
   location: /post_body {

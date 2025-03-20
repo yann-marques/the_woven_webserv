@@ -23,7 +23,8 @@ class VServ;
 
 enum fdType {
     SERVER_SOCK,
-    CLIENT_SOCK
+    CLIENT_SOCK,
+	CGI_FD
 };
 
 class	WebServ {
@@ -52,6 +53,7 @@ class	WebServ {
 		//SETTERS
 		void	setVServ(int fd, VServ* rhs);
 		void	setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config);
+		void	setFdType(int fd, fdType type);
 
 		//GETTERS
 		VServ*	getVServ(int fd);
@@ -63,10 +65,12 @@ class	WebServ {
 		void	listenEvents(void);
 		int		epollWait(void);
 		void	epollCtlAdd(int fd, uint32_t events);
+		void	epollCtlMod(int fd, uint32_t events);
 		void	epollCtlDel(int fd);
 		void	deleteFd(int fd);
 		bool	isServerFD(int fd);
 		bool	isClientFD(int fd);
+		bool	isCGIFd(int fd);
 
 		// EXCEPTIONS
 		class	SignalException: public StrException {

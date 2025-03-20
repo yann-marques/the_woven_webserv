@@ -17,10 +17,10 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 			VServ*	vserv = new VServ(this, host, port, sNamesMap, _maxClients, _argv, _envp);
 			
 			int	sfd = vserv->getFd();
-			_fds[sfd] = SERVER_SOCK;  
+			setFdType(sfd, SERVER_SOCK);
 			setVServ(sfd, vserv);
 
-			epollCtlAdd(sfd, EPOLLIN);
+			epollCtlAdd(sfd, EPOLLIN | EPOLLOUT);
 			portIt++;
 		}
 		hostIt++;
@@ -73,6 +73,10 @@ void	WebServ::setVServ(int fd, VServ* rhs) {
 	_VServers[fd] = rhs;
 }
 
+void	WebServ::setFdType(int fd, fdType type) {
+	_fds[fd] = type;
+}
+
 // GETTERS
 
 int	WebServ::getEpollFd() const {
@@ -99,8 +103,21 @@ void	WebServ::epollCtlAdd(int fd, uint32_t events) {
 	event.events = events;
 	event.data.fd = fd;
 	
-	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1)
+	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
+		std::cout << "ERROR: " << strerror(errno) << std::endl;
 		throw (EpollCtlAddException());
+	}
+}
+
+void	WebServ::epollCtlMod(int fd, uint32_t events) {
+	epoll_event event;
+	event.events = events;
+	event.data.fd = fd;
+	
+	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event) == -1) {
+		std::cout << "ERROR: " << strerror(errno) << std::endl;
+		throw (EpollCtlAddException());
+	}
 }
 
 void	WebServ::epollCtlDel(int fd) {
@@ -118,6 +135,11 @@ bool WebServ::isClientFD(int fd) {
     return (it != _fds.end() && it->second == CLIENT_SOCK);
 }
 
+bool WebServ::isCGIFd(int fd) {
+    std::map<int, fdType>::iterator it = _fds.find(fd);
+    return (it != _fds.end() && it->second == CGI_FD);
+}
+
 void	WebServ::deleteFd(int fd) {
 	epollCtlDel(fd);
 	close(fd);
@@ -125,67 +147,49 @@ void	WebServ::deleteFd(int fd) {
 
 void	WebServ::handleServerEvent(VServ* vserv) {
 	int clientFd = vserv->clientAccept();
-	_fds[clientFd] = CLIENT_SOCK;  
+	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-	epollCtlAdd(clientFd, EPOLLIN | EPOLLET);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 
 }
-
-void	WebServ::handleClientEvent(int clientFd, VServ* vserv) {
-
-	//if (_debug)
-	//	std::cout << "Client request receieved. FD socket client: " << clientFd << std::endl;
-	
-	std::string	rawRequest;
-	vserv->readSocketFD(clientFd, rawRequest);
-
-	if (!rawRequest.empty()) {
-		std::cout << "Request finish" << std::endl;
-		if (_debug)
-			std::cout << "REQUEST ------" << std::endl << rawRequest << std::endl;
-		vserv->processRequest(rawRequest, clientFd);
-	}
-}
-
 
 void	WebServ::listenEvents(void) {
 	while (true) {
 		try {
 			int nbEvents = epollWait();
 			for (int i = 0; i < nbEvents; i++) {
-				int fd = _epollEventsBuff[i].data.fd;
+				epoll_event event = _epollEventsBuff[i];
+				int fd = event.data.fd;
 
+				
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
-					throw UnknownFdException();
-
+				throw UnknownFdException();
+				
 				if (isServerFD(fd))
 					handleServerEvent(vserv);
-				if (isClientFD(fd))
-					handleClientEvent(fd, vserv);
+				else if (isClientFD(fd) && (event.events & EPOLLIN))
+					vserv->processRequest(fd);
+				else if (isClientFD(fd) && (event.events & EPOLLOUT))
+					vserv->processResponse(fd);
+				else if (isCGIFd(fd))
+					vserv->talkToCgi(event);
 				
 			}
 		} catch (UnknownFdException& e) {
-			//deleteFd(fd, _serverFds);
 			std::cerr << "Fatal error: Unknown FD problem.";
 			break;
 		} catch (VServ::AcceptException& e) {
 			std::cout << "AcceptException" << std::endl;
-			//break; ? On stop le VServ ?
-			//deleteFd(fd, _serverFds);
 		} catch (VServ::RecvException& e) {
 			std::cout << "RecvException" << std::endl;
-			//break; ? On stop le VServ ?
-			//deleteFd(fd, _serverFds);
 		} catch (VServ::SendPartiallyException& e) {
 			std::cout << "SendPartiallyException" << std::endl;
-			// Je sais pas trop... c'est dur
 		} catch (VServ::SendException& e) {
 			std::cout << "SendException" << std::endl;
-			// Je sais toujours pas a ce stade... demande trop de mana.
 		}
 	}
 }
