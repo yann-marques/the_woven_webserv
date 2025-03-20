@@ -95,7 +95,7 @@ class HttpRequest {
         void    setMethod(std::string &method);
         void    setResponseCode(int code);
         void    setVersion(const std::string &str);
-        void    setHeaders(std::map<std::string, std::string> &headers);
+        void    setHeaders(std::multimap<std::string, std::string> &headers);
         void    setBody(const t_binary &body);
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
@@ -111,7 +111,15 @@ class HttpRequest {
         void        generateIndexFile(const std::vector<std::string>& fileNames);
         void        log(void);
 
-        //EXCETPIONS
+        // BONUS
+# ifdef BONUS
+		t_mmap_range< std::string, std::string >::t	getCookiesRange() const;
+		std::set< std::string >	parseRequestCookieRange(t_mmap_range< std::string, std::string >::t range);
+		std::set< std::string >	getCookieSet();
+		void	setResponseCookies(const std::set< std::string >& requestCookies);
+# endif
+        
+		//EXCEPTIONS
         class	OpenFileException: public std::exception {
 			public:
 				const char*	what() const throw();

@@ -704,7 +704,12 @@ void VServ::processResponse(int &clientFd) {
 			std::cout << "No body to make reponse at all. Abort. " << clientFd << std::endl;
 			return ;
 		}
-		
+
+# ifdef BONUS
+		std::cout << "BONUS SET" << std::endl;
+		std::set< std::string >	requestCookies = request.getCookieSet();
+		response.setResponseCookies(requestCookies);
+# endif
 		_clientResponses[clientFd] = response;
 		
 	} catch(std::exception &e) {

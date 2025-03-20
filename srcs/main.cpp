@@ -8,6 +8,10 @@ static void	handleSignal(int signal) {
 
 int main(int argc, char **argv, char **envp) 
 {
+	#ifdef BONUS
+		std::cout << "BONUS is defined" << std::endl;
+	#endif
+
     if (argc >= 2) {
         try {
             signal(SIGINT, SIG_IGN);

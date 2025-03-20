@@ -253,7 +253,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
             while (pos < endHeadersIndex && rawRequest[pos] != ':') {
                 key += rawRequest[pos++];
             }
-
+            
             // Skip ':' and spaces
             if (pos < endHeadersIndex && rawRequest[pos] == ':') pos++;
             while (pos < endHeadersIndex && rawRequest[pos] == ' ') pos++;
@@ -261,6 +261,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
             while (pos < endHeadersIndex && rawRequest[pos] != '\r') {
                 value += rawRequest[pos++];
             }
+            std::cout << "parseRequest: " << key << "=" << value << std::endl; //////////////
 
             // Skip '\r\n'
             if (pos < endHeadersIndex && rawRequest[pos] == '\r') pos++;
@@ -376,44 +377,9 @@ t_binary    HttpRequest::makeRawResponse(void) {
     return (rawResponse);
 }
 
-void	HttpRequest::parseRequestCookies(std::string line) {
-	while (!line. empty()) {
-		size_t	pos1 = line.find('='), pos2 = line.find(';');
-		std::string cookieKey = line.substr(0, pos1),
-		cookieValue = line.substr(pos1 + 1, pos2 - pos1 - 1);
-		_cookies.insert(make_pair(cookieKey, cookieValue));
-    //   std::cout << "RECEIVED COOKIE: " << cookieKey << "=" << cookieValue << std::endl;
-		if (pos2 != std::string::npos)
-			pos2++;
-		line.erase(0, pos2);
-	}
-}
-
-static std::string	getTimeStamp() {
-	std::time_t	time = std::time(NULL);
-	return (std::string(std::asctime(std::localtime(&time))));
-}
-
-void    HttpRequest::setResponseCookies(const std::map< std::string, std::string >& requestCookies) {
-	std::string	cookieValue = getTimeStamp();
-
-    _headers.erase("Set-Cookie");
-	if (!requestCookies.count("sessionStart")) {
-		_headers.insert(make_pair("Set-Cookie", "sessionsStart=" + cookieValue + "; Max-Age=300; HttpOnly"));
-	}
-	_headers.insert(make_pair("Set-Cookie", "actualTime=" + cookieValue + "; Max-Age=300; HttpOnly"));
-	_headers.insert(std::make_pair("Set-Cookie", "testCookie1=TESTCOOKIEMAGUEULE1; Max-Age=10; HttpOnly"));
-	_headers.insert(std::make_pair("Set-Cookie", "testCookie2=TESTCOOKIEMAGUEULE2; Max-Age=10; HttpOnly"));
-	_headers.insert(std::make_pair("Set-Cookie", "testCookie3=TESTCOOKIEMAGUEULE3; Max-Age=10; HttpOnly"));
-}
-
 void HttpRequest::setDefaultsHeaders(void) {
     this->setVersion("HTTP/1.1");
     this->setResponseCode(200);
     this->_headers.insert(std::pair<std::string, std::string>("Server", "TheWovenWebserver/0.0.1"));
     this->_headers.insert(std::pair<std::string, std::string>("Connection", "keep-alive"));
-}
-
-const  std::map< std::string, std::string >&	HttpRequest::getCookies() const {
-	return (_cookies);
 }
