@@ -272,10 +272,11 @@ void	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	size_t dataSize = rawResponse.size();
 	
 	while (_totalBytesSent < dataSize) {
-		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent, 4096, 0);
+		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent, dataSize, 0);
 		if (bytesSent < 0)
 			break ;
 		_totalBytesSent += bytesSent;
+		std::cout << _totalBytesSent << std::endl;
 	}
 	if (bytesSent == 0) {
 		std::cout << "All bytes has been sent." << std::endl;
