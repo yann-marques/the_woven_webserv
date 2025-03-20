@@ -63,6 +63,15 @@ void	printMap(const std::set< T >& keys, const std::map< T, U >& map, const std:
 }
 
 template< typename Key, typename Value >
+void	printMap(const std::map< Key, Value >& map) {
+	typename t_map_it< Key, Value >::t	it = map.begin(), ite = map.end();
+	while (it != ite) {
+		std::cout << it->first << " " << it->second << std::endl;
+		it++;
+	}
+}
+
+template< typename Key, typename Value >
 void	printMultimap(const std::set< Key >& keys, const std::multimap< Key, Value >& mmap) {
 	typename t_set_it< Key >::t	keyIt = keys.begin(), keyIte = keys.end();
 	while (keyIt != keyIte) {

@@ -574,6 +574,7 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 	
 	try {
 
+		// operator= undefined ?
 		request = HttpRequest(HTTP_REQUEST, rawRequest);
 
 		std::string reqMethod = request.getMethod();
@@ -597,7 +598,8 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 			if (S_ISREG(path_stat.st_mode)) {
 
 				std::string rawResponse = readRequest(request);
-				response = HttpRequest(HTTP_RESPONSE, rawResponse);	
+				response = HttpRequest(HTTP_RESPONSE, rawResponse);
+				response.setResponseCookies(request.getCookies()); ////////
 
 			} else if (S_ISDIR(path_stat.st_mode)) {
 
@@ -605,7 +607,8 @@ void	VServ::processRequest(std::string rawRequest, int &clientFd) {
 					showDirectory(request, response);
 				} else {
 					std::string rawResponse = readDefaultPages(request);
-					response = HttpRequest(HTTP_RESPONSE, rawResponse);	
+					response = HttpRequest(HTTP_RESPONSE, rawResponse);
+					response.setResponseCookies(request.getCookies()); ////////
 				}
 
 			} else {

@@ -57,14 +57,14 @@ class HttpRequest {
         int                                 _responseCode;
         std::string                         _body;
         std::string                         _rootPath;
-        std::multimap<std::string, std::string>  _headers;
+        std::multimap<std::string, std::string>  _headers; //
         std::map<int, std::string>          _reasonPhrases;
         Rules*                              _rules;
         std::string                         _cgiExt;
         RequestDirection                    _direction;
 
         //BONUS
-        std::map< std::string, std::string >    _cookiesToSet;
+        std::map< std::string, std::string >    _cookies;
 
         //METHODS
         void        parseRequest(const std::string &rawRequest);
@@ -96,8 +96,9 @@ class HttpRequest {
         void    setRules(Rules* rules);
         void    setCgiExt(std::string ext);
         // BONUS
-        std::map< std::string, std::string >	parseCookies(std::string line);
-        void    setCookies(std::map< std::string, std::string > cookies);
+        void	parseRequestCookies(std::string line);
+        void    setResponseCookies(const std::map< std::string, std::string >& requestCookies);
+        const   std::map< std::string, std::string >&   getCookies() const;
 
         //METHODS:
         std::string makeRawResponse(void);
