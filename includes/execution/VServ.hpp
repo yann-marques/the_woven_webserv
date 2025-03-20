@@ -91,7 +91,7 @@ class	VServ {
 		bool 						readSocketFD(int fd);
 		std::vector<unsigned char>	readFile(std::string rootPath);
 		void						readRequest(HttpRequest &request);
-		void						sendRequest(HttpRequest &request, int clientFd);
+		bool						sendRequest(HttpRequest &request, int clientFd);
 		void						processRequest(int &clientFd);
 		void						processResponse(int &clientFd);
 		void						readDefaultPages(HttpRequest &request);
@@ -107,7 +107,7 @@ class	VServ {
 		bool						isEndedChunckReq(std::string rawRequest);
 		bool						isHttpRequestComplete(t_binary &clientBuffer);
 		void						uploadFile(HttpRequest request, t_binary content);
-		bool						makeHttpRedirect(HttpRequest &request, HttpRequest &reponse);
+		bool						makeHttpRedirect(HttpRequest &request);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {

@@ -84,6 +84,7 @@ class HttpRequest {
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
         int         getClientFD(void) const;
+        int         getResponseCode(void) const;
         
         //SETTERS
         void    setMethod(std::string &method);

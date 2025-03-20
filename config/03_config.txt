@@ -9,7 +9,7 @@ server {
   }
   auto_index: true;
   allowed_methods: GET, POST, DELETE;
-  max_body_bytes: 4096;
+  max_body_bytes: 1M;
   cgi_path {
     .php: /usr/bin/php-cgi;
   }
@@ -31,7 +31,7 @@ server {
   }
   auto_index: false;
   allowed_methods: GET;
-  max_body_bytes: 2048;
+  max_body_bytes: 1M;
   cgi_path {
     .py: /usr/bin/python3;
   }
@@ -57,7 +57,7 @@ server {
   }
   auto_index: no;
   allowed_methods: GET, POST;
-  max_body_bytes: 1024;
+  max_body_bytes: 1M;
   cgi_path {
     .pl: /usr/bin/perl;
   }

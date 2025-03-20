@@ -1,10 +1,12 @@
 #include "HTTPRequest.hpp"
 
 HttpRequest::HttpRequest() {
+    _responseCode = 0;
     this->initReasons();
 }
 
 HttpRequest::HttpRequest(RequestDirection direction, t_binary &rawRequest) {
+    _responseCode = 0;
     _direction = direction;
     this->initReasons();
     this->parseRequest(rawRequest);
@@ -70,6 +72,9 @@ int HttpRequest::getClientFD(void) const {
     return _clientFd;
 }
 
+int HttpRequest::getResponseCode(void) const {
+    return _responseCode;
+}
 //SETTERS
 
 void    HttpRequest::setMethod(std::string &method) {
@@ -107,6 +112,7 @@ void    HttpRequest::setCgiExt(std::string ext) {
 void    HttpRequest::setClientFD(int fd) {
     _clientFd = fd;
 }
+
 
 //METHODS
 
