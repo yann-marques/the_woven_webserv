@@ -1,0 +1,19 @@
+server {
+	port:8080;
+	location: /tata {
+		root: papa;
+	}
+}
+
+server {
+	port: 8081;
+}
+
+server {
+	port: 8080;
+	server_names: pipo;
+	location: /toto {
+		root: www/toto;
+		default_pages: coucou.html;
+	}
+}

@@ -7,9 +7,6 @@ class	Rules;
 
 class	Config: public AParser {
 	private:
-		std::set< std::string >	_hosts;
-		std::multimap< std::string, int >	_ports;
-		std::map< std::string, std::multimap< int, std::string > >	_serverNames;
 		std::map< std::string, std::map< int, std::map< std::string, Rules* > > >	_parsedConfig;
 
 	public:
@@ -20,17 +17,11 @@ class	Config: public AParser {
 
 		std::string	extractFileContent(const char* fileName);
 
-		// GETTERS
-		const std::set< std::string >&	getHosts() const;
-		const std::multimap< std::string, int >&	getPorts() const;
-		const std::map< std::string, std::multimap< int, std::string > >&	getServerNames() const;
+		// GETTER
 		const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&	getParsedConfig() const;
 		
 		// SETTERS
 		void	setArgsToFind();
-		std::string	setHost(t_mmap_range< std::string, std::string >::t range);
-		void	setPort(std::string host, int port);
-		void	setServerNamesByHost(const t_mmap_range< std::string, std::multimap< std::string, std::string > >::t& range);
 		void	setArgsByHost(t_mmap_range< std::string, std::multimap< std::string, std::string > >::t range);
 		void	setRules(const std::multimap< std::string, std::multimap< std::string, std::string > >& hostArgs);
 
@@ -39,6 +30,7 @@ class	Config: public AParser {
 		void	checkServerNames(t_mmap_range< std::string, std::string >::t mmRange) const;
 		void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const;
 		
+		void	destruct();
 		~Config();
 
 		// EXCEPTIONS

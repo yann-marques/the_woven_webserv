@@ -33,8 +33,9 @@ std::string HttpRequest::getVersion() const
 
 std::string HttpRequest::getHeader(const std::string& key) const
 {
-    std::map<std::string, std::string>::const_iterator it = this->_headers.find(key);
+    std::multimap<std::string, std::string>::const_iterator it = this->_headers.find(key);
     return (it != this->_headers.end()) ? it->second : "";
+	// doesn't work with cookies
 }
 
 std::string HttpRequest::getRawHeaders(void) const {
@@ -47,7 +48,7 @@ std::string HttpRequest::getRawHeaders(void) const {
     return (fullHeaders);
 }
 
-std::map<std::string, std::string>  HttpRequest::getHeaders(void) const {
+std::multimap<std::string, std::string>  HttpRequest::getHeaders(void) const {
     return (this->_headers);
 }
 
@@ -89,7 +90,7 @@ void    HttpRequest::setVersion(const std::string &version) {
     this->_version = version;
 }
 
-void    HttpRequest::setHeaders(std::map<std::string, std::string> &headers) {
+void    HttpRequest::setHeaders(std::multimap<std::string, std::string> &headers) {
     this->_headers = headers;
 }
 
@@ -258,7 +259,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
             while (pos < endHeadersIndex && rawRequest[pos] != ':') {
                 key += rawRequest[pos++];
             }
-
+            
             // Skip ':' and spaces
             if (pos < endHeadersIndex && rawRequest[pos] == ':') pos++;
             while (pos < endHeadersIndex && rawRequest[pos] == ' ') pos++;
@@ -266,12 +267,13 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
             while (pos < endHeadersIndex && rawRequest[pos] != '\r') {
                 value += rawRequest[pos++];
             }
+            std::cout << "parseRequest: " << key << "=" << value << std::endl; //////////////
 
             // Skip '\r\n'
             if (pos < endHeadersIndex && rawRequest[pos] == '\r') pos++;
             if (pos < endHeadersIndex && rawRequest[pos] == '\n') pos++;
 
-            _headers[key] = value;
+            _headers.insert(make_pair(key, value));
         }
     }
     //END OF PARSING HEADERS
@@ -374,10 +376,16 @@ t_binary    HttpRequest::makeRawResponse(void) {
         httpHeaders << "\r\n";
     }
     
-    std::string headersStr = httpHeaders.str();    
+    std::string headersStr = httpHeaders.str();  
+//   std::cout   << "/////// headersStr ///////" << std::endl
+//                << headersStr << std::endl
+//                << "//////////////////////////" << std::endl;
     rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
     rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.
-
+/////////////////////////
+//    std::cout   << "/////// rawResponse ///////" << std::endl
+//                << rawResponse << std::endl
+//                << "///////////////////////////" << std::endl;
     return (rawResponse);
 }
 

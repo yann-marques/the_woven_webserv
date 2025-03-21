@@ -334,7 +334,10 @@ void	VServ::showDirectory(HttpRequest &request) {
 		throw OpenFolderException();
 	
 	while ((entry = readdir(dir)) != NULL) {
-		filesName.push_back(entry->d_name);
+		std::string	fileName = entry->d_name;
+		if (entry->d_type == DT_DIR && fileName != "." && fileName != "..")
+			fileName += '/';
+		filesName.push_back(fileName);
 	}
 	closedir(dir);
 	request.generateIndexFile(filesName);
@@ -382,7 +385,7 @@ std::vector<char*>	VServ::makeEnvp(HttpRequest &request) {
     env.push_back( strdup(("SCRIPT_FILENAME=" + rootPath).c_str()) );
 
 	//ADD REQUEST HEADERS
-	std::map<std::string, std::string> headers = request.getHeaders();
+	std::multimap<std::string, std::string> headers = request.getHeaders();
 	for (std::map<std::string, std::string>::iterator header = headers.begin(); header != headers.end(); header++) {
         std::string envVar = "HTTP_" + header->first;
         for (std::string::iterator it = envVar.begin(); it != envVar.end(); it++) *it = toupper(*it);
@@ -683,7 +686,13 @@ void VServ::processResponse(int &clientFd) {
 			}
 			_clientResponses[clientFd] = response;
 		}
-		
+
+# ifdef BONUS
+		std::cout << "BONUS SET" << std::endl;
+		std::set< std::string >	requestCookies = request.getCookieSet();
+		response.setResponseCookies(requestCookies);
+# endif
+		_clientResponses[clientFd] = response;
 		
 	} catch(std::exception &e) {
 		std::cout << "Error: " << e.what() << std::endl; 

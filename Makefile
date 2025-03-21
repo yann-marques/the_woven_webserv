@@ -1,7 +1,9 @@
 NAME=webserv
+NAME_BONUS=webserv_bonus
 
 CXX=c++
 FLAGS=-Wall -Werror -Wextra -g -std=c++98
+BONUS_FLAGS=-DBONUS $(FLAGS)
 
 DIR_SRCS=./srcs
 DIR_OBJS=./objects
@@ -17,14 +19,15 @@ MAIN_SRC= $(DIR_SRCS)/$(MAIN_LST)
 MAIN_OBJ= $(DIR_OBJS)/$(MAIN_LST:.cpp=.o)
 
 EXE_LST = HTTPReqExceptions.cpp HTTPRequest.cpp VServ.cpp \
-	VServExceptions.cpp WebServ.cpp WebServExceptions.cpp
+	VServExceptions.cpp WebServ.cpp WebServExceptions.cpp \
+	HTTPRequest_Cookies.cpp
 SRC_EXE= $(addprefix $(DIR_SRCS)/$(DIR_EXE)/, $(EXE_LST))
 OBJ_EXE= $(addprefix $(DIR_OBJS)/$(DIR_EXE)/, $(EXE_LST:.cpp=.o))
 
-PRS_LST= AParser_checkers.cpp check_utils.cpp Config_getters.cpp Rules_exceptions.cpp \
+PRS_LST= AParser_checkers.cpp check_utils.cpp Rules_exceptions.cpp \
 	AParser.cpp Config_checkers.cpp Config_setters.cpp Rules_getters.cpp \
 	AParser_exceptions.cpp Config.cpp Rules_checkers.cpp Rules_setters.cpp \
-	AParser_setters.cpp Config_exceptions.cpp Rules.cpp StrException.cpp 
+	AParser_setters.cpp Config_exceptions.cpp Rules.cpp StrException.cpp
 SRC_PRS= $(addprefix $(DIR_SRCS)/$(DIR_PRS)/, $(PRS_LST))
 OBJ_PRS= $(addprefix $(DIR_OBJS)/$(DIR_PRS)/, $(PRS_LST:.cpp=.o))
 
@@ -36,20 +39,31 @@ $(DIR_OBJS)/%.o: $(DIR_SRCS)/%.cpp
 	@$(CXX) $(FLAGS) -c $< -o $@ $(INCLUDE)
 	@echo -n '.'
 
+$(DIR_OBJS)/%.o_bonus: $(DIR_SRCS)/%.cpp
+	@mkdir -p $(@D)
+	@$(CXX) $(BONUS_FLAGS) -c $< -o $@ $(INCLUDE)
+	@echo -n '.'
+
 all: $(NAME)
 
 $(NAME): $(LST_OBJS)
 	@$(CXX) $(LST_OBJS) $(FLAGS) $(INCLUDE) -o $@
-	@echo "\n\nThe Woven Webserver compiled"
+	@echo "\n\nThe Woven Webserv compiled"
+
+bonus: $(NAME_BONUS)
+
+$(NAME_BONUS): $(LST_OBJS:.o=.o_bonus)
+	@$(CXX) $(LST_OBJS:.o=.o_bonus) $(BONUS_FLAGS) $(INCLUDE) -o $@
+	@echo "\n\nThe Woven Webserv compiled with bonus"
 
 clean:
 	@rm -rf $(DIR_OBJS)
 	@echo "All objects clean"
 
 fclean: clean
-	@rm -f $(NAME)
+	@rm -f $(NAME) $(NAME_BONUS)
 	@echo "And the executable too"
 
 re: fclean all
 
-.PHONY: all fclean clean re
+.PHONY: all fclean clean re bonus

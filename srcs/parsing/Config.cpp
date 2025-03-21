@@ -8,27 +8,36 @@ Config::Config(): AParser() {
 Config::Config(const char* fileName): AParser() {
 	setArgsToFind();
 
-	std::string	fileContent = extractFileContent(fileName);
-	if (!bracketsAreClosed(fileContent))
-		throw UnclosedScopeException();
+	try {
+		std::string	fileContent = extractFileContent(fileName);
+		if (!bracketsAreClosed(fileContent))
+			throw UnclosedScopeException();
 
-	std::vector< std::string >	serverLines = splitScope(fileContent, "server");
-	deleteBrackets(serverLines);
-	std::multimap< std::string, std::multimap< std::string, std::string > >	hostArgs;
-	for (size_t i = 0, n = serverLines.size(); i < n; i++) {
-		std::multimap< std::string, std::string >	args = parseLine(serverLines[i]);
-		checkArgsFormat(args);
+		std::vector< std::string >	serverLines = splitScope(fileContent, "server");
+		deleteBrackets(serverLines);
+		std::multimap< std::string, std::multimap< std::string, std::string > >	hostArgs;
+		for (size_t i = 0, n = serverLines.size(); i < n; i++) {
+			std::multimap< std::string, std::string >	args = parseLine(serverLines[i]);
+			checkArgsFormat(args);
 
-		std::string	host = setHost(args.equal_range("host"));
-		setPort(host, std::atoi(args.equal_range("port").first->second.c_str()));
+			std::string	host;
+			if (args.count("host"))
+				host = args.find("host")->second;
+			else
+				host = "127.0.0.1";
 
-		hostArgs.insert(make_pair(host, args));
-	}
-	t_set_it< std::string >::t	hostIt = _hosts.begin(), hostIte = _hosts.end();
-	while (hostIt != hostIte) {
-		setServerNamesByHost(hostArgs.equal_range(*hostIt));
-		setArgsByHost(hostArgs.equal_range(*hostIt));
-		hostIt++;
+			hostArgs.insert(make_pair(host, args));
+		}
+		t_mmap_it< std::string, std::multimap< std::string, std::string > >::t
+			hostIt = hostArgs.begin(), hostIte = hostArgs.end();
+		while (hostIt != hostIte) {
+			setArgsByHost(hostArgs.equal_range(hostIt->first));
+			hostIt++;
+		}
+	} catch (std::exception& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
 	}
 }
 
@@ -38,34 +47,19 @@ Config::Config(const Config& rhs): AParser() {
 }
 
 Config&	Config::operator=(const Config& rhs) {
-//	std::cout << rhs << std::endl;
-
-	_hosts = rhs.getHosts();
-	_ports = rhs.getPorts();
-	_serverNames = rhs.getServerNames();
-//	_parsedConfig = rhs.getParsedConfig();
-
-	printMultimap(_hosts, _ports);
-	
-//	const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&
-//		parsedConfigRef = rhs.getParsedConfig();
 	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
 		hostIt = rhs.getParsedConfig().begin(), hostIte = rhs.getParsedConfig().end();
 	while (hostIt != hostIte) {
 		std::string host = hostIt->first;
-		std::cout << "host = " << host << std::endl;
 		t_map_it< int, std::map< std::string, Rules* > >::t
-			portIt = hostIt->second.begin(),
-			portIte = hostIt->second.end();
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
 			while (portIt != portIte) {
 				int	port = portIt->first;
-				std::cout << "port = " << port << std::endl;
 				t_map_it< std::string, Rules* >::t
 					sNamesIt = portIt->second.begin(), sNamesIte = portIt->second.end();
 				while (sNamesIt != sNamesIte) {
 					std::string	serverName = sNamesIt->first;
-					std::cout << "serverName = " << serverName << std::endl;
-					_parsedConfig[host][port][serverName] = new Rules(*(rhs.getParsedConfig().at(host).at(port).at(serverName)));
+					_parsedConfig[host][port][serverName] = new Rules(*(sNamesIt->second));
 					sNamesIt++;
 				}
 				portIt++;
@@ -104,47 +98,67 @@ std::string	Config::extractFileContent(const char* fileName) {
 	return (fileContent);
 }
 
-Config::~Config() {
-	t_mmap_it< std::string, std::multimap< int, std::string > >::t
-		it = _serverNames.begin(), ite = _serverNames.end();
-	while (it != ite) {
-		std::string host = it->first;
-		t_mmap_it< int, std::string >::t
-			portIt = it->second.begin(), portIte = it->second.end();
+const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&	Config::getParsedConfig() const {
+	return (_parsedConfig);
+}
+
+void	Config::destruct() {
+	t_mmap_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
+		hostIt = _parsedConfig.begin(), hostIte = _parsedConfig.end();
+	while (hostIt != hostIte) {
+		t_mmap_it< int, std::map< std::string, Rules* > >::t
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
 		while (portIt != portIte) {
-			int port = portIt->first;
-			std::string serverName = portIt->second;
-			std::map< std::string, Rules* >&
-				sNameRef = _parsedConfig[host][port];
-			if (sNameRef.count(serverName))
-				delete sNameRef[serverName];
+			t_mmap_it< std::string, Rules* >::t
+				sNamesIt = portIt->second.begin(), sNamesIte = portIt->second.end();
+			while (sNamesIt != sNamesIte) {
+				Rules*	ptr = sNamesIt->second;
+				if (ptr != NULL) {
+					delete ptr;
+					ptr = NULL;
+				}
+				sNamesIt++;
+			}
 			portIt++;
 		}
-		it++;
+		hostIt++;
 	}
 }
 
+Config::~Config() {
+	destruct();
+}
+
 std::ostream&	operator<<(std::ostream& os, const Config& rhs) {
+	const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >&
+		configRef = rhs.getParsedConfig();
 	std::cout	<< "########################################################## CONFIG" << std::endl << std::endl;
-	t_mmap_it< std::string, std::multimap< int, std::string > >::t
-		it = rhs.getServerNames().begin(), ite = rhs.getServerNames().end();
+	t_mmap_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
+		hostIt = configRef.begin(), hostIte = configRef.end();
 	std::string	host = "";
-	while (it != ite) {
-		if (host != it->first)
-			std::cout << "################################################### HOST " << it->first << std::endl << std::endl;
-		host = it->first;
-		t_mmap_it< int, std::string >::t
-			portIt = it->second.begin(), portIte = it->second.end();
+	while (hostIt != hostIte) {
+		if (host != hostIt->first)
+			std::cout << "################################################### HOST " << hostIt->first << std::endl << std::endl;
+		host = hostIt->first;
+		t_mmap_it< int, std::map< std::string, Rules* > >::t
+			portIt = hostIt->second.begin(), portIte = hostIt->second.end();
 		int	port = -1;
 		while (portIt != portIte) {
 			if (port != portIt->first)
 				std::cout << "############################################ PORT " << portIt->first << std::endl << std::endl;
 			port = portIt->first;
-			std::string serverName = portIt->second;
-			rhs.getParsedConfig().at(host).at(port).at(serverName)->printDeep(0, serverName);
+			t_mmap_it< std::string, Rules* >::t
+				sNamesIt = portIt->second.begin(), sNamesIte = portIt->second.end();
+			while (sNamesIt != sNamesIte) {
+				Rules*	ptr = sNamesIt->second;
+				if (ptr) {
+					ptr->printDeep(0, sNamesIt->first);
+				}
+				sNamesIt++;
+			}
 			portIt++;
 		}
-		it++;
+		hostIt++;
 	}
 	return (os);
 }

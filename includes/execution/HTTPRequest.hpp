@@ -9,6 +9,7 @@
 # include <sys/types.h>
 # include <fcntl.h>
 # include <cstring>
+# include <ctime>
 
 //# include "VServ.hpp"
 # include "Rules.hpp"
@@ -60,14 +61,19 @@ class HttpRequest {
         int                                 _responseCode;
         t_binary                            _body;
         std::string                         _rootPath;
-        std::map<std::string, std::string>  _headers;
+        std::multimap<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
         Rules*                              _rules;
         std::string                         _cgiExt;
         RequestDirection                    _direction;
 
-        
-        public:
+        //BONUS
+        std::map< std::string, std::string >    _cookies;
+
+        //METHODS
+        void        parseRequest(const std::string &rawRequest);
+
+    public:
         HttpRequest(void);
         HttpRequest(RequestDirection direction, t_binary &rawRequest);
         ~HttpRequest(void);
@@ -80,7 +86,7 @@ class HttpRequest {
         t_binary getBody(void) const;
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
-        std::map<std::string, std::string> getHeaders(void) const;
+        std::multimap<std::string, std::string> getHeaders(void) const;
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
         int         getClientFD(void) const;
@@ -90,7 +96,7 @@ class HttpRequest {
         void    setMethod(std::string &method);
         void    setResponseCode(int code);
         void    setVersion(const std::string &str);
-        void    setHeaders(std::map<std::string, std::string> &headers);
+        void    setHeaders(std::multimap<std::string, std::string> &headers);
         void    setBody(const t_binary &body);
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
@@ -106,7 +112,15 @@ class HttpRequest {
         void        generateIndexFile(const std::vector<std::string>& fileNames);
         void        log(void);
 
-        //EXCETPIONS
+        // BONUS
+# ifdef BONUS
+		t_mmap_range< std::string, std::string >::t	getCookiesRange() const;
+		std::set< std::string >	parseRequestCookieRange(t_mmap_range< std::string, std::string >::t range);
+		std::set< std::string >	getCookieSet();
+		void	setResponseCookies(const std::set< std::string >& requestCookies);
+# endif
+        
+		//EXCEPTIONS
         class	OpenFileException: public std::exception {
 			public:
 				const char*	what() const throw();

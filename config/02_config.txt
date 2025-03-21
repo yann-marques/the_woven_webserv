@@ -1,4 +1,5 @@
 server {
+  port: 8080;
   server_names: example.com, www.example.com;
   root: /var/www/html/;
   default_pages: index.html, home.html;

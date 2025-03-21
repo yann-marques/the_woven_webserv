@@ -41,3 +41,16 @@ void	AParser::checkArgNoDouble(t_mmap_range< std::string, std::string >::t range
 	if (++it != ite)
 		throw (DoubleArgException(it->first));
 }
+
+void	AParser::checkAllowedMethods(t_mmap_range< std::string, std::string >::t mmRange) const {
+	t_mmap_it< std::string, std::string >::t	mmIt = mmRange.first, mmIte = mmRange.second;
+	std::vector< std::string >	methodsVec;
+	methodsVec.push_back("GET");
+	methodsVec.push_back("POST");
+	methodsVec.push_back("DELETE");
+	t_vec_range< std::string >::t	vecRange(methodsVec.begin(), methodsVec.end());
+	while (mmIt != mmIte && isInVecRange< std::string >(vecRange, mmIt->second))
+		mmIt++;
+	if (mmIt != mmIte)
+		throw (UnexpectedValueException(mmIt->second));
+}
