@@ -163,7 +163,9 @@ void	WebServ::listenEvents(void) {
 			for (int i = 0; i < nbEvents; i++) {
 				epoll_event event = _epollEventsBuff[i];
 				int fd = event.data.fd;
-
+				std::cout	<< "/////// LISTEN EVENTS" << std::endl
+							<< "fd = " << fd << std::endl
+							<< "events = " << event.events << std::endl;
 				
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
