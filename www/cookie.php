@@ -1,9 +1,8 @@
 <?php
 
-$sessionStart = $_COOKIE['sessionStart'];
-$actualLog = $_COOKIE['actualTime'];
-
-
-echo "Session started: ", $sessionStart, "<br>", "Actual log time: ", $actualLog;
+if (isset($_COOKIE['sessionStart']))
+	echo "Session started: ", $_COOKIE['sessionStart'], "<br>";
+if (isset($_COOKIE['actualTime']))
+	echo "Previous log timestamp: ", $_COOKIE['actualTime'];
 
 ?>

@@ -61,7 +61,7 @@ class HttpRequest {
         int                                 _responseCode;
         t_binary                            _body;
         std::string                         _rootPath;
-        std::multimap<std::string, std::string>  _headers; //
+        std::multimap<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
         Rules*                              _rules;
         std::string                         _cgiExt;

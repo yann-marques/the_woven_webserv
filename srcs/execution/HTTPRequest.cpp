@@ -370,10 +370,16 @@ t_binary    HttpRequest::makeRawResponse(void) {
         httpHeaders << "\r\n";
     }
     
-    std::string headersStr = httpHeaders.str();    
+    std::string headersStr = httpHeaders.str();  
+//   std::cout   << "/////// headersStr ///////" << std::endl
+//                << headersStr << std::endl
+//                << "//////////////////////////" << std::endl;
     rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
     rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.
-
+/////////////////////////
+//    std::cout   << "/////// rawResponse ///////" << std::endl
+//                << rawResponse << std::endl
+//                << "///////////////////////////" << std::endl;
     return (rawResponse);
 }
 

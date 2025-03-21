@@ -38,6 +38,9 @@ static std::string	getTimeStamp() {
 
 void    HttpRequest::setResponseCookies(const std::set< std::string >& requestCookies) {
 	std::string	cookieValue = getTimeStamp();
+	size_t	cookieSize = cookieValue.size(); 
+	if (cookieValue[cookieSize - 1] == '\n')
+		cookieValue.erase(cookieSize - 1);
 	(void) requestCookies;
 	if (!requestCookies.count("sessionStart")) {
 		_headers.insert(make_pair("Set-Cookie", "sessionStart=" + cookieValue + "; Max-Age=10; HttpOnly"));
