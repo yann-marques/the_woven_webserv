@@ -48,6 +48,7 @@ void	AParser::checkAllowedMethods(t_mmap_range< std::string, std::string >::t mm
 	methodsVec.push_back("GET");
 	methodsVec.push_back("POST");
 	methodsVec.push_back("DELETE");
+	methodsVec.push_back("HEAD");
 	t_vec_range< std::string >::t	vecRange(methodsVec.begin(), methodsVec.end());
 	while (mmIt != mmIte && isInVecRange< std::string >(vecRange, mmIt->second))
 		mmIt++;
