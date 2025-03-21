@@ -653,6 +653,7 @@ void	VServ::processRequest(int &clientFd) {
 	} catch (ServerNameNotFoundException& e) {
 		request.setResponseCode(HTTP_NOT_FOUND);
 	} catch (BadRequestException& e) {
+		std::cerr << "popo" << std::endl;
 		request.setResponseCode(HTTP_BAD_REQUEST);
 	}
 
