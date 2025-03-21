@@ -451,11 +451,10 @@ void	VServ::executeCGI(HttpRequest &request) {
 		_mainInstance->setVServ(childToParent[0], this);
 		_mainInstance->setFdType(parentToChild[1], CGI_FD);
 		_mainInstance->setFdType(childToParent[0], CGI_FD);
-		_mainInstance->epollCtlAdd(parentToChild[1], EPOLLOUT | EPOLLET);
-		_mainInstance->epollCtlAdd(childToParent[0], EPOLLIN | EPOLLET);
-
 		_clientFdsPipeCGI[parentToChild[1]] = request.getClientFD();
 		_clientFdsPipeCGI[childToParent[0]] = request.getClientFD();
+		_mainInstance->epollCtlAdd(parentToChild[1], EPOLLOUT | EPOLLET);
+		_mainInstance->epollCtlAdd(childToParent[0], EPOLLIN | EPOLLET);
 	}
 }
 
@@ -481,6 +480,7 @@ void	VServ::talkToCgi(epoll_event event) {
 		}
 		if (_cgiBytesWriting >= requestBody.size()) {
 			_mainInstance->epollCtlDel(fd);
+			_clientFdsPipeCGI.erase(fd);
 			close(fd);
 		}
 	}	
@@ -494,6 +494,7 @@ void	VServ::talkToCgi(epoll_event event) {
 	
 	if (!(event.events & EPOLLIN) && !(event.events & EPOLLOUT)) {
 		_mainInstance->epollCtlDel(fd);
+		_clientFdsPipeCGI.erase(fd);
 		close(fd);
 		_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
 	}
