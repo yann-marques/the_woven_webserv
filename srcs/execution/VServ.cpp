@@ -68,6 +68,8 @@ std::vector<std::string> split (const std::string &s, char delim) {
 
 void	VServ::setTargetRules(HttpRequest &req) {
 	std::string httpHost = req.getHeader("Host");
+	if (httpHost.empty())
+		throw(BadRequestException());
 	std::string serverName = split(httpHost, ':')[0];
 
 	if (!_rules.count(serverName))
@@ -636,6 +638,8 @@ void	VServ::processRequest(int &clientFd) {
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (ServerNameNotFoundException& e) {
 		request.setResponseCode(HTTP_NOT_FOUND);
+	} catch (BadRequestException& e) {
+		request.setResponseCode(HTTP_BAD_REQUEST);
 	}
 
 	if (_clientRequests.count(clientFd) <= 0)
