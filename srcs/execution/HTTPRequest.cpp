@@ -2,12 +2,14 @@
 
 HttpRequest::HttpRequest() {
     _responseCode = 0;
+    _rules = NULL;
     this->initReasons();
 }
 
 HttpRequest::HttpRequest(RequestDirection direction, t_binary &rawRequest) {
     _responseCode = 0;
     _direction = direction;
+    _rules = NULL;
     this->initReasons();
     this->parseRequest(rawRequest);
 } 
@@ -325,12 +327,16 @@ void    HttpRequest::makeError(int httpCode, HttpRequest &request) {
     stream << "default/errors/" << httpCode << ".html";
 
     std::string errorPagePath;
-    std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
-    if (errorPagesConfig.count(httpCode) > 0)
-        errorPagePath = errorPagesConfig[httpCode];
-    else
+    if (!request.getRules())
         errorPagePath = stream.str();
-
+    else {
+        std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
+        if (errorPagesConfig.count(httpCode) > 0)
+            errorPagePath = errorPagesConfig[httpCode];
+        else
+            errorPagePath = stream.str();
+    }    
+    
     if (stat(errorPagePath.c_str(), &path_stat) != 0) 
         return (internalError());
 
