@@ -480,7 +480,6 @@ void	VServ::talkToCgi(epoll_event event) {
 		}
 		if (_cgiBytesWriting >= requestBody.size()) {
 			_mainInstance->epollCtlDel(fd);
-			_clientFdsPipeCGI.erase(fd);
 			close(fd);
 		}
 	}	
@@ -494,7 +493,6 @@ void	VServ::talkToCgi(epoll_event event) {
 	
 	if (!(event.events & EPOLLIN) && !(event.events & EPOLLOUT)) {
 		_mainInstance->epollCtlDel(fd);
-		_clientFdsPipeCGI.erase(fd);
 		close(fd);
 		_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
 	}
