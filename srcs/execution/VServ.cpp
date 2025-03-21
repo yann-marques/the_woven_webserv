@@ -1,7 +1,33 @@
 #include "VServ.hpp"
 
 // VServ::VServ();
+uint32_t	ip_to_uint32_t(const char*	ipStr) {
+	uint32_t	result = 0;
+	size_t		i = 0;
 
+	while (ipStr && ipStr[i]) {
+		result += std::atoi(&ipStr[i]);
+		while (ipStr[i] && isdigit(ipStr[i]))
+			i++;
+		if (ipStr[i]) {
+			result = (result << 8);
+			i++;
+		}
+	}
+	return (result);
+}
+
+std::string    ip_convert(uint32_t n) {
+    std::ostringstream    oss;
+    std::string    str;
+
+    oss << (n >> 24 & 0xFF) << '.'
+        << (n >> 16 & 0xFF) << '.'
+        << (n >> 8 & 0xFF) << '.'
+        << (n & 0xFF);
+    str = oss.str();
+    return (str);
+}
 
 VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
 	// tmp
@@ -105,34 +131,6 @@ void	VServ::socketInit() {
 
 	if (listen(_fd, _maxClients) == -1) //mettre dans le epoll
 		throw (ListenException());
-}
-
-uint32_t	ip_to_uint32_t(const char*	ipStr) {
-	uint32_t	result = 0;
-	size_t		i = 0;
-
-	while (ipStr && ipStr[i]) {
-		result += std::atoi(&ipStr[i]);
-		while (ipStr[i] && isdigit(ipStr[i]))
-			i++;
-		if (ipStr[i]) {
-			result = (result << 8);
-			i++;
-		}
-	}
-	return (result);
-}
-
-std::string    ip_convert(uint32_t n) {
-    std::ostringstream    oss;
-    std::string    str;
-
-    oss << (n >> 24 & 0xFF) << '.'
-        << (n >> 16 & 0xFF) << '.'
-        << (n >> 8 & 0xFF) << '.'
-        << (n & 0xFF);
-    str = oss.str();
-    return (str);
 }
 
 int	VServ::clientAccept(void) {
