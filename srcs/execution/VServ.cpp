@@ -68,14 +68,10 @@ std::vector<std::string> split (const std::string &s, char delim) {
 
 void	VServ::setTargetRules(HttpRequest &req) {
 	std::string httpHost = req.getHeader("Host");
-
-	if (httpHost.empty()) {
-		std::cout << std::endl << "Host not found on http header." << std::endl;
-		httpHost = "localhost:";
-	}
-
 	std::string serverName = split(httpHost, ':')[0];
 
+	if (!_rules.count(serverName))
+		throw (ServerNameNotFoundException());
 	Rules*	ptr = _rules[serverName];
 	_rules.count(serverName) == 0 ? ptr = _rules.begin()->second : ptr = _rules[serverName];
 	 
@@ -638,6 +634,8 @@ void	VServ::processRequest(int &clientFd) {
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (EpollCreateException& e) {
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
+	} catch (ServerNameNotFoundException& e) {
+		request.setResponseCode(HTTP_NOT_FOUND);
 	}
 
 	if (_clientRequests.count(clientFd) <= 0)

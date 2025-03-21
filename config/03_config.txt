@@ -12,6 +12,7 @@ server {
   max_body_bytes: 1M;
   cgi_path {
     .php: /usr/bin/php-cgi;
+    .py: /usr/bin/python3;
   }
   redirect: /welcome/;
   upload: /uploads/;
@@ -25,7 +26,7 @@ server {
   host: 127.0.0.1;
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
-  root: /var/www/site2/;
+  root: /www/;
   default_pages: main.html;
   error_pages {
     403: forbidden.html;
