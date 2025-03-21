@@ -104,3 +104,11 @@ const char* VServ::EpollCTLException::what() const throw() {
 const char* VServ::EpollWaitException::what() const throw() {
 	return ("Epoll wait exeception");
 }
+
+const char*	VServ::ServerNameNotFoundException::what() const throw() {
+	return ("Server name not found");
+}
+
+const char*	VServ::BadRequestException::what() const throw() {
+	return ("Bad request");
+}
