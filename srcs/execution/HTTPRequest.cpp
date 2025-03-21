@@ -310,19 +310,31 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
     }
 }
 
-void    HttpRequest::makeError(int httpCode, HttpRequest request){
+void    HttpRequest::internalError(void) {
+    std::string internalErrorString = "HTTP 500 Error: Internal server error. (Default error page set in config is not found.)";
+    t_binary body(internalErrorString.begin(), internalErrorString.end());
+    _headers.insert(std::pair<std::string, std::string>("Content-Type", "text/html; charset=utf-8"));
+    setDefaultsHeaders();
+    setResponseCode(500);
+    setBody(body);
+}
+
+void    HttpRequest::makeError(int httpCode, HttpRequest &request) {
+	struct stat path_stat;	
     std::stringstream stream;
     stream << "default/errors/" << httpCode << ".html";
 
     std::string errorPagePath;
     std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
-    if (errorPagesConfig.count(httpCode) > 0) {
+    if (errorPagesConfig.count(httpCode) > 0)
         errorPagePath = errorPagesConfig[httpCode];
-    } else {
+    else
         errorPagePath = stream.str();
-    }
 
-	std::ifstream inputFile(errorPagePath.c_str(), std::ios_base::binary);
+    if (stat(errorPagePath.c_str(), &path_stat) != 0) 
+        return (internalError());
+
+    std::ifstream inputFile(errorPagePath.c_str(), std::ios_base::binary);
 	
     inputFile.seekg(0, std::ios::end);
     std::streamsize length = inputFile.tellg();
@@ -330,19 +342,10 @@ void    HttpRequest::makeError(int httpCode, HttpRequest request){
 
 	t_binary buffer(length);
 	if (inputFile.fail()) {
-        std::string internalErrorString = "HTTP 500 Error: Internal server error";
-        t_binary body(internalErrorString.begin(), internalErrorString.end());
-        setResponseCode(500);
-        setBody(body);
-        return ;
+        return(internalError());
     } else {
-		if (!inputFile.read(reinterpret_cast<char*>(buffer.data()), length)) {
-            std::string internalErrorString = "HTTP 500 Error: Internal server error";
-            t_binary body(internalErrorString.begin(), internalErrorString.end());
-            setResponseCode(500);
-            setBody(body);
-            return ;
-        }
+		if (!inputFile.read(reinterpret_cast<char*>(buffer.data()), length))
+            return(internalError());
     }	
 
     setDefaultsHeaders();

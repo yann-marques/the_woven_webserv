@@ -10,6 +10,7 @@
 # include <fcntl.h>
 # include <cstring>
 # include <ctime>
+# include <sys/stat.h>
 
 //# include "VServ.hpp"
 # include "Rules.hpp"
@@ -108,7 +109,8 @@ class HttpRequest {
         void        parseRequest(const t_binary &rawRequest);
         void        setDefaultsHeaders(void);
         void        initReasons(void);
-        void        makeError(int httpCode, HttpRequest request);
+        void        makeError(int httpCode, HttpRequest &request);
+        void        internalError(void);
         void        generateIndexFile(const std::vector<std::string>& fileNames);
         void        log(void);
 
