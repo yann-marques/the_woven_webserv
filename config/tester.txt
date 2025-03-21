@@ -6,7 +6,7 @@ server {
   max_body_bytes: 1G;
 
   auto_index: false;
-  allowed_methods: GET;
+  allowed_methods: GET, POST;
   
   cgi_path {
     .bla: tester/ubuntu_cgi_tester;
@@ -26,7 +26,7 @@ server {
   }
 
   location: /put_test {
-    allowed_methods: PUT;
+    allowed_methods: POST;
     upload: www/uploads/;
   }
 }

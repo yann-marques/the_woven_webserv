@@ -267,8 +267,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
             while (pos < endHeadersIndex && rawRequest[pos] != '\r') {
                 value += rawRequest[pos++];
             }
-            std::cout << "parseRequest: " << key << "=" << value << std::endl; //////////////
-
+            
             // Skip '\r\n'
             if (pos < endHeadersIndex && rawRequest[pos] == '\r') pos++;
             if (pos < endHeadersIndex && rawRequest[pos] == '\n') pos++;
@@ -312,8 +311,6 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
 }
 
 void    HttpRequest::makeError(int httpCode, HttpRequest request){
-    t_binary buffer(4096);
-
     std::stringstream stream;
     stream << "default/errors/" << httpCode << ".html";
 
@@ -325,21 +322,32 @@ void    HttpRequest::makeError(int httpCode, HttpRequest request){
         errorPagePath = stream.str();
     }
 
-	int fd = open(errorPagePath.c_str(), O_RDONLY);
-	if (fd < 0) {
+	std::ifstream inputFile(errorPagePath.c_str(), std::ios_base::binary);
+	
+    inputFile.seekg(0, std::ios::end);
+    std::streamsize length = inputFile.tellg();
+    inputFile.seekg(0, std::ios::beg);
+
+	t_binary buffer(length);
+	if (inputFile.fail()) {
         std::string internalErrorString = "HTTP 500 Error: Internal server error";
         t_binary body(internalErrorString.begin(), internalErrorString.end());
-        setBody(body);
-        setDefaultsHeaders();
         setResponseCode(500);
-        std::cerr << "Error: invalid error pages path" << std::endl;
+        setBody(body);
+        return ;
     } else {
-        read(fd, buffer.data(), buffer.size());
-        close(fd);
-        setDefaultsHeaders();
-        setResponseCode(httpCode);
-        setBody(buffer);
-    }
+		if (!inputFile.read(reinterpret_cast<char*>(buffer.data()), length)) {
+            std::string internalErrorString = "HTTP 500 Error: Internal server error";
+            t_binary body(internalErrorString.begin(), internalErrorString.end());
+            setResponseCode(500);
+            setBody(body);
+            return ;
+        }
+    }	
+
+    setDefaultsHeaders();
+    setResponseCode(httpCode);
+	setBody(buffer);
 }
 
 void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {

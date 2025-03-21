@@ -268,7 +268,7 @@ bool	VServ::sendRequest(HttpRequest &response, int clientFd) {
 
 	ssize_t bytesSent = 0;
 	size_t dataSize = rawResponse.size();
-	
+
 	while (_totalBytesSent < dataSize) {
 		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent, dataSize - _totalBytesSent, 0);
 		if (bytesSent < 0)
@@ -526,7 +526,8 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
     if (!outFile)
 		throw CreateFileException(); 
     outFile << content.data();
-    outFile.close();	
+    outFile.close();
+	request.setResponseCode(200);
 }
 
 
@@ -559,8 +560,6 @@ void	VServ::processRequest(int &clientFd) {
 		request = HttpRequest(HTTP_REQUEST, clientRequestBuffer);
 		request.setClientFD(clientFd);
 
-		//std::cout << clientRequestBuffer.data() << std::endl;
-
 		setTargetRules(request);
 
 		//if (makeHttpRedirect(request))
@@ -584,7 +583,12 @@ void	VServ::processRequest(int &clientFd) {
 
 		if (reqMethod == POST) {
 			t_binary requestBody = request.getBody();
-			if (!isCGI(request) && !request.getRules()->getUpload().empty()) uploadFile(request, requestBody);
+			if (!isCGI(request)) {
+				if (!request.getRules()->getUpload().empty())
+					uploadFile(request, requestBody);
+				else
+					throw MethodNotAllowed();
+			}
 		}
 
 		if (reqMethod == DELETE) {
@@ -651,8 +655,6 @@ void VServ::processResponse(int &clientFd) {
 		
 		if (_clientResponses.count(clientFd) > 0) {
 
-			std::cout << "response send" << std::endl;
-
 			response = _clientResponses[clientFd];
 			request = _clientRequests[clientFd];
 			if (sendRequest(response, clientFd)) { //if request is fully sent.
@@ -676,13 +678,10 @@ void VServ::processResponse(int &clientFd) {
 				response.makeError(requestResponseCode, request);
 			}
 			else {
-				if (clientResponseBuffer.size() > 0) {
+				if (clientResponseBuffer.size() > 0)
 					response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
-				} else if (reqBody.size() > 0) {
+				else
 					response = HttpRequest(HTTP_RESPONSE, reqBody);
-				} else {
-					return ;
-				}
 			}
 			_clientResponses[clientFd] = response;
 		}
@@ -692,8 +691,7 @@ void VServ::processResponse(int &clientFd) {
 		std::set< std::string >	requestCookies = request.getCookieSet();
 		response.setResponseCookies(requestCookies);
 # endif
-		_clientResponses[clientFd] = response;
-		
+	
 	} catch(std::exception &e) {
 		std::cout << "Error: " << e.what() << std::endl; 
 	}
