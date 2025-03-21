@@ -8,6 +8,7 @@ VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< 
 	_host = host;
 	_port = port;
 	_totalBytesSent = 0;
+	_cgiBytesWriting = 0;
 //	_host = config.getHost();
 //	parse config ...
 	_rules = rules;
@@ -458,25 +459,27 @@ void	VServ::executeCGI(HttpRequest &request) {
 
 
 void	VServ::talkToCgi(epoll_event event) {
-	const ssize_t 		chunckSize = 16384;  // 64 KB chunk size for cross platform pipe buff limit
+	const ssize_t 		chunckSize = 65536;  // 64 KiB chunk size for (cross platform) pipe buff limit
 	int 				fd = event.data.fd;
 	int					clientFd = _clientFdsPipeCGI[fd];
 	HttpRequest			request = _clientRequests[clientFd];			
 	t_binary			requestBody = request.getBody();
 	t_binary& 			clientResponseBuffer = _clientResponseBuffer[clientFd];
 	t_binary  			readingBuffer(chunckSize);
-	_cgiBytesWriting = 0;
 
 	if (event.events & EPOLLOUT) {
 		while (_cgiBytesWriting < requestBody.size()) {
 			ssize_t bytesToWrite = _cgiBytesWriting + chunckSize <  requestBody.size() ? chunckSize : requestBody.size() - _cgiBytesWriting;
 			ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting, bytesToWrite);
-			if (bytesWritten > 0)
+			if (bytesWritten > 0) {
+				std::cout << _cgiBytesWriting << std::endl;
 				_cgiBytesWriting += bytesWritten;
+			}
 			else
 				break ;
 		}
 		if (_cgiBytesWriting >= requestBody.size()) {
+			_cgiBytesWriting = 0;
 			_mainInstance->epollCtlDel(fd);
 			close(fd);
 		}
@@ -680,7 +683,10 @@ void VServ::processResponse(int &clientFd) {
 			}
 			else {
 				if (clientResponseBuffer.size() > 0)
+				{
+					std::cout << "Body size: " << clientResponseBuffer.size() << std::endl;					
 					response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
+				}
 				else
 					response = HttpRequest(HTTP_RESPONSE, reqBody);
 			}
