@@ -245,7 +245,7 @@ bool	VServ::readSocketFD(int fd) {
 		bytesRead = read(fd, tempBuffer.data(), tempBuffer.size());
 		
 		if (bytesRead > 0) {
-			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.end());
+			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.begin() + bytesRead);
 		} else {
 			if (bytesRead == 0) { //client close connection;
 				_mainInstance->deleteFd(fd);
@@ -556,7 +556,7 @@ void	VServ::processRequest(int &clientFd) {
 		request = HttpRequest(HTTP_REQUEST, clientRequestBuffer);
 		request.setClientFD(clientFd);
 
-		std::cout << clientRequestBuffer.data() << std::endl;
+		//std::cout << clientRequestBuffer.data() << std::endl;
 
 		setTargetRules(request);
 
