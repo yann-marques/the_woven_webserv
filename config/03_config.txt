@@ -4,8 +4,7 @@ server {
   root: www/;
   default_pages: index.html, home.html;
   error_pages {
-    404: not_found.html;
-    500: internal_error.html;
+    404: default/errors/404.html;
   }
   auto_index: true;
   allowed_methods: GET, POST, DELETE;
@@ -26,11 +25,8 @@ server {
   host: 10.13.248.79;
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
-  root: /www/;
+  root: www/;
   default_pages: main.html;
-  error_pages {
-    403: forbidden.html;
-  }
   auto_index: true;
   allowed_methods: GET;
   max_body_bytes: 1M;
@@ -46,7 +42,7 @@ server {
     }
     allowed_methods: GET, DELETE;
     location: /v2 {
-      root: /www/api/v2/;
+      root: www/api/v2/;
       allowed_methods: GET;
     }
   }
