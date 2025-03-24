@@ -23,7 +23,7 @@ server {
 }
 
 server {
-  host: 127.0.0.1;
+  host: 10.13.248.79;
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
   root: /www/;
@@ -31,7 +31,7 @@ server {
   error_pages {
     403: forbidden.html;
   }
-  auto_index: false;
+  auto_index: true;
   allowed_methods: GET;
   max_body_bytes: 1M;
   cgi_path {
@@ -40,10 +40,13 @@ server {
   redirect: /home/;
   upload: /files/;
   location: /api {
-    root: /var/www/site2/api/;
+    root: www/api/;
+    cgi_path {
+    	.php: /usr/bin/php-cgi;
+    }
     allowed_methods: GET, DELETE;
     location: /v2 {
-      root: /var/www/site2/api/v2/;
+      root: /www/api/v2/;
       allowed_methods: GET;
     }
   }
