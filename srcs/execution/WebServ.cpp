@@ -63,6 +63,7 @@ WebServ::~WebServ() {
 	while (it != ite) {
 		if (isServerFD(it->first))
 			delete it->second;
+		close(it->first);
 		it++;
 	}
 }

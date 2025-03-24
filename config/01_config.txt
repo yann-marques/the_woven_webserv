@@ -39,8 +39,5 @@ server {
       }
     }
 
-    error_pages {
-      403: forbidden.html;
-    }
   }
 }
