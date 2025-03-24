@@ -13,8 +13,8 @@ server {
     .php: /usr/bin/php-cgi;
     .py: /usr/bin/python3;
   }
-  redirect: /welcome/;
-  upload: /uploads/;
+  redirect: welcome/;
+  upload: uploads/;
   location: /admin {
     root: /var/www/site1/admin/;
     allowed_methods: GET, POST;
@@ -26,15 +26,15 @@ server {
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
   root: www/;
-  default_pages: main.html;
+  default_pages: index.html;
   auto_index: true;
-  allowed_methods: GET;
+  allowed_methods: GET, POST;
   max_body_bytes: 1M;
   cgi_path {
     .py: /usr/bin/python3;
   }
   redirect: /home/;
-  upload: /files/;
+  upload: www/uploads/;
   location: /api {
     root: www/api/;
     cgi_path {
