@@ -61,6 +61,7 @@ class HttpRequest {
         std::string                         _server;
         int                                 _responseCode;
         t_binary                            _body;
+        std::size_t                         _bodySize;
         std::string                         _rootPath;
         std::multimap<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
@@ -92,6 +93,7 @@ class HttpRequest {
         std::string getCgiExt(void) const;
         int         getClientFD(void) const;
         int         getResponseCode(void) const;
+        std::size_t getBodySize(void) const;
         
         //SETTERS
         void    setMethod(std::string &method);

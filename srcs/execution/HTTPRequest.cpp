@@ -78,6 +78,11 @@ int HttpRequest::getClientFD(void) const {
 int HttpRequest::getResponseCode(void) const {
     return _responseCode;
 }
+
+std::size_t HttpRequest::getBodySize(void) const  {
+    return (_bodySize);
+}
+
 //SETTERS
 
 void    HttpRequest::setMethod(std::string &method) {
@@ -115,7 +120,6 @@ void    HttpRequest::setCgiExt(std::string ext) {
 void    HttpRequest::setClientFD(int fd) {
     _clientFd = fd;
 }
-
 
 //METHODS
 
@@ -191,6 +195,8 @@ const unsigned char* find_sequence(const t_binary& buffer, const char* sequence)
 bool is_hex_line(const t_binary& buffer, size_t start, size_t end) {
     if (start >= end) return false; // Empty line check
 
+    if (end - start > 7) //6-digit hexadecimal number + 1 for '\r' (FFFFFF) is enough
+        return (false);
     for (size_t i = start; i < end; ++i) {
         if (!std::isxdigit(buffer[i])) {
             return false;
@@ -288,7 +294,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
         while (pos < rawRequest.size()) {
             // Find the end of the current line
             size_t lineEnd = find_next_line(rawRequest, pos);
-            
+
             // Check if it's a chunk size line (hexadecimal)
             if (isChuncked && is_hex_line(rawRequest, pos, lineEnd - 2)) {
                 pos = lineEnd; // Skip the chunk size line
@@ -306,6 +312,8 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
     } else { //NOT A REQUEST, JUST A FILE OR OTHER
         _body = rawRequest;
     }
+
+    _bodySize = _body.size();
 
     if (_direction == HTTP_RESPONSE) {
         setDefaultsHeaders();
@@ -394,15 +402,8 @@ t_binary    HttpRequest::makeRawResponse(void) {
     }
     
     std::string headersStr = httpHeaders.str();  
-//   std::cout   << "/////// headersStr ///////" << std::endl
-//                << headersStr << std::endl
-//                << "//////////////////////////" << std::endl;
-    rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
-    rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.
-/////////////////////////
-//    std::cout   << "/////// rawResponse ///////" << std::endl
-//                << rawResponse << std::endl
-//                << "///////////////////////////" << std::endl;
+    rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end());
+    rawResponse.insert(rawResponse.end(), _body.begin(), _body.end());
     return (rawResponse);
 }
 

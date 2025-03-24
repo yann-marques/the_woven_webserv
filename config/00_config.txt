@@ -1,5 +1,4 @@
 server {
-  host: 10.11.4.5;
   port: 8081;
   server_names: example.com, www.example.com;
   root: www/;
@@ -10,7 +9,7 @@ server {
   }
   auto_index: false;
   allowed_methods: GET, POST;
-  max_body_bytes: 1M;
+  max_body_bytes: 1G;
   cgi_path {
     .php: /usr/bin/php-cgi;
   }

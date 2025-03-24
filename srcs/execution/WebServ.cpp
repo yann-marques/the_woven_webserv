@@ -164,11 +164,10 @@ void	WebServ::listenEvents(void) {
 				epoll_event event = _epollEventsBuff[i];
 				int fd = event.data.fd;
 
-				
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
-				throw UnknownFdException();
-				
+					throw UnknownFdException();
+
 				if (isServerFD(fd))
 					handleServerEvent(vserv);
 				else if (isClientFD(fd) && (event.events & EPOLLIN))
