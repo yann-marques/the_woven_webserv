@@ -1,5 +1,11 @@
 #include "VServ.hpp"
 
+std::ofstream&	operator<<(std::ofstream& ofs, const t_binary& rhs) {
+	for (size_t i = 0, n = rhs.size(); i < n; i++)
+		ofs << rhs[i];
+	return (ofs);
+}
+
 // VServ::VServ();
 uint32_t	ip_to_uint32_t(const char*	ipStr) {
 	uint32_t	result = 0;
@@ -549,7 +555,7 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
 	std::ofstream outFile(filePath.c_str());
     if (!outFile)
 		throw CreateFileException(); 
-    outFile << content.data();
+    outFile << content;
     outFile.close();
 	request.setResponseCode(200);
 }

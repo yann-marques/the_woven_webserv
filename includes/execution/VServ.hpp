@@ -29,6 +29,7 @@
 class WebServ;
 
 typedef std::vector<unsigned char> t_binary;
+std::ofstream&	operator<<(std::ofstream& ofs, const t_binary& rhs);
 
 class	VServ {
 	private:
