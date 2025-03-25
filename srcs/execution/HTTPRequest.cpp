@@ -10,8 +10,8 @@ HttpRequest::HttpRequest(RequestDirection direction, t_binary &rawRequest) {
     _responseCode = 0;
     _direction = direction;
     _rules = NULL;
-    this->initReasons();
-    this->parseRequest(rawRequest);
+    initReasons();
+    parseRequest(rawRequest);
 } 
 
 HttpRequest::~HttpRequest(void) {};
@@ -79,8 +79,8 @@ int HttpRequest::getResponseCode(void) const {
     return _responseCode;
 }
 
-std::size_t HttpRequest::getBodySize(void) const  {
-    return (_bodySize);
+size_t HttpRequest::getBodySize(void) const  {
+    return _bodySize;
 }
 
 //SETTERS
@@ -119,6 +119,10 @@ void    HttpRequest::setCgiExt(std::string ext) {
 
 void    HttpRequest::setClientFD(int fd) {
     _clientFd = fd;
+}
+
+void    HttpRequest::setBodySize(size_t size) {
+    _bodySize = size;
 }
 
 //METHODS
@@ -313,11 +317,11 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
         _body = rawRequest;
     }
 
-    _bodySize = _body.size();
+    size_t bodySize = _body.size();
+    setBodySize(bodySize);
 
-    if (_direction == HTTP_RESPONSE) {
+    if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();
-    }
 }
 
 void    HttpRequest::internalError(void) {

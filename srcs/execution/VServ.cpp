@@ -275,9 +275,7 @@ bool	VServ::readSocketFD(int fd) {
 
 bool	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	t_binary	rawResponse = response.makeRawResponse();
-
-	std::cout << "Response code: " << response.getResponseCode() << std::endl;
-
+	
 	ssize_t bytesSent = 0;
 	size_t dataSize = rawResponse.size();
 
@@ -582,9 +580,12 @@ void	VServ::processRequest(int &clientFd) {
 		if (!readSocketFD(clientFd))
 			return ;
 
-		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd]; //end of using this buffer;
+		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd];
 		request = HttpRequest(HTTP_REQUEST, clientRequestBuffer);
 		request.setClientFD(clientFd);
+
+		std::cout << request.getBody().data() << std::endl;		
+		std::cout << "body size: " << request.getBodySize() << std::endl;
 
 		setTargetRules(request);
 

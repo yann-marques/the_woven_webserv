@@ -61,7 +61,7 @@ class HttpRequest {
         std::string                         _server;
         int                                 _responseCode;
         t_binary                            _body;
-        std::size_t                         _bodySize;
+        size_t                              _bodySize;
         std::string                         _rootPath;
         std::multimap<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
@@ -71,9 +71,6 @@ class HttpRequest {
 
         //BONUS
         std::map< std::string, std::string >    _cookies;
-
-        //METHODS
-        void        parseRequest(const std::string &rawRequest);
 
     public:
         HttpRequest(void);
@@ -93,7 +90,7 @@ class HttpRequest {
         std::string getCgiExt(void) const;
         int         getClientFD(void) const;
         int         getResponseCode(void) const;
-        std::size_t getBodySize(void) const;
+        size_t      getBodySize(void) const;
         
         //SETTERS
         void    setMethod(std::string &method);
@@ -104,7 +101,8 @@ class HttpRequest {
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
         void    setCgiExt(std::string ext);
-        void    setClientFD(int fd); 
+        void    setClientFD(int fd);
+        void    setBodySize(size_t size); 
         
         //METHODS:
         t_binary    makeRawResponse(void);
