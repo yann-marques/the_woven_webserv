@@ -22,20 +22,21 @@ server {
 }
 
 server {
-  host: 10.13.248.79;
+  host: 10.13.2.1;
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
   root: www/;
   default_pages: index.html;
-  auto_index: true;
+  auto_index: false;
   allowed_methods: GET, POST;
-  max_body_bytes: 1M;
+  max_body_bytes: 10;
   cgi_path {
     .py: /usr/bin/python3;
   }
   redirect: /home/;
   upload: www/uploads/;
   location: /api {
+    auto_index: true;
     root: www/api/;
     cgi_path {
     	.php: /usr/bin/php-cgi;
