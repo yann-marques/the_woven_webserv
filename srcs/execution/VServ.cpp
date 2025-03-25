@@ -206,6 +206,7 @@ void	VServ::readRequest(HttpRequest &request) {
 	}
 
 	request.setBody(body);
+	request.setBodySize(body.size());
 	int	clientFd = request.getClientFD();
 	_clientRequests[clientFd] = request;
 }
@@ -285,13 +286,19 @@ bool	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	ssize_t bytesSent = 0;
 	size_t dataSize = rawResponse.size();
 
-	while (_totalBytesSent[clientFd] < dataSize) {
-		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent[clientFd], dataSize - _totalBytesSent[clientFd], 0);
-		if (bytesSent < 0)
-			break ;
+	//while (_totalBytesSent[clientFd] < dataSize) {
+		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent[clientFd], dataSize - _totalBytesSent[clientFd], MSG_NOSIGNAL);
+		if (bytesSent < 0) {
+			std::cout << "Sigepipe for clientFd: " << clientFd << std::endl;
+			std::cout << strerror(errno) << std::endl;
+			_totalBytesSent[clientFd] = 0; 
+			throw SigPipe();
+		}
+		//if (bytesSent < 0)
+		//	break ;
 		_totalBytesSent[clientFd] += bytesSent;
-	}
-	if (_totalBytesSent[clientFd] == dataSize) {
+	//}
+	if (_totalBytesSent[clientFd] >= dataSize) {
 		_totalBytesSent[clientFd] = 0;
 		return (true);
 	}
@@ -478,17 +485,11 @@ void	VServ::talkToCgi(epoll_event event) {
 	const ssize_t 		chunckSize = 65536;  // 64 KiB chunk size for (cross platform) pipe buff limit
 	int 				fd = event.data.fd;
 	int					clientFd = _clientFdsPipeCGI[fd];
-	HttpRequest			request = _clientRequests[clientFd];			
-	t_binary			requestBody = request.getBody();
+	HttpRequest&		request = _clientRequests[clientFd];			
+	const t_binary&		requestBody = request.getBody();
 	std::size_t			bodySize = request.getBodySize();
 	t_binary& 			clientResponseBuffer = _clientResponseBuffer[clientFd];
 	t_binary  			readingBuffer(chunckSize);
-
-
-	if (bodySize <= 0) {
-		std::cerr << "Request body == 0 for clientFd: " << clientFd << "and pipe fd: " << fd << std::endl;
-		return ;
-	}
 
 	if (event.events & EPOLLOUT) {
 		while (_cgiBytesWriting[fd] < bodySize) {
@@ -496,7 +497,6 @@ void	VServ::talkToCgi(epoll_event event) {
 			ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting[fd], bytesToWrite);
 			if (bytesWritten > 0) {
 				_cgiBytesWriting[fd] += bytesWritten;
-				std::cout << _cgiBytesWriting[fd] << std::endl;
 			}
 			else
 				break ;
@@ -504,8 +504,7 @@ void	VServ::talkToCgi(epoll_event event) {
 		if (_cgiBytesWriting[fd] >= bodySize) {
 			_cgiBytesWriting[fd] = 0;
 			_clientFdsPipeCGI.erase(fd);
-			_mainInstance->epollCtlDel(fd);
-			close(fd);
+			_mainInstance->deleteFd(fd);
 		}
 	}	
 
@@ -518,8 +517,7 @@ void	VServ::talkToCgi(epoll_event event) {
 	
 	if (!(event.events & EPOLLIN) && !(event.events & EPOLLOUT)) {
 		_clientFdsPipeCGI.erase(fd);
-		_mainInstance->epollCtlDel(fd);
-		close(fd);
+		_mainInstance->deleteFd(fd);
 		_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
 	}
 }
@@ -589,10 +587,7 @@ void	VServ::processRequest(int &clientFd) {
 		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd];
 		request = HttpRequest(HTTP_REQUEST, clientRequestBuffer);
 		request.setClientFD(clientFd);
-
-		std::cout << request.getBody().data() << std::endl;		
-		std::cout << "body size: " << request.getBodySize() << std::endl;
-
+		
 		setTargetRules(request);
 
 		//if (makeHttpRedirect(request))
@@ -633,6 +628,7 @@ void	VServ::processRequest(int &clientFd) {
 		if (isCGI(request)) {
 			_clientRequests[clientFd] = request;
 			executeCGI(request);
+			_mainInstance->epollCtlMod(clientFd, 0);
 			return ;
 		}
 
@@ -687,38 +683,50 @@ void	VServ::processRequest(int &clientFd) {
 }
 
 void VServ::processResponse(int &clientFd) {
-	HttpRequest response;	
-	HttpRequest request;
+
+	std::cout << "Process reponse called" << std::endl;
 	
 	try {
 		
 		if (_clientResponses.count(clientFd) > 0) {
-			response = _clientResponses[clientFd];
-			request = _clientRequests[clientFd];
-			if (sendRequest(response, clientFd)) {
+			HttpRequest& response = _clientResponses[clientFd];
+			HttpRequest& request = _clientRequests[clientFd];
+			try {
+				if (sendRequest(response, clientFd)) {
+					std::cout << "Response send to clientFd: " << clientFd << std::endl;
+					eraseClient(clientFd);
+					std::string connectionType = request.getHeader("Connection");
+					if (!connectionType.empty() && (connectionType.find("close") != std::string::npos))
+						_mainInstance->deleteFd(clientFd);
+					else
+						_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
+				}
+			} catch (SigPipe& e) {
+				std::cout << "Catch sigpipe" << std::endl;
 				eraseClient(clientFd);
-				std::string connectionType = request.getHeader("Connection");
-				if (!connectionType.empty() && (connectionType.find("close") != std::string::npos))
-					_mainInstance->deleteFd(clientFd);
-				else
-					_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
+				_mainInstance->deleteFd(clientFd);
 			}
 			return ;
 		}
 	
 		if (_clientRequests.count(clientFd) > 0) {
-			request = _clientRequests[clientFd];
+			HttpRequest response;
+			HttpRequest& request = _clientRequests[clientFd];
 			t_binary	reqBody = request.getBody();
-			t_binary	clientResponseBuffer = _clientResponseBuffer[clientFd];
+			t_binary&	clientResponseBuffer = _clientResponseBuffer[clientFd];
+			size_t		responseBufferSize = clientResponseBuffer.size();
+
+			std::cout << "Response buffer size: " << responseBufferSize << std::endl;
 			
 			int	requestResponseCode = request.getResponseCode();
 			if (requestResponseCode != 0) {
 				response.makeError(requestResponseCode, request);
 			}
 			else {
-				if (clientResponseBuffer.size() > 0)
+				if (responseBufferSize > 0) {
 					response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
-				else
+					std::cout << "RESPONSE SIZE CGI: Buffer: " << clientResponseBuffer.size() << " and body: " << response.getBodySize() << std::endl;
+				} else
 					response = HttpRequest(HTTP_RESPONSE, reqBody);
 			}
 			_clientResponses[clientFd] = response;

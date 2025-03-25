@@ -112,3 +112,7 @@ const char*	VServ::ServerNameNotFoundException::what() const throw() {
 const char*	VServ::BadRequestException::what() const throw() {
 	return ("Bad request");
 }
+
+const char*	VServ::SigPipe::what() const throw() {
+	return ("SigPipe on read/send");
+}

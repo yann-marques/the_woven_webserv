@@ -223,4 +223,9 @@ class	VServ {
 			public:
 				const char*	what() const throw();
 		};
+		class	SigPipe: public std::exception {
+			public:
+				const char*	what() const throw();
+		};
+		
 };

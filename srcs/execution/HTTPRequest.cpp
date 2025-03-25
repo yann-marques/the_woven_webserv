@@ -54,9 +54,8 @@ std::multimap<std::string, std::string>  HttpRequest::getHeaders(void) const {
     return (this->_headers);
 }
 
-t_binary HttpRequest::getBody() const
-{ 
-    return this->_body;
+const t_binary& HttpRequest::getBody() const { 
+    return _body;
 }
 
 std::string HttpRequest::getRootPath() const {
@@ -317,8 +316,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
         _body = rawRequest;
     }
 
-    size_t bodySize = _body.size();
-    setBodySize(bodySize);
+    setBodySize(_body.size());
 
     if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();

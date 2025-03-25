@@ -82,7 +82,7 @@ class HttpRequest {
         std::string getVersion(void) const;
         std::string getPath(void) const;
         std::string getHeader(const std::string &key) const;
-        t_binary getBody(void) const;
+        const   t_binary&   getBody(void) const;
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
         std::multimap<std::string, std::string> getHeaders(void) const;

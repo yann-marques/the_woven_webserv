@@ -142,6 +142,7 @@ bool WebServ::isCGIFd(int fd) {
 }
 
 void	WebServ::deleteFd(int fd) {
+	_fds.erase(fd);
 	epollCtlDel(fd);
 	close(fd);
 }
