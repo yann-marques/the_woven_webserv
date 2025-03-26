@@ -108,7 +108,7 @@ class	VServ {
 		bool						isEndedChunckReq(std::string rawRequest);
 		bool						isHttpRequestComplete(t_binary &clientBuffer);
 		void						uploadFile(HttpRequest request, t_binary content);
-		bool						makeHttpRedirect(HttpRequest &request);
+		bool						makeHttpRedirect(HttpRequest &request, HttpRequest &response);
 
 		// EXCEPTIONS
 		class	SocketException: public std::exception {

@@ -7,7 +7,9 @@ server {
   allowed_methods: GET, POST, DELETE;
   max_body_bytes: 1M;
   upload: uploads/;
-  
+
+  redirect: bonjour/;
+
   cgi_path {
     .php: /usr/bin/php-cgi;
     .py: /usr/bin/python3;
@@ -15,7 +17,7 @@ server {
 
   location: /api, /admin {
     root: www/api;
-    auto_index: false;
+    auto_index: true;
     allowed_methods: GET, DELETE;
     max_body_bytes: 42;
     

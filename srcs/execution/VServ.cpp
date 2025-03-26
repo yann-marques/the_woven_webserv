@@ -148,7 +148,6 @@ int	VServ::clientAccept(void) {
 	socklen_t clientAddressLength = sizeof(clientAddress);
 	
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
-	std::cout << strerror(errno) << std::endl;
 	if (clientFd < 0)
 		throw (AcceptException());
 	
@@ -557,11 +556,10 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
 		throw CreateFileException(); 
     outFile << content;
     outFile.close();
-	request.setResponseCode(200);
 }
 
 
-bool	VServ::makeHttpRedirect(HttpRequest &request) {
+bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
 	std::string redirectLocation = request.getRules()->getRedirect(); 
 	if (!redirectLocation.empty() && redirectLocation[0] != '/')
 		redirectLocation.insert(0, 1, '/');
@@ -571,8 +569,8 @@ bool	VServ::makeHttpRedirect(HttpRequest &request) {
 		std::cerr << "Redirect: " << redirectLocation << " for the route: " << reqPath << std::endl;
 		std::string responseStr = "HTTP/1.1 302 Not Found\r\nLocation: " +  redirectLocation + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 		t_binary rawResponse(responseStr.begin(), responseStr.end());
-		request.setBody(rawResponse);
-		request.setResponseCode(302);
+		response = HttpRequest(HTTP_RESPONSE, rawResponse);
+		response.setResponseCode(302);
 		return (true);	
 	}
 	return (false);
@@ -591,12 +589,6 @@ void	VServ::processRequest(int &clientFd) {
 		request.setClientFD(clientFd);
 		
 		setTargetRules(request);
-
-		if (makeHttpRedirect(request)) {
-			_clientRequests[clientFd] = request;
-			_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
-			return ;
-		}
 
 		std::string reqMethod = request.getMethod();
 		
@@ -694,12 +686,12 @@ void VServ::processResponse(int &clientFd) {
 			HttpRequest& request = _clientRequests[clientFd];
 			try {
 				if (sendRequest(response, clientFd)) {
-					eraseClient(clientFd);
 					std::string connectionType = request.getHeader("Connection");
 					if (!connectionType.empty() && (connectionType.find("close") != std::string::npos))
 						_mainInstance->deleteFd(clientFd);
 					else
 						_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
+					eraseClient(clientFd);
 				}
 			} catch (SigPipe& e) {
 				eraseClient(clientFd);
@@ -715,15 +707,20 @@ void VServ::processResponse(int &clientFd) {
 			t_binary&	clientResponseBuffer = _clientResponseBuffer[clientFd];
 			size_t		responseBufferSize = clientResponseBuffer.size();
 
+			if (makeHttpRedirect(request, response)) {
+				_clientResponses[clientFd] = response;
+				return ;
+			}
+
 			int	requestResponseCode = request.getResponseCode();
 			if (requestResponseCode != 0) {
 				response.makeError(requestResponseCode, request);
-			}
-			else {
+			} else {
 				if (responseBufferSize > 0) {
 					response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
-				} else
+				} else {
 					response = HttpRequest(HTTP_RESPONSE, reqBody);
+				}
 			}
 			_clientResponses[clientFd] = response;
 		}

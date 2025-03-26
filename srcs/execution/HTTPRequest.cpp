@@ -35,10 +35,6 @@ std::string HttpRequest::getVersion() const
 
 std::string HttpRequest::getHeader(const std::string& key) const
 {
-    if (!_headers.count(key)) {
-        std::cerr << "No key " << key << " in multimap" << std::endl;
-        return ("");
-    }
     std::multimap<std::string, std::string>::const_iterator it = this->_headers.find(key);
     return (it != this->_headers.end()) ? it->second : "";
 	// doesn't work with cookies
