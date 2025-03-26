@@ -72,6 +72,8 @@ class	WebServ {
 		bool	isClientFD(int fd);
 		bool	isCGIFd(int fd);
 
+		void	destruct();
+
 		// EXCEPTIONS
 		class	SignalException: public StrException {
 			public:

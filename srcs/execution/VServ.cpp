@@ -6,7 +6,10 @@ std::ofstream&	operator<<(std::ofstream& ofs, const t_binary& rhs) {
 	return (ofs);
 }
 
-// VServ::VServ();
+VServ::VServ(): _maxClients(1000) {
+	_fd = -1;
+}
+
 uint32_t	ip_to_uint32_t(const char*	ipStr) {
 	uint32_t	result = 0;
 	size_t		i = 0;
