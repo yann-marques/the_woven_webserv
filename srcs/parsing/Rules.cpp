@@ -12,13 +12,42 @@ Rules::Rules(): AParser() {
 }
 
 Rules::Rules(std::multimap< std::string, std::string > args, const Rules& rhs, std::string locationPath): AParser() {
-	setArgsToFind();
-	_args = args;
-	_locationPath = locationPath;
-	setArgs(_args);
-	*this |= rhs;
-	if (args.count("location"))
-		setLocation(args.equal_range("location"));
+	try {
+		setArgsToFind();
+		_args = args;
+		_locationPath = locationPath;
+		setArgs(_args);
+		*this |= rhs;
+		if (args.count("location"))
+			setLocation(args.equal_range("location"));
+	} catch (AParser::ArgOutOfServerScopeException& e) {
+		destruct();
+		throw(e);
+	} catch (AParser::ConfigSyntaxException& e) {
+		destruct();
+		throw(e);
+	} catch (AParser::UnexpectedKeyException& e) {
+		destruct();
+		throw(e);
+	} catch (AParser::UnexpectedValueException& e) {
+		destruct();
+		throw(e);
+	} catch (AParser::DoubleArgException& e) {
+		destruct();
+		throw(e);
+	} catch (AParser::ForbiddenCharException& e) {
+		destruct();
+		throw(e);
+	} catch (Rules::RedefinedArgException& e) {
+		destruct();
+		throw(e);
+	} catch (Rules::InvalidLocationKeyException& e) {
+		destruct();
+		throw(e);
+	} catch (std::exception& e) {
+		destruct();
+		throw(e);
+	}
 }
 
 
@@ -141,7 +170,7 @@ void	Rules::printDeep(size_t i, std::string name) {
 	}
 }
 
-Rules::~Rules() {
+void	Rules::destruct() {
 	if (!_location.size())
 		return ;
 
@@ -154,4 +183,8 @@ Rules::~Rules() {
 	_cgiPath.clear();
 	_locationKeys.clear();
 	_location.clear();
+}
+
+Rules::~Rules() {
+	destruct();
 }

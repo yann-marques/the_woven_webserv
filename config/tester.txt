@@ -22,7 +22,7 @@ server {
 
   location: /directory {
     allowed_methods: GET, POST;
-    root: tester/YoupiBanane;
+    root: tester/YoupiBanane/;
     default_pages: youpi.bad_extension;
   }
 

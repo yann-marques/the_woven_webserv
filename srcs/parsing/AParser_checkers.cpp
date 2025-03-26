@@ -55,3 +55,15 @@ void	AParser::checkAllowedMethods(t_mmap_range< std::string, std::string >::t mm
 	if (mmIt != mmIte)
 		throw (UnexpectedValueException(mmIt->second));
 }
+
+void	AParser::checkRoot(t_mmap_range< std::string, std::string >::t mmRange) const {
+	t_mmap_it< std::string, std::string >::t	mmIt = mmRange.first, mmIte = mmRange.second;
+	if (mmIt == mmIte)
+		return ;
+	std::string	str = mmIt->second;
+	if (str[str.size() - 1] != '/')
+		throw (UnexpectedValueException(str + " ; root must end with '/'"));
+	mmIt++;
+	if (mmIt != mmIte)
+		throw (DoubleArgException("root"));
+}

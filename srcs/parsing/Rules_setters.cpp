@@ -133,8 +133,7 @@ void	Rules::setLocation(t_range range) {
 					newLocPath = _locationKeys[i];
 				else
 					newLocPath = _locationPath + _locationKeys[i];
-				Rules*	rules = new Rules(args, *this, newLocPath);
-				_location[_locationKeys[i]] = rules;
+				_location[_locationKeys[i]] = new Rules(args, *this, newLocPath);
 			}
 		}
 		args.clear();

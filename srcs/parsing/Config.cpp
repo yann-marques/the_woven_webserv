@@ -34,12 +34,69 @@ Config::Config(const char* fileName): AParser() {
 			setArgsByHost(hostArgs.equal_range(hostIt->first));
 			hostIt++;
 		}
-	} catch (std::exception& e) {
+	} catch (AParser::ArgOutOfServerScopeException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (AParser::ConfigSyntaxException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (AParser::UnexpectedKeyException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (AParser::UnexpectedValueException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (AParser::DoubleArgException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (AParser::ForbiddenCharException& e) {
 		std::cerr << e.what() << std::endl;
 		destruct();
 		throw(e);
 	}
+	// Config exceptions
+	catch (Config::IsDirException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (Config::OpenFileException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (Config::UnclosedScopeException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (Config::BadSpacesException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (Config::MissingPortException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	}
+	// Rules exceptions
+	catch (Rules::RedefinedArgException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (Rules::InvalidLocationKeyException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (std::exception& e) {
+		destruct();
+		throw(e);
+	}
+
 }
+
 
 Config::Config(const Config& rhs): AParser() {
 	setArgsToFind();

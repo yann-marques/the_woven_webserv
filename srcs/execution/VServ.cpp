@@ -544,13 +544,10 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
 	std::string locationPath = request.getRules()->getLocationPath();
 	std::string rqPath = request.getPath().substr(locationPath.size());
 
-	if (request.getHeader("Content-Type").find("multipart/form-data") == std::string::npos) {
+	if (rqPath == "/" || rqPath.empty()) {
 		request.setResponseCode(200);
 		return ;
 	}
-
-	if (rqPath == "/" || rqPath.empty())
-		throw NoUploadFileName();
 
 	std::string separator = uploadFile[uploadFile.size() - 1] == '/' ? "" : "/";
 	std::string filePath = uploadFile + separator + rqPath;		
@@ -559,6 +556,7 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
 		throw CreateFileException(); 
     outFile << content;
     outFile.close();
+	request.setResponseCode(200);
 }
 
 
@@ -569,7 +567,6 @@ bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
 	std::string	reqPath = request.getPath();
 		
 	if (!redirectLocation.empty() && reqPath != redirectLocation) {
-		std::cerr << "Redirect: " << redirectLocation << " for the route: " << reqPath << std::endl;
 		std::string responseStr = "HTTP/1.1 302 Not Found\r\nLocation: " +  redirectLocation + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 		t_binary rawResponse(responseStr.begin(), responseStr.end());
 		response = HttpRequest(HTTP_RESPONSE, rawResponse);
@@ -725,14 +722,13 @@ void VServ::processResponse(int &clientFd) {
 					response = HttpRequest(HTTP_RESPONSE, reqBody);
 				}
 			}
+			# ifdef BONUS
+					std::set< std::string >	requestCookies = request.getCookieSet();
+					response.setResponseCookies(requestCookies);
+			# endif
 			_clientResponses[clientFd] = response;
 		}
 
-# ifdef BONUS
-		std::cout << "BONUS SET" << std::endl;
-		std::set< std::string >	requestCookies = request.getCookieSet();
-		response.setResponseCookies(requestCookies);
-# endif
 	
 	} catch(std::exception &e) {
 		std::cout << "Error: " << e.what() << std::endl; 

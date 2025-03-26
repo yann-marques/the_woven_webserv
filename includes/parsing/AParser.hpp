@@ -45,6 +45,7 @@ class	AParser {
 		void	checkArgNoDouble(t_mmap_range< std::string, std::string >::t range, bool f(std::string)) const;
 		void	checkAllowedMethods(t_mmap_range< std::string, std::string >::t mmRange) const;
 		virtual void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const = 0;
+		void	checkRoot(t_mmap_range< std::string, std::string >::t mmRange) const;
 
 		virtual	~AParser();
 

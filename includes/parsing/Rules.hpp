@@ -80,6 +80,7 @@ class	Rules: public AParser {
 		// RECURSIVE PRINT
 		void	printDeep(size_t i, std::string name);
 
+		void	destruct();
 		~Rules();
 
 		// EXCEPTIONS

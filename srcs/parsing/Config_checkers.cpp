@@ -27,6 +27,8 @@ void	Config::checkArgsFormat(const std::multimap< std::string, std::string >& ar
 	checkArgNoDouble(args.equal_range("redirect"), noForbiddenChar);
 	checkArgNoDouble(args.equal_range("upload"), noForbiddenChar);
 
+	checkRoot(args.equal_range("root"));
+
 	checkAllowedMethods(args.equal_range("allowed_methods"));
 	checkErrorPages(args.equal_range("error_pages"));
 	checkCgiPath(args.equal_range("cgi_path"));

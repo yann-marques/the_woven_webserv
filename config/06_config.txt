@@ -4,7 +4,26 @@ server {
   root: www/;
   default_pages: index.html, home.html;
   auto_index: true;
-  allowed_methods: GET, POST;
+  allowed_methods: GET, POST, DELETE;
+  max_body_bytes: 1G;
+  cgi_path {
+    .php: /usr/bin/php-cgi;
+  }
+  upload: www/uploads/;
+  location: /yann {
+    auto_index: true;
+  }
+}
+
+
+
+server {
+  port: 8081;
+  server_names: example.com, www.example.com;
+  root: www/api/;
+  default_pages: index.html, home.html;
+  auto_index: true;
+  allowed_methods: GET, POST, DELETE;
   max_body_bytes: 1G;
   cgi_path {
     .php: /usr/bin/php-cgi;

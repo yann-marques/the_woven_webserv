@@ -85,7 +85,11 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 		std::cerr << e.what() << std::endl;
 		destruct();
 		throw (e);
+	} catch (std::exception& e) {
+		destruct();
+		throw(e);
 	}
+
 }
 
 void	WebServ::destruct() {
