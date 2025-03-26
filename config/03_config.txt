@@ -33,7 +33,6 @@ server {
   cgi_path {
     .py: /usr/bin/python3;
   }
-  redirect: /home/;
   upload: www/uploads/;
   location: /api {
     auto_index: true;
