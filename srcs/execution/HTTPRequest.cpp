@@ -369,11 +369,11 @@ void    HttpRequest::makeError(int httpCode, HttpRequest &request) {
 	setBody(buffer);
 }
 
-void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {
+void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames, std::string route) {
     std::string html = "<html><nav>\n  <ul>\n";
     
     for (std::vector<std::string>::const_iterator it = fileNames.begin(); it != fileNames.end(); it++) {
-        html += "    <li><a href=\"" + (*it) + "\">" + (*it) + "</a></li>\n";
+        html += "    <li><a href=\"" + route + (*it) + "\">" + (*it) + "</a></li>\n";
     }
     html += "  </ul>\n</nav></html>\n";
     t_binary body(html.begin(), html.end());

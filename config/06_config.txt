@@ -1,13 +1,16 @@
 server {
-  port: 8081;
+  port: 8080;
   server_names: example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
-  auto_index: false;
+  auto_index: true;
   allowed_methods: GET, POST;
   max_body_bytes: 1G;
   cgi_path {
     .php: /usr/bin/php-cgi;
   }
   upload: www/uploads/;
+  location: /yann {
+    auto_index: true;
+  }
 }

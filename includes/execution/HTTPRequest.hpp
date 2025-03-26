@@ -111,7 +111,7 @@ class HttpRequest {
         void        initReasons(void);
         void        makeError(int httpCode, HttpRequest &request);
         void        internalError(void);
-        void        generateIndexFile(const std::vector<std::string>& fileNames);
+        void        generateIndexFile(const std::vector<std::string>& fileNames, std::string route);
         void        log(void);
 
         // BONUS
