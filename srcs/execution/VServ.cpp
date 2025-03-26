@@ -36,11 +36,8 @@ std::string    ip_convert(uint32_t n) {
 }
 
 VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp): _maxClients(maxClients) {
-	// tmp
 	_host = host;
 	_port = port;
-//	_host = config.getHost();
-//	parse config ...
 	_rules = rules;
 	_mainInstance = mainInstance;
 	setAddress();
@@ -56,11 +53,8 @@ VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< 
 // VServ::VServ(const VServ& rhs);
 
 VServ&	VServ::operator=(const VServ& rhs) {
-	//	_port = rhs.getPort();
-	//	_host = rhs.getHost();
 	_fd = rhs.getFd();
 	setAddress();
-	//	std::cout << "address port = " << _address.sin_port << std::endl;
 	return (*this);
 }
 
@@ -137,6 +131,11 @@ void	VServ::socketInit() {
 		close(_fd);
 		throw (BindException());
 	}
+
+	if (listen(_fd, _maxClients) == -1) {
+		close(_fd);
+		throw (ListenException());
+	}
 }
 
 int	VServ::clientAccept(void) {
@@ -144,6 +143,7 @@ int	VServ::clientAccept(void) {
 	socklen_t clientAddressLength = sizeof(clientAddress);
 	
 	int clientFd = accept(_fd, (struct sockaddr*)&clientAddress, &clientAddressLength);
+	std::cout << strerror(errno) << std::endl;
 	if (clientFd < 0)
 		throw (AcceptException());
 	
@@ -587,8 +587,11 @@ void	VServ::processRequest(int &clientFd) {
 		
 		setTargetRules(request);
 
-		//if (makeHttpRedirect(request))
-		//	return ;
+		if (makeHttpRedirect(request)) {
+			_clientRequests[clientFd] = request;
+			_mainInstance->epollCtlMod(clientFd, EPOLLOUT);
+			return ;
+		}
 
 		std::string reqMethod = request.getMethod();
 		

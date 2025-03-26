@@ -1,6 +1,6 @@
 #include "WebServ.hpp"
 
-// WebServ::WebServ() {} // private ?
+// WebServ::WebServ() {}
 
 void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config) {
 	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
@@ -142,10 +142,6 @@ void	WebServ::deleteFd(int fd) {
 }
 
 void	WebServ::handleServerEvent(VServ* vserv) {
-
-	if (listen(vserv->getFd(), _maxClients) == -1)
-		throw VServ::ListenException();	
-
 	int clientFd = vserv->clientAccept();
 	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
