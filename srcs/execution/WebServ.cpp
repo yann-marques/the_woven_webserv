@@ -1,6 +1,26 @@
 #include "WebServ.hpp"
 
-// WebServ::WebServ() {} // private ?
+WebServ::WebServ(): _maxClients(1000), _maxEvents(1000) {
+	_epollFd = -1;
+}
+
+WebServ::WebServ(const WebServ& rhs): _maxClients(1000), _maxEvents(1000) {
+	*this = rhs;
+}
+
+WebServ&	WebServ::operator=(const WebServ& rhs) {
+	_debug = rhs._debug;
+	_config = rhs._config;
+
+	_epollFd = rhs.getEpollFd();
+	_epollEventsBuff = rhs._epollEventsBuff;
+	_fds = rhs._fds;
+	_VServers = rhs._VServers;
+	_envp = rhs._envp;
+	_argv = rhs._argv;
+
+	return (*this);
+}
 
 void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config) {
 	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
@@ -57,6 +77,7 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 }
 
 WebServ::~WebServ() {
+	std::cout << "destructor webserv" << std::endl;
 	if (_epollFd != -1)
 		close(_epollFd);
 	t_map_it< int, VServ* >::t	it = _VServers.begin(), ite = _VServers.end();

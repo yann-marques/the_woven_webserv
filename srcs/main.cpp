@@ -8,6 +8,7 @@ static void	handleSignal(int signal) {
 
 int main(int argc, char **argv, char **envp) 
 {
+	WebServ	ws;
 	#ifdef BONUS
 		std::cout << "BONUS is defined" << std::endl;
 	#endif
@@ -16,7 +17,7 @@ int main(int argc, char **argv, char **envp)
         try {
             signal(SIGINT, SIG_IGN);
 			signal(SIGQUIT, SIG_IGN);
-            WebServ ws(argv[1], argv, envp);
+			ws = WebServ(argv[1], argv, envp);
 
             signal(SIGINT, handleSignal);
             signal(SIGQUIT, handleSignal);
