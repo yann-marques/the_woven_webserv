@@ -27,8 +27,7 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 	}
 }
 
-WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
-//	signal(SIGINT, handleSignal); // in execution
+WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { 
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
@@ -53,7 +52,6 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 		setVServMap(_config.getParsedConfig());
 
 		_epollEventsBuff.resize(_maxEvents);
-	//	listenEvents();
 }
 
 WebServ::~WebServ() {
@@ -61,7 +59,7 @@ WebServ::~WebServ() {
 		close(_epollFd);
 	t_map_it< int, VServ* >::t	it = _VServers.begin(), ite = _VServers.end();
 	while (it != ite) {
-		if (isServerFD(it->first))
+	if (isServerFD(it->first))
 			delete it->second;
 		close(it->first);
 		it++;
@@ -104,10 +102,8 @@ void	WebServ::epollCtlAdd(int fd, uint32_t events) {
 	event.events = events;
 	event.data.fd = fd;
 	
-	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
-		std::cout << "ERROR: " << strerror(errno) << std::endl;
+	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1)
 		throw (EpollCtlAddException());
-	}
 }
 
 void	WebServ::epollCtlMod(int fd, uint32_t events) {
@@ -115,14 +111,12 @@ void	WebServ::epollCtlMod(int fd, uint32_t events) {
 	event.events = events;
 	event.data.fd = fd;
 	
-	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event) == -1) {
-		std::cout << "ERROR: " << strerror(errno) << std::endl;
+	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event) == -1)
 		throw (EpollCtlAddException());
-	}
 }
 
 void	WebServ::epollCtlDel(int fd) {
-	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) //the EVENT can be null.
+	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) 
 		throw (EpollCtlDelException());
 }
 
@@ -148,6 +142,10 @@ void	WebServ::deleteFd(int fd) {
 }
 
 void	WebServ::handleServerEvent(VServ* vserv) {
+
+	if (listen(vserv->getFd(), _maxClients) == -1)
+		throw VServ::ListenException();	
+
 	int clientFd = vserv->clientAccept();
 	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);

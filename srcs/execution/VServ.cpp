@@ -128,14 +128,15 @@ void	VServ::socketInit() {
 	fcntl(_fd, F_SETFL, O_NONBLOCK);
 
 	int opt = 1;
-	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+		close(_fd);
 		throw (SetSockOptException());
+	}
 
-	if (bind(_fd, (struct sockaddr*)&_address, sizeof(_address)) == -1)
+	if (bind(_fd, (struct sockaddr*)&_address, sizeof(_address)) == -1) {
+		close(_fd);
 		throw (BindException());
-
-	if (listen(_fd, _maxClients) == -1)
-		throw (ListenException());
+	}
 }
 
 int	VServ::clientAccept(void) {
@@ -256,10 +257,11 @@ bool VServ::isHttpRequestComplete(t_binary &clientBuffer) {
 bool	VServ::readSocketFD(int fd) {
 	t_binary&		clientBuffer = _clientRequestBuffer[fd];
 	ssize_t			bytesRead;
-	t_binary		tempBuffer(4096);
+	const ssize_t 	chunckSize = 65536;  // 64 KiB chunk size for (cross platform) pipe buff limit
+	t_binary		tempBuffer(chunckSize);
 
 	while (true) {
-		bytesRead = read(fd, tempBuffer.data(), tempBuffer.size());
+		bytesRead = read(fd, tempBuffer.data(), chunckSize);
 		
 		if (bytesRead > 0) {
 			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.begin() + bytesRead);
@@ -286,18 +288,14 @@ bool	VServ::sendRequest(HttpRequest &response, int clientFd) {
 	ssize_t bytesSent = 0;
 	size_t dataSize = rawResponse.size();
 
-	//while (_totalBytesSent[clientFd] < dataSize) {
-		bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent[clientFd], dataSize - _totalBytesSent[clientFd], MSG_NOSIGNAL);
-		if (bytesSent < 0) {
-			std::cout << "Sigepipe for clientFd: " << clientFd << std::endl;
-			std::cout << strerror(errno) << std::endl;
-			_totalBytesSent[clientFd] = 0; 
-			throw SigPipe();
-		}
-		//if (bytesSent < 0)
-		//	break ;
-		_totalBytesSent[clientFd] += bytesSent;
-	//}
+	bytesSent = send(clientFd, rawResponse.data() + _totalBytesSent[clientFd], dataSize - _totalBytesSent[clientFd], MSG_NOSIGNAL);
+	if (bytesSent < 0) {
+		_totalBytesSent[clientFd] = 0; 
+		throw SigPipe();
+	}
+
+	_totalBytesSent[clientFd] += bytesSent;
+	
 	if (_totalBytesSent[clientFd] >= dataSize) {
 		_totalBytesSent[clientFd] = 0;
 		return (true);
@@ -495,9 +493,8 @@ void	VServ::talkToCgi(epoll_event event) {
 		while (_cgiBytesWriting[fd] < bodySize) {
 			ssize_t bytesToWrite = _cgiBytesWriting[fd] + chunckSize < bodySize ? chunckSize : bodySize - _cgiBytesWriting[fd];
 			ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting[fd], bytesToWrite);
-			if (bytesWritten > 0) {
+			if (bytesWritten > 0)
 				_cgiBytesWriting[fd] += bytesWritten;
-			}
 			else
 				break ;
 		}
@@ -683,17 +680,12 @@ void	VServ::processRequest(int &clientFd) {
 }
 
 void VServ::processResponse(int &clientFd) {
-
-	std::cout << "Process reponse called" << std::endl;
-	
 	try {
-		
 		if (_clientResponses.count(clientFd) > 0) {
 			HttpRequest& response = _clientResponses[clientFd];
 			HttpRequest& request = _clientRequests[clientFd];
 			try {
 				if (sendRequest(response, clientFd)) {
-					std::cout << "Response send to clientFd: " << clientFd << std::endl;
 					eraseClient(clientFd);
 					std::string connectionType = request.getHeader("Connection");
 					if (!connectionType.empty() && (connectionType.find("close") != std::string::npos))
@@ -702,7 +694,6 @@ void VServ::processResponse(int &clientFd) {
 						_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
 				}
 			} catch (SigPipe& e) {
-				std::cout << "Catch sigpipe" << std::endl;
 				eraseClient(clientFd);
 				_mainInstance->deleteFd(clientFd);
 			}
@@ -716,8 +707,6 @@ void VServ::processResponse(int &clientFd) {
 			t_binary&	clientResponseBuffer = _clientResponseBuffer[clientFd];
 			size_t		responseBufferSize = clientResponseBuffer.size();
 
-			std::cout << "Response buffer size: " << responseBufferSize << std::endl;
-			
 			int	requestResponseCode = request.getResponseCode();
 			if (requestResponseCode != 0) {
 				response.makeError(requestResponseCode, request);
@@ -725,7 +714,6 @@ void VServ::processResponse(int &clientFd) {
 			else {
 				if (responseBufferSize > 0) {
 					response = HttpRequest(HTTP_RESPONSE, clientResponseBuffer);
-					std::cout << "RESPONSE SIZE CGI: Buffer: " << clientResponseBuffer.size() << " and body: " << response.getBodySize() << std::endl;
 				} else
 					response = HttpRequest(HTTP_RESPONSE, reqBody);
 			}
