@@ -8,7 +8,7 @@ static void	handleSignal(int signal) {
 
 int main(int argc, char **argv, char **envp) 
 {
-	WebServ	ws;
+//	WebServ	ws;
 	#ifdef BONUS
 		std::cout << "BONUS is defined" << std::endl;
 	#endif
@@ -17,7 +17,7 @@ int main(int argc, char **argv, char **envp)
         try {
             signal(SIGINT, SIG_IGN);
 			signal(SIGQUIT, SIG_IGN);
-			ws = WebServ(argv[1], argv, envp);
+			WebServ ws(argv[1], argv, envp);
 
             signal(SIGINT, handleSignal);
             signal(SIGQUIT, handleSignal);
@@ -60,21 +60,11 @@ int main(int argc, char **argv, char **envp)
 	    	std::cerr << e.what() << std::endl;
 	    } catch (WebServ::EpollCreateException& e) {
 	    		std::cerr << e.what() << std::endl;
-	    } catch (WebServ::EpollWaitException& e) {
-	    	std::cerr << e.what() << std::endl;
 	    } catch (WebServ::EpollCtlAddException& e) {
 	    	std::cerr << e.what() << std::endl;
 	    } catch (WebServ::EpollCtlDelException& e) {
 	    	std::cerr << e.what() << std::endl;
 	    } catch (WebServ::UnknownFdException& e) {
-	    	std::cerr << e.what() << std::endl;
-	    }
-        // VServ construction exceptions
-	    catch (VServ::SocketException& e) {
-	    	std::cerr << e.what() << std::endl;
-	    } catch (VServ::SetSockOptException& e) {
-	    	std::cerr << e.what() << std::endl;
-	    } catch (VServ::BindException& e) {
 	    	std::cerr << e.what() << std::endl;
 	    } catch (std::exception& e) {}
     }

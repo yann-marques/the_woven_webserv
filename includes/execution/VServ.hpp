@@ -64,7 +64,7 @@ class	VServ {
 
 	public:
 //		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
-		VServ(): _maxClients(1024) {}
+		VServ();
 		VServ(WebServ* mainInstance, std::string host, int port, const std::map< std::string, Rules* >& sNamesMap,
 			int maxClients, std::set< std::string > argv, std::set< std::string > envp);
 		

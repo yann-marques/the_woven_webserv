@@ -48,6 +48,7 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 }
 
 WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { 
+	try {
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
@@ -72,10 +73,22 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 		setVServMap(_config.getParsedConfig());
 
 		_epollEventsBuff.resize(_maxEvents);
+	} catch (VServ::SocketException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw (e);
+	} catch (VServ::SetSockOptException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw (e);
+	} catch (VServ::BindException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw (e);
+	}
 }
 
-WebServ::~WebServ() {
-	std::cout << "destructor webserv" << std::endl;
+void	WebServ::destruct() {
 	if (_epollFd != -1)
 		close(_epollFd);
 	t_map_it< int, VServ* >::t	it = _VServers.begin(), ite = _VServers.end();
@@ -85,6 +98,11 @@ WebServ::~WebServ() {
 		close(it->first);
 		it++;
 	}
+	_VServers.clear();
+}
+
+WebServ::~WebServ() {
+	destruct();
 }
 
 // SETTERS
@@ -206,6 +224,8 @@ void	WebServ::listenEvents(void) {
 			std::cout << "SendPartiallyException" << std::endl;
 		} catch (VServ::SendException& e) {
 			std::cout << "SendException" << std::endl;
-		}
+		} catch (WebServ::EpollWaitException& e) {
+	    	std::cerr << e.what() << std::endl;
+	    } 
 	}
 }
