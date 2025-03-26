@@ -359,18 +359,16 @@ void	VServ::showDirectory(HttpRequest &request) {
 		throw OpenFolderException();
 	
 	while ((entry = readdir(dir)) != NULL) {
+		std::string	reqPath = request.getPath();
+		if (reqPath[reqPath.size() - 1] != '/')
+			reqPath += '/';
 		std::string	fileName = entry->d_name;
 		if (entry->d_type == DT_DIR && fileName != "." && fileName != "..")
 			fileName += '/';
-
-		std::string reqPath = request.getPath();
-		bool reqPathSlash = reqPath[reqPath.size() - 1] == '/'; 
-		std::string locationPath = request.getRules()->getLocationPath(); 
-		std::string routePath = reqPathSlash ? locationPath + '/' + fileName : locationPath + '/' + fileName;
-		filesName.push_back(fileName);
+		filesName.push_back(reqPath + fileName);
 	}
 	closedir(dir);
-	request.generateIndexFile(filesName, routePath);
+	request.generateIndexFile(filesName);
 }
 
 bool	VServ::isCGI(HttpRequest &request) {
