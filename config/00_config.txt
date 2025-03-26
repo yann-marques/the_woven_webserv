@@ -4,9 +4,6 @@ server {
   root: www/;
   default_pages: index.html, home.html;
   auto_index: false;
-  error_pages {
-  	404: default/errors/404.html;
-  }
   allowed_methods: GET, POST;
   max_body_bytes: 1G;
   cgi_path {

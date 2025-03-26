@@ -50,10 +50,12 @@ VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< 
 		this->_debug = true;
 }
 
-// VServ::VServ(const VServ& rhs);
+//VServ::VServ(const VServ& rhs);
 
 VServ&	VServ::operator=(const VServ& rhs) {
 	_fd = rhs.getFd();
+	_host = rhs._host;
+	_port = rhs._port;
 	setAddress();
 	return (*this);
 }
