@@ -53,7 +53,9 @@ VServ::VServ(WebServ *mainInstance, std::string host, int port, const std::map< 
 		this->_debug = true;
 }
 
-//VServ::VServ(const VServ& rhs);
+VServ::VServ(const VServ& rhs): _maxClients(rhs._maxClients) {
+	*this = rhs;
+}
 
 VServ&	VServ::operator=(const VServ& rhs) {
 	_fd = rhs.getFd();
@@ -300,7 +302,7 @@ bool	VServ::sendRequest(HttpRequest &response, int clientFd) {
 
 	_totalBytesSent[clientFd] += bytesSent;
 	
-	if (_totalBytesSent[clientFd] >= dataSize) {
+	if (bytesSent == 0) {
 		_totalBytesSent[clientFd] = 0;
 		return (true);
 	}
@@ -468,12 +470,13 @@ void	VServ::executeCGI(HttpRequest &request) {
 		};
 
 		env = makeEnvp(request);
-		if (execve(interpreter.c_str(), argv, env.data()) < 0)
+		if (execve(interpreter.c_str(), argv, env.data()) < 0) {
 			throw ExecveException();
+		}
 	} else {
 		close(childToParent[1]);
 		close(parentToChild[0]);
-		
+
 		_mainInstance->setVServ(parentToChild[1], this);
 		_mainInstance->setVServ(childToParent[0], this);
 		_mainInstance->setFdType(parentToChild[1], CGI_FD);
@@ -497,15 +500,11 @@ void	VServ::talkToCgi(epoll_event event) {
 	t_binary  			readingBuffer(chunckSize);
 
 	if (event.events & EPOLLOUT) {
-		while (_cgiBytesWriting[fd] < bodySize) {
-			ssize_t bytesToWrite = _cgiBytesWriting[fd] + chunckSize < bodySize ? chunckSize : bodySize - _cgiBytesWriting[fd];
-			ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting[fd], bytesToWrite);
-			if (bytesWritten > 0)
-				_cgiBytesWriting[fd] += bytesWritten;
-			else
-				break ;
-		}
-		if (_cgiBytesWriting[fd] >= bodySize) {
+		ssize_t bytesToWrite = _cgiBytesWriting[fd] + chunckSize < bodySize ? chunckSize : bodySize - _cgiBytesWriting[fd];
+		ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting[fd], bytesToWrite);
+		if (bytesWritten > 0)
+			_cgiBytesWriting[fd] += bytesWritten;
+		else {
 			_cgiBytesWriting[fd] = 0;
 			_clientFdsPipeCGI.erase(fd);
 			_mainInstance->deleteFd(fd);
@@ -513,8 +512,9 @@ void	VServ::talkToCgi(epoll_event event) {
 	}	
 
 	if (event.events & EPOLLIN) {
-		ssize_t bytesRead;
-		while ((bytesRead = read(fd, readingBuffer.data(), chunckSize)) > 0) {
+		ssize_t bytesRead = 0;
+		bytesRead = read(fd, readingBuffer.data(), chunckSize);
+		if (bytesRead > 0) {
 			clientResponseBuffer.insert(clientResponseBuffer.end(), readingBuffer.begin(), readingBuffer.begin() + bytesRead);
 		}
 	}
@@ -587,7 +587,7 @@ void	VServ::processRequest(int &clientFd) {
 		t_binary clientRequestBuffer = _clientRequestBuffer[clientFd];
 		request = HttpRequest(HTTP_REQUEST, clientRequestBuffer);
 		request.setClientFD(clientFd);
-		
+
 		setTargetRules(request);
 
 		std::string reqMethod = request.getMethod();
@@ -609,7 +609,7 @@ void	VServ::processRequest(int &clientFd) {
 		}
 
 		if (reqMethod == POST) {
-			t_binary requestBody = request.getBody();
+			const t_binary& requestBody = request.getBody();
 			if (!isCGI(request)) {
 				if (!request.getRules()->getUpload().empty())
 					uploadFile(request, requestBody);
@@ -644,6 +644,7 @@ void	VServ::processRequest(int &clientFd) {
 	} catch (InterpreterEmpty& e) {
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (ExecveException& e) {
+		std::cout << e.what() << std::endl;
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (MethodNotAllowed& e) {
 		request.setResponseCode(HTTP_METHOD_NOT_ALLOWED);

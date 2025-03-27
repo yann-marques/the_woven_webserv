@@ -8,11 +8,6 @@ static void	handleSignal(int signal) {
 
 int main(int argc, char **argv, char **envp) 
 {
-//	WebServ	ws;
-	#ifdef BONUS
-		std::cout << "BONUS is defined" << std::endl;
-	#endif
-
     if (argc >= 2) {
         try {
             signal(SIGINT, SIG_IGN);
@@ -23,8 +18,6 @@ int main(int argc, char **argv, char **envp)
             signal(SIGQUIT, handleSignal);
             ws.listenEvents();
         }
-        // AParser exceptions
-	   
         // WebServ construction exceptions
 	    catch (WebServ::SignalException& e) {
 	    	std::cerr << e.what() << std::endl;

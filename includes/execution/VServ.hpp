@@ -13,7 +13,6 @@
 # include <sstream>
 # include <iostream>
 # include <sys/wait.h>
-# include <errno.h>
 # include <cstring>
 # include <set>
 # include <arpa/inet.h>
@@ -63,16 +62,11 @@ class	VServ {
 
 
 	public:
-//		VServ(): _maxClients(1024), _root("www"), _envp(), _argv() {}
 		VServ();
 		VServ(WebServ* mainInstance, std::string host, int port, const std::map< std::string, Rules* >& sNamesMap,
 			int maxClients, std::set< std::string > argv, std::set< std::string > envp);
 		
-		// deprecated:
-//		VServ(int port, std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator > range,
-//			const std::map< std::string, Rules* >& rules, int maxClients, std::set<std::string> argv, std::set<std::string> envp);
-
-		VServ(const VServ& rhs): _maxClients(rhs._maxClients) { *this = rhs; }
+		VServ(const VServ& rhs);
 		VServ&	operator=(const VServ& rhs);
 		~VServ();
 
@@ -80,9 +74,6 @@ class	VServ {
 		void	setRulesKeys(std::pair< std::multimap< const int, std::string >::const_iterator, std::multimap< const int, std::string >::const_iterator >& range);
 		void	setAddress();
 
-		// GETTERS
-//		int	getPort() const;
-//		int	getHost() const;
 		int	getFd() const;
 
 		// METHODS

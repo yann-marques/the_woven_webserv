@@ -125,7 +125,6 @@ int	WebServ::getEpollFd() const {
 	return (_epollFd);
 }
 
-//Renvoie un VServ* associe au FD passe. Si c'est un FD client, ca renvoie le *VServ "attache" a ce client. Si c'est un FD Server, renvoie le *VServ.
 VServ*	WebServ::getVServ(int fd) {
 	return (_VServers[fd]);
 }
