@@ -10,6 +10,7 @@
 # include <fcntl.h>
 # include <cstring>
 # include <ctime>
+# include <sys/stat.h>
 
 //# include "VServ.hpp"
 # include "Rules.hpp"
@@ -60,6 +61,7 @@ class HttpRequest {
         std::string                         _server;
         int                                 _responseCode;
         t_binary                            _body;
+        size_t                              _bodySize;
         std::string                         _rootPath;
         std::multimap<std::string, std::string>  _headers;
         std::map<int, std::string>          _reasonPhrases;
@@ -69,9 +71,6 @@ class HttpRequest {
 
         //BONUS
         std::map< std::string, std::string >    _cookies;
-
-        //METHODS
-        void        parseRequest(const std::string &rawRequest);
 
     public:
         HttpRequest(void);
@@ -83,13 +82,15 @@ class HttpRequest {
         std::string getVersion(void) const;
         std::string getPath(void) const;
         std::string getHeader(const std::string &key) const;
-        t_binary getBody(void) const;
+        const   t_binary&   getBody(void) const;
         std::string getRootPath(void) const;
         std::string getRawHeaders(void) const;
         std::multimap<std::string, std::string> getHeaders(void) const;
         Rules*      getRules(void) const; 
         std::string getCgiExt(void) const;
         int         getClientFD(void) const;
+        int         getResponseCode(void) const;
+        size_t      getBodySize(void) const;
         
         //SETTERS
         void    setMethod(std::string &method);
@@ -100,14 +101,16 @@ class HttpRequest {
         void    setRootPath(std::string &rootPath);
         void    setRules(Rules* rules);
         void    setCgiExt(std::string ext);
-        void    setClientFD(int fd); 
+        void    setClientFD(int fd);
+        void    setBodySize(size_t size); 
         
         //METHODS:
         t_binary    makeRawResponse(void);
         void        parseRequest(const t_binary &rawRequest);
         void        setDefaultsHeaders(void);
         void        initReasons(void);
-        void        makeError(int httpCode, HttpRequest request);
+        void        makeError(int httpCode, HttpRequest &request);
+        void        internalError(void);
         void        generateIndexFile(const std::vector<std::string>& fileNames);
         void        log(void);
 

@@ -1,13 +1,17 @@
 #include "HTTPRequest.hpp"
 
 HttpRequest::HttpRequest() {
+    _responseCode = 0;
+    _rules = NULL;
     this->initReasons();
 }
 
 HttpRequest::HttpRequest(RequestDirection direction, t_binary &rawRequest) {
+    _responseCode = 0;
     _direction = direction;
-    this->initReasons();
-    this->parseRequest(rawRequest);
+    _rules = NULL;
+    initReasons();
+    parseRequest(rawRequest);
 } 
 
 HttpRequest::~HttpRequest(void) {};
@@ -50,9 +54,8 @@ std::multimap<std::string, std::string>  HttpRequest::getHeaders(void) const {
     return (this->_headers);
 }
 
-t_binary HttpRequest::getBody() const
-{ 
-    return this->_body;
+const t_binary& HttpRequest::getBody() const { 
+    return _body;
 }
 
 std::string HttpRequest::getRootPath() const {
@@ -69,6 +72,14 @@ std::string HttpRequest::getCgiExt(void) const {
 
 int HttpRequest::getClientFD(void) const {
     return _clientFd;
+}
+
+int HttpRequest::getResponseCode(void) const {
+    return _responseCode;
+}
+
+size_t HttpRequest::getBodySize(void) const  {
+    return _bodySize;
 }
 
 //SETTERS
@@ -107,6 +118,10 @@ void    HttpRequest::setCgiExt(std::string ext) {
 
 void    HttpRequest::setClientFD(int fd) {
     _clientFd = fd;
+}
+
+void    HttpRequest::setBodySize(size_t size) {
+    _bodySize = size;
 }
 
 //METHODS
@@ -183,6 +198,8 @@ const unsigned char* find_sequence(const t_binary& buffer, const char* sequence)
 bool is_hex_line(const t_binary& buffer, size_t start, size_t end) {
     if (start >= end) return false; // Empty line check
 
+    if (end - start > 7) //6-digit hexadecimal number + 1 for '\r' (FFFFFF) is enough
+        return (false);
     for (size_t i = start; i < end; ++i) {
         if (!std::isxdigit(buffer[i])) {
             return false;
@@ -261,8 +278,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
             while (pos < endHeadersIndex && rawRequest[pos] != '\r') {
                 value += rawRequest[pos++];
             }
-            std::cout << "parseRequest: " << key << "=" << value << std::endl; //////////////
-
+            
             // Skip '\r\n'
             if (pos < endHeadersIndex && rawRequest[pos] == '\r') pos++;
             if (pos < endHeadersIndex && rawRequest[pos] == '\n') pos++;
@@ -281,7 +297,7 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
         while (pos < rawRequest.size()) {
             // Find the end of the current line
             size_t lineEnd = find_next_line(rawRequest, pos);
-            
+
             // Check if it's a chunk size line (hexadecimal)
             if (isChuncked && is_hex_line(rawRequest, pos, lineEnd - 2)) {
                 pos = lineEnd; // Skip the chunk size line
@@ -300,40 +316,57 @@ void HttpRequest::parseRequest(const t_binary &rawRequest) {
         _body = rawRequest;
     }
 
-    if (_direction == HTTP_RESPONSE) {
+    setBodySize(_body.size());
+
+    if (_direction == HTTP_RESPONSE)
         setDefaultsHeaders();
-    }
 }
 
-void    HttpRequest::makeError(int httpCode, HttpRequest request){
-    t_binary buffer(4096);
+void    HttpRequest::internalError(void) {
+    std::string internalErrorString = "HTTP 500 Error: Internal server error. (Default error page set in config is not found.)";
+    t_binary body(internalErrorString.begin(), internalErrorString.end());
+    _headers.insert(std::pair<std::string, std::string>("Content-Type", "text/html; charset=utf-8"));
+    setDefaultsHeaders();
+    setResponseCode(500);
+    setBody(body);
+}
 
+void    HttpRequest::makeError(int httpCode, HttpRequest &request) {
+	struct stat path_stat;	
     std::stringstream stream;
     stream << "default/errors/" << httpCode << ".html";
 
     std::string errorPagePath;
-    std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
-    if (errorPagesConfig.count(httpCode) > 0) {
-        errorPagePath = errorPagesConfig[httpCode];
-    } else {
+    if (!request.getRules())
         errorPagePath = stream.str();
-    }
+    else {
+        std::map<int, std::string> errorPagesConfig = request.getRules()->getErrorPages();
+        if (errorPagesConfig.count(httpCode) > 0)
+            errorPagePath = errorPagesConfig[httpCode];
+        else
+            errorPagePath = stream.str();
+    }    
+    
+    if (stat(errorPagePath.c_str(), &path_stat) != 0) 
+        return (internalError());
 
-	int fd = open(errorPagePath.c_str(), O_RDONLY);
-	if (fd < 0) {
-        std::string internalErrorString = "HTTP 500 Error: Internal server error";
-        t_binary body(internalErrorString.begin(), internalErrorString.end());
-        setBody(body);
-        setDefaultsHeaders();
-        setResponseCode(500);
-        std::cerr << "Error: invalid error pages path" << std::endl;
+    std::ifstream inputFile(errorPagePath.c_str(), std::ios_base::binary);
+	
+    inputFile.seekg(0, std::ios::end);
+    std::streamsize length = inputFile.tellg();
+    inputFile.seekg(0, std::ios::beg);
+
+	t_binary buffer(length);
+	if (inputFile.fail()) {
+        return(internalError());
     } else {
-        read(fd, buffer.data(), buffer.size());
-        close(fd);
-        setDefaultsHeaders();
-        setResponseCode(httpCode);
-        setBody(buffer);
-    }
+		if (!inputFile.read(reinterpret_cast<char*>(buffer.data()), length))
+            return(internalError());
+    }	
+
+    setDefaultsHeaders();
+    setResponseCode(httpCode);
+	setBody(buffer);
 }
 
 void    HttpRequest::generateIndexFile(const std::vector<std::string>& fileNames) {
@@ -371,15 +404,8 @@ t_binary    HttpRequest::makeRawResponse(void) {
     }
     
     std::string headersStr = httpHeaders.str();  
-//   std::cout   << "/////// headersStr ///////" << std::endl
-//                << headersStr << std::endl
-//                << "//////////////////////////" << std::endl;
-    rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end()); //insert the full headersStr.
-    rawResponse.insert(rawResponse.end(), _body.begin(), _body.end()); //insert the full binary body.
-/////////////////////////
-//    std::cout   << "/////// rawResponse ///////" << std::endl
-//                << rawResponse << std::endl
-//                << "///////////////////////////" << std::endl;
+    rawResponse.insert(rawResponse.end(), headersStr.begin(), headersStr.end());
+    rawResponse.insert(rawResponse.end(), _body.begin(), _body.end());
     return (rawResponse);
 }
 

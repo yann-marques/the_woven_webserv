@@ -3,18 +3,21 @@ server {
   server_names: localhost, site1.com, www.site1.com;
   root: www/;
   default_pages: index.html, home.html;
+  auto_index: false;
   error_pages {
-    404: not_found.html;
-    500: internal_error.html;
+    404: default/errors/404.html;
   }
-  auto_index: true;
   allowed_methods: GET, POST, DELETE;
-  max_body_bytes: 4096;
+  max_body_bytes: 1M;
   cgi_path {
     .php: /usr/bin/php-cgi;
+    .py: /usr/bin/python3;
   }
-  redirect: /welcome/;
-  upload: /uploads/;
+  upload: uploads/;
+  location: /api {
+    auto_index: true;
+  }
+
   location: /admin {
     root: /var/www/site1/admin/;
     allowed_methods: GET, POST;
@@ -22,28 +25,27 @@ server {
 }
 
 server {
-  host: 127.0.0.1;
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
-  root: /var/www/site2/;
-  default_pages: main.html;
-  error_pages {
-    403: forbidden.html;
-  }
+  root: www/;
+  default_pages: index.html;
   auto_index: false;
-  allowed_methods: GET;
-  max_body_bytes: 2048;
+  allowed_methods: GET, POST;
+  max_body_bytes: 10;
   cgi_path {
     .py: /usr/bin/python3;
   }
-  redirect: /home/;
-  upload: /files/;
+  upload: www/uploads/;
   location: /api {
-    root: /var/www/site2/api/;
+    auto_index: false;
+    root: www/api/;
+    cgi_path {
+    	.php: /usr/bin/php-cgi;
+    }
     allowed_methods: GET, DELETE;
     location: /v2 {
-      root: /var/www/site2/api/v2/;
-      allowed_methods: GET;
+      root: www/api/v2/;
+      allowed_methods: GET, HEAD;
     }
   }
 }
@@ -56,9 +58,8 @@ server {
   error_pages {
     404: missing.html;
   }
-  auto_index: no;
   allowed_methods: GET, POST;
-  max_body_bytes: 1024;
+  max_body_bytes: 1M;
   cgi_path {
     .pl: /usr/bin/perl;
   }

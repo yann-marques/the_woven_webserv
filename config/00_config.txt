@@ -1,18 +1,13 @@
 server {
-  port: 8080;
+  port: 8081;
   server_names: example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
-  error_pages {
-    404: not_found.html;
-    500: internal_error.html;
-  }
   auto_index: false;
   allowed_methods: GET, POST;
-  max_body_bytes: 2048;
+  max_body_bytes: 1G;
   cgi_path {
     .php: /usr/bin/php-cgi;
   }
-  redirect: /new-location/;
   upload: www/uploads/;
 }

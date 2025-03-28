@@ -1,6 +1,26 @@
 #include "WebServ.hpp"
 
-// WebServ::WebServ() {} // private ?
+WebServ::WebServ(): _maxClients(1000), _maxEvents(1000) {
+	_epollFd = -1;
+}
+
+WebServ::WebServ(const WebServ& rhs): _maxClients(1000), _maxEvents(1000) {
+	*this = rhs;
+}
+
+WebServ&	WebServ::operator=(const WebServ& rhs) {
+	_debug = rhs._debug;
+	_config = rhs._config;
+
+	_epollFd = rhs.getEpollFd();
+	_epollEventsBuff = rhs._epollEventsBuff;
+	_fds = rhs._fds;
+	_VServers = rhs._VServers;
+	_envp = rhs._envp;
+	_argv = rhs._argv;
+
+	return (*this);
+}
 
 void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< std::string, Rules* > > >& config) {
 	t_map_it< std::string, std::map< int, std::map< std::string, Rules* > > >::t
@@ -27,8 +47,8 @@ void	WebServ::setVServMap(const std::map< std::string, std::map< int, std::map< 
 	}
 }
 
-WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { // , _config(filename.c_str()) {
-//	signal(SIGINT, handleSignal); // in execution
+WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(1000), _maxEvents(1000) { 
+	try {
 		// epoll init
 		_epollFd = epoll_create(_maxClients + 1);
 		if (_epollFd == -1)
@@ -53,18 +73,40 @@ WebServ::WebServ(std::string fileName, char **argv, char **envp): _maxClients(10
 		setVServMap(_config.getParsedConfig());
 
 		_epollEventsBuff.resize(_maxEvents);
-	//	listenEvents();
+	} catch (VServ::SocketException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw (e);
+	} catch (VServ::SetSockOptException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw (e);
+	} catch (VServ::BindException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw (e);
+	} catch (std::exception& e) {
+		destruct();
+		throw(e);
+	}
+
 }
 
-WebServ::~WebServ() {
+void	WebServ::destruct() {
 	if (_epollFd != -1)
 		close(_epollFd);
 	t_map_it< int, VServ* >::t	it = _VServers.begin(), ite = _VServers.end();
 	while (it != ite) {
 		if (isServerFD(it->first))
 			delete it->second;
+		close(it->first);
 		it++;
 	}
+	_VServers.clear();
+}
+
+WebServ::~WebServ() {
+	destruct();
 }
 
 // SETTERS
@@ -83,7 +125,6 @@ int	WebServ::getEpollFd() const {
 	return (_epollFd);
 }
 
-//Renvoie un VServ* associe au FD passe. Si c'est un FD client, ca renvoie le *VServ "attache" a ce client. Si c'est un FD Server, renvoie le *VServ.
 VServ*	WebServ::getVServ(int fd) {
 	return (_VServers[fd]);
 }
@@ -103,10 +144,8 @@ void	WebServ::epollCtlAdd(int fd, uint32_t events) {
 	event.events = events;
 	event.data.fd = fd;
 	
-	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
-		std::cout << "ERROR: " << strerror(errno) << std::endl;
+	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1)
 		throw (EpollCtlAddException());
-	}
 }
 
 void	WebServ::epollCtlMod(int fd, uint32_t events) {
@@ -114,14 +153,12 @@ void	WebServ::epollCtlMod(int fd, uint32_t events) {
 	event.events = events;
 	event.data.fd = fd;
 	
-	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event) == -1) {
-		std::cout << "ERROR: " << strerror(errno) << std::endl;
+	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event) == -1)
 		throw (EpollCtlAddException());
-	}
 }
 
 void	WebServ::epollCtlDel(int fd) {
-	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) //the EVENT can be null.
+	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) 
 		throw (EpollCtlDelException());
 }
 
@@ -141,6 +178,7 @@ bool WebServ::isCGIFd(int fd) {
 }
 
 void	WebServ::deleteFd(int fd) {
+	_fds.erase(fd);
 	epollCtlDel(fd);
 	close(fd);
 }
@@ -163,11 +201,10 @@ void	WebServ::listenEvents(void) {
 			for (int i = 0; i < nbEvents; i++) {
 				epoll_event event = _epollEventsBuff[i];
 				int fd = event.data.fd;
-				
 				VServ *vserv = getVServ(fd);
 				if (!vserv)
-				throw UnknownFdException();
-				
+					throw UnknownFdException();
+
 				if (isServerFD(fd))
 					handleServerEvent(vserv);
 				else if (isClientFD(fd) && (event.events & EPOLLIN))
@@ -189,6 +226,8 @@ void	WebServ::listenEvents(void) {
 			std::cout << "SendPartiallyException" << std::endl;
 		} catch (VServ::SendException& e) {
 			std::cout << "SendException" << std::endl;
-		}
+		} catch (WebServ::EpollWaitException& e) {
+	    	std::cerr << e.what() << std::endl;
+	    } 
 	}
 }

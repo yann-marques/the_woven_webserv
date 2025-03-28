@@ -1,6 +1,6 @@
 server {
   port: 8080;
-  server_names: 172.20.10.2, localhost, example.com, www.example.com;
+  server_names: localhost, example.com, www.example.com;
   root: www/;
   default_pages: index.html, home.html;
   max_body_bytes: 1G;
@@ -12,21 +12,23 @@ server {
     .bla: tester/ubuntu_cgi_tester;
     .php: /usr/bin/php-cgi;
     .py: /usr/bin/python3;
+    .test: /www/toto;
   }
 
   location: /post_body {
     allowed_methods: POST;
+    upload: www/uploads;
     max_body_bytes: 100;
   }
 
   location: /directory {
     allowed_methods: GET, POST;
-    root: tester/YoupiBanane;
+    root: tester/YoupiBanane/;
     default_pages: youpi.bad_extension;
   }
 
   location: /put_test {
-    allowed_methods: PUT;
+    allowed_methods: POST;
     upload: www/uploads/;
   }
 }
