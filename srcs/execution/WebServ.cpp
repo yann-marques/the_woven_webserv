@@ -1,10 +1,10 @@
 #include "WebServ.hpp"
 
-WebServ::WebServ(): _maxClients(1000), _maxEvents(1000) {
+WebServ::WebServ(): _maxClients(512), _maxEvents(512) {
 	_epollFd = -1;
 }
 
-WebServ::WebServ(const WebServ& rhs): _maxClients(1000), _maxEvents(1000) {
+WebServ::WebServ(const WebServ& rhs): _maxClients(512), _maxEvents(512) {
 	*this = rhs;
 }
 
@@ -158,8 +158,10 @@ void	WebServ::epollCtlMod(int fd, uint32_t events) {
 }
 
 void	WebServ::epollCtlDel(int fd) {
-	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) 
+	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) {
+		std::cerr << strerror(errno) << " : " << fd << std::endl;
 		throw (EpollCtlDelException());
+	} 
 }
 
 bool WebServ::isServerFD(int fd) {
@@ -180,7 +182,8 @@ bool WebServ::isCGIFd(int fd) {
 void	WebServ::deleteFd(int fd) {
 	_fds.erase(fd);
 	epollCtlDel(fd);
-	close(fd);
+	if (fd != -1)
+		close(fd);
 }
 
 void	WebServ::handleServerEvent(VServ* vserv) {
@@ -188,7 +191,7 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT /*| EPOLLET*/);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 
@@ -217,8 +220,7 @@ void	WebServ::listenEvents(void) {
 				
 			}
 		} catch (UnknownFdException& e) {
-			std::cerr << "Fatal error: Unknown FD problem.";
-			break;
+			std::cerr << "Fatal error: Unknown FD problem: " << std::endl;
 		} catch (VServ::AcceptException& e) {
 			std::cout << "AcceptException" << std::endl;
 		} catch (VServ::RecvException& e) {

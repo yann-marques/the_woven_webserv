@@ -218,47 +218,49 @@ void	VServ::readRequest(HttpRequest &request) {
 	_clientRequests[clientFd] = request;
 }
 
-bool VServ::isEndedChunckReq(std::string rawRequest) {
-	if (rawRequest.find("0\r\n\r\n") != std::string::npos) { //last chunked request
+bool VServ::isEndedChunckReq(t_binary& clientBuffer) {
+	std::string lastChunckSequence = "0\r\n\r\n";
+	if (clientBuffer.size() < 10) return false;
+	if (std::search(clientBuffer.end() - 10, clientBuffer.end(), lastChunckSequence.begin(), lastChunckSequence.end()) != clientBuffer.end()) { //last chunked request
 		return (true);
 	}
 	return (false);	
 }
 
-bool VServ::isHttpRequestComplete(t_binary &clientBuffer) {
+bool VServ::isHttpRequestComplete(t_binary &clientBuffer, int clientFd) {
+    static const std::string headerEndSeq = "\r\n\r\n";
+    static const std::string contentLengthKey = "Content-Length: ";
+    static const std::string transferEncodingKey = "Transfer-Encoding: chunked";
 
-	const std::string headerEndSeq = "\r\n\r\n";
-    const std::string contentLengthKey = "Content-Length: ";
-    const std::string transferEncodingKey = "Transfer-Encoding: chunked";
-
-    t_binary::iterator it = std::search(clientBuffer.begin(), clientBuffer.end(), headerEndSeq.begin(), headerEndSeq.end());
-
-    if (it == clientBuffer.end()) {
-        return false;
+	if (_clientHeaderEndPos.count(clientFd) == 0) {
+		t_binary::iterator it = std::search(clientBuffer.begin(), clientBuffer.end(), headerEndSeq.begin(), headerEndSeq.end());
+		if (it == clientBuffer.end())
+			return false;
+		_clientHeaderEndPos[clientFd] = std::distance(clientBuffer.begin(), it) + 4; // "\r\n\r\n" length
 	}
 
-    size_t headerEnd = it - clientBuffer.begin() + 4; // "\r\n\r\n" length
+    // Search for "Content-Length" within headers (not entire buffer)
+	size_t headerEnd = _clientHeaderEndPos[clientFd];
+    t_binary::iterator headerEndIt = clientBuffer.begin() + headerEnd;
+    t_binary::iterator contentLengthIt = std::search(clientBuffer.begin(), headerEndIt, contentLengthKey.begin(), contentLengthKey.end());
 
-    std::string rawRequest(clientBuffer.begin(), clientBuffer.end());
-
-    // Check for "Content-Length"
-    size_t contentLengthPos = rawRequest.find(contentLengthKey);
-    if (contentLengthPos != std::string::npos) {
-        contentLengthPos += contentLengthKey.size();
-        size_t endPos = rawRequest.find("\r\n", contentLengthPos);
-        if (endPos != std::string::npos) {
-            int contentLength = atoi(rawRequest.substr(contentLengthPos, endPos - contentLengthPos).c_str());
+    if (contentLengthIt != headerEndIt) {  // Found "Content-Length"
+        contentLengthIt += contentLengthKey.size();
+        t_binary::iterator endPosIt = std::find(contentLengthIt, headerEndIt, '\r'); // Find end of line
+        if (endPosIt != headerEndIt) {
+            int contentLength = atoi(std::string(contentLengthIt, endPosIt).c_str());
             return clientBuffer.size() >= headerEnd + contentLength;
         }
     }
 
-    if (rawRequest.find(transferEncodingKey) != std::string::npos) {
-        return isEndedChunckReq(rawRequest);
+    // Check for "Transfer-Encoding: chunked"
+    if (std::search(clientBuffer.begin(), headerEndIt, transferEncodingKey.begin(), transferEncodingKey.end()) != headerEndIt) {
+		return isEndedChunckReq(clientBuffer); 
     }
 
     return true;
-
 }
+
 
 bool	VServ::readSocketFD(int fd) {
 	t_binary&		clientBuffer = _clientRequestBuffer[fd];
@@ -266,23 +268,22 @@ bool	VServ::readSocketFD(int fd) {
 	const ssize_t 	chunckSize = 65536;  // 64 KiB chunk size for (cross platform) pipe buff limit
 	t_binary		tempBuffer(chunckSize);
 
-	while (true) {
-		bytesRead = read(fd, tempBuffer.data(), chunckSize);
-		
-		if (bytesRead > 0) {
-			clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.begin() + bytesRead);
-		} else {
-			if (bytesRead == 0) {
-				_mainInstance->deleteFd(fd);
-				eraseClient(fd);
-				return false;
-			}
-			break;
+	_mainInstance->epollCtlMod(fd, EPOLLIN);
+	bytesRead = read(fd, tempBuffer.data(), chunckSize);
+	if (bytesRead > 0) {
+		clientBuffer.insert(clientBuffer.end(), tempBuffer.begin(), tempBuffer.begin() + bytesRead);
+	} else {
+		if (bytesRead == 0) {
+			_mainInstance->deleteFd(fd);
+			eraseClient(fd);
+			return false;
 		}
 	}
 
-	if (isHttpRequestComplete(clientBuffer))
+	if (isHttpRequestComplete(clientBuffer, fd)) {
+		std::cout << "readSocket finish" << std::endl;
 		return true;
+	}
 
 	return false;
 }
@@ -450,7 +451,7 @@ void	VServ::executeCGI(HttpRequest &request) {
 	fcntl(parentToChild[0], F_SETFL, O_NONBLOCK);
 	fcntl(parentToChild[1], F_SETFL, O_NONBLOCK);
 	fcntl(childToParent[0], F_SETFL, O_NONBLOCK);
-	
+
 	if (pid == 0) {
 		close(childToParent[0]);
 		close(parentToChild[1]);
@@ -466,12 +467,14 @@ void	VServ::executeCGI(HttpRequest &request) {
 		char* argv[] = {
 			const_cast<char*>(interpreter.c_str()),
 			NULL
-
 		};
 
 		env = makeEnvp(request);
 		if (execve(interpreter.c_str(), argv, env.data()) < 0) {
-			throw ExecveException();
+			close(_fd);
+			close(_mainInstance->getEpollFd());
+			close(request.getClientFD());
+			exit(EXIT_FAILURE);
 		}
 	} else {
 		close(childToParent[1]);
@@ -484,7 +487,7 @@ void	VServ::executeCGI(HttpRequest &request) {
 		_clientFdsPipeCGI[parentToChild[1]] = request.getClientFD();
 		_clientFdsPipeCGI[childToParent[0]] = request.getClientFD();
 		_mainInstance->epollCtlAdd(parentToChild[1], EPOLLOUT);
-		_mainInstance->epollCtlAdd(childToParent[0], EPOLLIN);
+		_mainInstance->epollCtlAdd(childToParent[0], EPOLLIN); 
 	}
 }
 
@@ -502,8 +505,9 @@ void	VServ::talkToCgi(epoll_event event) {
 	if (event.events & EPOLLOUT) {
 		ssize_t bytesToWrite = _cgiBytesWriting[fd] + chunckSize < bodySize ? chunckSize : bodySize - _cgiBytesWriting[fd];
 		ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting[fd], bytesToWrite);
-		if (bytesWritten > 0)
+		if (bytesWritten > 0) {
 			_cgiBytesWriting[fd] += bytesWritten;
+		}
 		else {
 			_cgiBytesWriting[fd] = 0;
 			_clientFdsPipeCGI.erase(fd);
@@ -590,38 +594,39 @@ void	VServ::processRequest(int &clientFd) {
 
 		setTargetRules(request);
 
+		
 		std::string reqMethod = request.getMethod();
 		
 		request.log();
 		
 		checkAllowedMethod(request);
 		handleBigRequest(request);
-
+		
 		std::string rootPath = makeRootPath(request);
 		if (reqMethod == GET || reqMethod == HEAD) {
 			if (stat(rootPath.c_str(), &path_stat) != 0) 
-				throw FileNotExist();
+			throw FileNotExist();
 			if (S_ISREG(path_stat.st_mode)) {
 				readRequest(request);
 			} else if (S_ISDIR(path_stat.st_mode)) {
 				request.getRules()->getAutoIndex() ? showDirectory(request) : readDefaultPages(request);
 			}
 		}
-
+		
 		if (reqMethod == POST) {
 			const t_binary& requestBody = request.getBody();
 			if (!isCGI(request)) {
 				if (!request.getRules()->getUpload().empty())
-					uploadFile(request, requestBody);
+				uploadFile(request, requestBody);
 				else
 					throw MethodNotAllowed();
 			}
 		}
-
+		
 		if (reqMethod == DELETE) {
 			remove(rootPath.c_str());
 		}
-
+		
 		if (isCGI(request)) {
 			_clientRequests[clientFd] = request;
 			executeCGI(request);
@@ -644,7 +649,6 @@ void	VServ::processRequest(int &clientFd) {
 	} catch (InterpreterEmpty& e) {
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (ExecveException& e) {
-		std::cout << e.what() << std::endl;
 		request.setResponseCode(HTTP_INTERNAL_SERVER_ERROR);
 	} catch (MethodNotAllowed& e) {
 		request.setResponseCode(HTTP_METHOD_NOT_ALLOWED);
@@ -682,25 +686,29 @@ void	VServ::processRequest(int &clientFd) {
 
 void VServ::processResponse(int &clientFd) {
 	try {
+		
 		if (_clientResponses.count(clientFd) > 0) {
 			HttpRequest& response = _clientResponses[clientFd];
 			HttpRequest& request = _clientRequests[clientFd];
 			try {
 				if (sendRequest(response, clientFd)) {
+					std::cout << "response is sent" << std::endl;
+					_clientHeaderEndPos.erase(clientFd);
 					std::string connectionType = request.getHeader("Connection");
 					if (!connectionType.empty() && (connectionType.find("close") != std::string::npos))
 						_mainInstance->deleteFd(clientFd);
 					else
-						_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT | EPOLLET);
+						_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT);
 					eraseClient(clientFd);
 				}
 			} catch (SigPipe& e) {
 				eraseClient(clientFd);
 				_mainInstance->deleteFd(clientFd);
+				_clientHeaderEndPos.erase(clientFd);
 			}
 			return ;
 		}
-	
+		
 		if (_clientRequests.count(clientFd) > 0) {
 			HttpRequest response;
 			HttpRequest& request = _clientRequests[clientFd];

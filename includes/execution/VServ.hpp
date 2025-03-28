@@ -51,6 +51,7 @@ class	VServ {
 		std::map<int, size_t>								_totalBytesSent;
 
 		std::map<int, t_binary>								_clientRequestBuffer;
+		std::map<int, size_t>								_clientHeaderEndPos;
 		std::map<int, t_binary>								_clientResponseBuffer;
 
 		std::map<int, int>									_clientFdsPipeCGI;
@@ -96,8 +97,8 @@ class	VServ {
 		std::vector<char*>			makeEnvp(HttpRequest &request);
 		void						setTargetRules(HttpRequest &req);
 		void 						checkAllowedMethod(HttpRequest& request);
-		bool						isEndedChunckReq(std::string rawRequest);
-		bool						isHttpRequestComplete(t_binary &clientBuffer);
+		bool						isEndedChunckReq(t_binary &clientBuffer);
+		bool						isHttpRequestComplete(t_binary &clientBuffer, int clientFd);
 		void						uploadFile(HttpRequest request, t_binary content);
 		bool						makeHttpRedirect(HttpRequest &request, HttpRequest &response);
 

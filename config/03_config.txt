@@ -11,7 +11,6 @@ server {
   max_body_bytes: 1M;
   cgi_path {
     .php: /usr/bin/php-cgi;
-    .py: /usr/bin/python3;
   }
   upload: uploads/;
   location: /api {
