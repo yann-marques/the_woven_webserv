@@ -43,6 +43,11 @@ void	AParser::setValues(std::multimap< std::string, std::string >& args, std::st
 				pos = valueLine.find(';');
 		}
 		args.insert(make_pair(key, valueLine.substr(0, pos)));
+		if (key == "cgi_path") {
+			std::cout << std::endl << "parseLine" << std::endl
+				<< "key = " << key << std::endl
+				<< "valueLine = " << valueLine << std::endl;
+		}
 		valueLine.erase(0, pos + 1);
 	}
 }

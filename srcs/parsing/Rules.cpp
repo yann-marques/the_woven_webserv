@@ -89,30 +89,21 @@ Rules&	Rules::operator|=(const Rules& rhs) {
 		_allowedMethods = rhs.getAllowedMethods();
 	if (!_args.count("max_body_bytes"))
 		_maxBodyBytes = rhs.getMaxBodyBytes();
-	//if (!_args.count("redirect"))
-	//	_redirect = rhs.getRedirect();
+	if (!_args.count("redirect"))
+		_redirect = rhs.getRedirect();
 	if (!_args.count("upload"))
 		_upload = rhs.getUpload();
 
-	std::set< int >::iterator	setItA = rhs.getErrorKeys().begin(), setIteA = rhs.getErrorKeys().end();
-	while (setItA != setIteA) {
-		if (!_errorKeys.count(*setItA)) {
-			_errorKeys.insert(*setItA);
-			_errorPages[*setItA] = rhs.getErrorPages().at(*setItA);
-		}
-		setItA++;
+	if (!_args.count("error_pages")) {
+		_errorKeys = rhs.getErrorKeys();
+		_errorPages = rhs.getErrorPages();
 	}
-	std::set< std::string >::iterator	setItB = rhs.getCgiKeys().begin(), setIteB = rhs.getCgiKeys().end();
-	while (setItB != setIteB) {
-		if (!_cgiKeys.count(*setItB)) {
-			_cgiKeys.insert(*setItB);
-			_cgiPath[*setItB] = rhs.getCgiPath().at(*setItB);
-		}
-		setItB++;
+	if (!_args.count("cgi_path")) {
+		_cgiKeys = rhs.getCgiKeys();
+		_cgiPath = rhs.getCgiPath();
 	}
 	return (*this);
 }
-
 std::multimap< std::string, std::string >	Rules::parseLocationLine(std::string line) {
 	std::multimap< std::string, std::string >	args;
 	std::string	key;

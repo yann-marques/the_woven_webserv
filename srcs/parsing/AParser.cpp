@@ -70,7 +70,12 @@ std::multimap< std::string, std::string >	AParser::parseLine(std::string line) {
 					throw (ConfigSyntaxException());
 				valueLine.erase(valueLine.size() - 1);
 			}
-			setValues(args, key, valueLine, scopeCmp);
+/*			if (key == "cgi_path") {
+				std::cout << std::endl << "parseLine" << std::endl
+					<< "key = " << key << std::endl
+					<< "valueLine = " << valueLine << std::endl;
+			}
+*/			setValues(args, key, valueLine, scopeCmp);
 		}
 		line.erase(0, pos2 + 1);
 	} while (!line.empty());

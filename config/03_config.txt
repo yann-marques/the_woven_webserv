@@ -16,10 +16,14 @@ server {
   upload: uploads/;
   location: /api {
     auto_index: true;
+    cgi_path {}
   }
 
   location: /admin {
-    root: /var/www/site1/admin/;
+    cgi_path {
+      .py: /usr/bin/python3;
+    }
+    root: www/api/v2/;
     allowed_methods: GET, POST;
   }
 }
