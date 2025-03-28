@@ -27,9 +27,11 @@ void	Config::setArgsByHost(t_mmap_range< std::string, std::multimap< std::string
 	Rules	defaultRules;
 	while (argsIt != argsIte) {
 		std::multimap< std::string, std::string >	args = argsIt->second;
-		int	port = std::atoi(args.find("port")->second.c_str());
-		std::map< std::string, Rules* >	rulesMap;
-
+		std::string	portStr = args.find("port")->second;
+		int	port = std::atoi(portStr.c_str());
+		
+		if (hostRef.count(port))
+			throw (MultipleDefinitionOfPort(hostName + ':' + portStr));
 		t_mmap_range< std::string, std::string >::t
 			serverNamesRange = args.equal_range("server_names");
 		t_mmap_it< std::string, std::string >::t

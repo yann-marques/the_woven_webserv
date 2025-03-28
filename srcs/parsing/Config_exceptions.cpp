@@ -29,3 +29,12 @@ const char*	Config::BadSpacesException::what() const throw() {
 const char*	Config::MissingPortException::what() const throw() {
 	return ("Port not found in server scope.");
 }
+
+Config::MultipleDefinitionOfPort::MultipleDefinitionOfPort(std::string where):
+	StrException("Port used multiple times for the same host is not allowed: " + where) {}
+
+Config::MultipleDefinitionOfPort::~MultipleDefinitionOfPort() throw() {}
+
+const char*	Config::MultipleDefinitionOfPort::what() const throw() {
+	return (_str.c_str());
+}

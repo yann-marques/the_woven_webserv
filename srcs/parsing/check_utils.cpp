@@ -82,6 +82,8 @@ bool	isValidAutoIndex(std::string str) {
 }
 
 bool	isValidMaxBodyBytes(std::string str) {
+	if (str.empty())
+		return (false);
 	std::string	mkg("MKG");
 	size_t	pos = 0;
 	while (str[pos] && isdigit(str[pos]))

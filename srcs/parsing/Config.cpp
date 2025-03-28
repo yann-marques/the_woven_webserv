@@ -80,6 +80,10 @@ Config::Config(const char* fileName): AParser() {
 		std::cerr << e.what() << std::endl;
 		destruct();
 		throw(e);
+	} catch (Config::MultipleDefinitionOfPort& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
 	}
 	// Rules exceptions
 	catch (Rules::RedefinedArgException& e) {

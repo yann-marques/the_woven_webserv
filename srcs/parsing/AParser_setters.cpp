@@ -5,8 +5,6 @@ size_t	AParser::setArgKey(std::string line, std::string& key) {
 
 	if (line.compare(0, pos, "error_pages") && line.compare(0, pos, "cgi_path"))
 		pos = line.find(':');
-	if (pos == std::string::npos)
-		throw ConfigSyntaxException();
 	key = line.substr(0, pos);
 	return (pos);
 }
@@ -22,21 +20,16 @@ size_t	AParser::setArgValueLine(std::string line, std::string key, std::string& 
 	else
 		pos = line.find(';');
 
-	if (pos == std::string::npos)
-		throw (ConfigSyntaxException());
-
 	valueLine = line.substr(prvPos + 1, pos - prvPos);
 
 	return (pos);
 }
 
 void	AParser::setValues(std::multimap< std::string, std::string >& args, std::string key, std::string valueLine, int scopeCmp) {
-	while (!valueLine.empty()) {
+	do {
 		size_t	pos;
 		if (!scopeCmp) {
 			pos = valueLine.find(';');
-			if (pos == std::string::npos)
-				throw (ConfigSyntaxException());
 		} else {
 			pos = valueLine.find(',');
 			if (pos == std::string::npos)
@@ -44,5 +37,5 @@ void	AParser::setValues(std::multimap< std::string, std::string >& args, std::st
 		}
 		args.insert(make_pair(key, valueLine.substr(0, pos)));
 		valueLine.erase(0, pos + 1);
-	}
+	} while (!valueLine.empty());
 }
