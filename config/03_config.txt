@@ -1,9 +1,10 @@
 server {
+  host: 127.0.0.1;
   port: 8080;
   server_names: localhost, site1.com, www.site1.com;
   root: www/;
   default_pages: index.html, home.html;
-  auto_index: false;
+  auto_index: true;
   error_pages {
     404: default/errors/404.html;
   }
@@ -17,6 +18,7 @@ server {
   location: /api {
     auto_index: true;
     cgi_path {}
+    error_pages {}
   }
 
   location: /admin {
@@ -29,6 +31,7 @@ server {
 }
 
 server {
+  host: 127.0.0.2;
   port: 8080;
   server_names: site1.com, site2.com, www.site2.com;
   root: www/;
@@ -55,10 +58,11 @@ server {
 }
 
 server {
+  host: 127.0.0.3;
   port: 8080;
   server_names: site3.com;
   root: www/;
-  default_pages: landing.html;
+  default_pages: ;
   error_pages {
     404: missing.html;
   }

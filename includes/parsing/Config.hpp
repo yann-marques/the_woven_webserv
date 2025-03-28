@@ -60,6 +60,12 @@ class	Config: public AParser {
 			public:
 				const char*	what() const throw();
 		};
+		class	MultipleDefinitionOfPort: public StrException {
+			public:
+				MultipleDefinitionOfPort(std::string where);
+				~MultipleDefinitionOfPort() throw();
+				const char*	what() const throw();
+		};
 };
 
 std::ostream&	operator<<(std::ostream& os, const Config& rhs);

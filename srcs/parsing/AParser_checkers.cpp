@@ -3,6 +3,8 @@
 void	AParser::checkErrorPages(t_mmap_range< std::string, std::string >::t range) const {
 	t_mmap_it< std::string, std::string >::t	mmIt = range.first, mmIte = range.second;
 
+	if (mmIt->second.empty())
+		return ;
 	while (mmIt != mmIte) {
 		std::string	str = mmIt->second;
 		size_t	pos1 = str.find(':');
@@ -18,6 +20,8 @@ void	AParser::checkErrorPages(t_mmap_range< std::string, std::string >::t range)
 void	AParser::checkCgiPath(t_mmap_range< std::string, std::string >::t range) const {
 	t_mmap_it< std::string, std::string >::t	mmIt = range.first, mmIte = range.second;
 
+	if (mmIt->second.empty())
+		return ;
 	while (mmIt != mmIte){
 		std::string	str = mmIt->second;
 		size_t	pos1 = str.find(':');
