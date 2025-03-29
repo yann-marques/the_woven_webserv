@@ -31,6 +31,8 @@ int main(int argc, char **argv, char **envp)
 	    } catch (WebServ::UnknownFdException& e) {
 	    	std::cerr << e.what() << std::endl;
 	    } catch (std::exception& e) {}
-    }
+    } else {
+		std::cerr << "Webserv error: you need to pass a config file." << std::endl << "Usage: ./webserver <config_filename>" << std::endl;
+	}
     return (0);
 }
