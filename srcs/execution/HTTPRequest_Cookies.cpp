@@ -43,9 +43,9 @@ void    HttpRequest::setResponseCookies(const std::set< std::string >& requestCo
 		cookieValue.erase(cookieSize - 1);
 	(void) requestCookies;
 	if (!requestCookies.count("sessionStart")) {
-		_headers.insert(make_pair("Set-Cookie", "sessionStart=" + cookieValue + "; Max-Age=10; HttpOnly"));
+		_headers.insert(make_pair("Set-Cookie", "sessionStart=" + cookieValue + "; Max-Age=300; HttpOnly"));
 	}
-	_headers.insert(make_pair("Set-Cookie", "actualTime=" + cookieValue + "; Max-Age=10; HttpOnly"));
+	_headers.insert(make_pair("Set-Cookie", "actualTime=" + cookieValue + "; Max-Age=300; HttpOnly"));
 }
 
 #endif

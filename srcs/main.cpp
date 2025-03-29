@@ -12,6 +12,7 @@ int main(int argc, char **argv, char **envp)
         try {
             signal(SIGINT, SIG_IGN);
 			signal(SIGQUIT, SIG_IGN);
+			signal(SIGPIPE, SIG_IGN);
 			WebServ ws(argv[1], argv, envp);
 
             signal(SIGINT, handleSignal);

@@ -191,7 +191,7 @@ void	WebServ::handleServerEvent(VServ* vserv) {
 	setFdType(clientFd, CLIENT_SOCK); 
 	setVServ(clientFd, vserv);
 	fcntl(clientFd, F_SETFL, O_NONBLOCK);
-	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT /*| EPOLLET*/);
+	epollCtlAdd(clientFd, EPOLLIN | EPOLLOUT);
 
 	if (_debug)
 		std::cout << "New client connection. FD: " << clientFd << std::endl; 

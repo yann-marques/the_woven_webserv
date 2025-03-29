@@ -162,6 +162,7 @@ void	VServ::eraseClient(int fd) {
 	_clientResponseBuffer.erase(fd);
 	_clientRequests.erase(fd);
 	_clientResponses.erase(fd);
+	_clientHeaderEndPos.erase(fd);
 }
 
 std::string	VServ::makeRootPath(HttpRequest &request) {
@@ -281,7 +282,6 @@ bool	VServ::readSocketFD(int fd) {
 	}
 
 	if (isHttpRequestComplete(clientBuffer, fd)) {
-		std::cout << "readSocket finish" << std::endl;
 		return true;
 	}
 
@@ -507,8 +507,7 @@ void	VServ::talkToCgi(epoll_event event) {
 		ssize_t bytesWritten = write(fd, requestBody.data() + _cgiBytesWriting[fd], bytesToWrite);
 		if (bytesWritten > 0) {
 			_cgiBytesWriting[fd] += bytesWritten;
-		}
-		else {
+		} else {
 			_cgiBytesWriting[fd] = 0;
 			_clientFdsPipeCGI.erase(fd);
 			_mainInstance->deleteFd(fd);
@@ -516,8 +515,7 @@ void	VServ::talkToCgi(epoll_event event) {
 	}	
 
 	if (event.events & EPOLLIN) {
-		ssize_t bytesRead = 0;
-		bytesRead = read(fd, readingBuffer.data(), chunckSize);
+		ssize_t bytesRead = read(fd, readingBuffer.data(), chunckSize);
 		if (bytesRead > 0) {
 			clientResponseBuffer.insert(clientResponseBuffer.end(), readingBuffer.begin(), readingBuffer.begin() + bytesRead);
 		}
@@ -593,12 +591,9 @@ void	VServ::processRequest(int &clientFd) {
 		request.setClientFD(clientFd);
 
 		setTargetRules(request);
-
-		
 		std::string reqMethod = request.getMethod();
 		
 		request.log();
-		
 		checkAllowedMethod(request);
 		handleBigRequest(request);
 		
@@ -692,19 +687,16 @@ void VServ::processResponse(int &clientFd) {
 			HttpRequest& request = _clientRequests[clientFd];
 			try {
 				if (sendRequest(response, clientFd)) {
-					std::cout << "response is sent" << std::endl;
-					_clientHeaderEndPos.erase(clientFd);
 					std::string connectionType = request.getHeader("Connection");
+					eraseClient(clientFd);
 					if (!connectionType.empty() && (connectionType.find("close") != std::string::npos))
 						_mainInstance->deleteFd(clientFd);
 					else
 						_mainInstance->epollCtlMod(clientFd, EPOLLIN | EPOLLOUT);
-					eraseClient(clientFd);
 				}
 			} catch (SigPipe& e) {
 				eraseClient(clientFd);
 				_mainInstance->deleteFd(clientFd);
-				_clientHeaderEndPos.erase(clientFd);
 			}
 			return ;
 		}
