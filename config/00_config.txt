@@ -1,9 +1,9 @@
 server {
   port: 8081;
-  server_names: example.com, www.example.com;
+  server_names: example.com, yann.com;
   root: www/;
   default_pages: index.html, home.html;
-  auto_index: false;
+  auto_index: true;
   allowed_methods: GET, POST;
   max_body_bytes: 1G;
   cgi_path {

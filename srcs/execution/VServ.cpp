@@ -563,7 +563,10 @@ void	VServ::uploadFile(HttpRequest request, t_binary content) {
 
 
 bool	VServ::makeHttpRedirect(HttpRequest &request, HttpRequest &response) {
-	std::string redirectLocation = request.getRules()->getRedirect(); 
+	Rules* reqRules = request.getRules();
+	if (!reqRules)
+		return (false);
+	std::string redirectLocation = reqRules->getRedirect(); 
 	if (!redirectLocation.empty() && redirectLocation[0] != '/')
 		redirectLocation.insert(0, 1, '/');
 	std::string	reqPath = request.getPath();
