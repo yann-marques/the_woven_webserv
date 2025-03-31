@@ -43,3 +43,7 @@ AParser::ForbiddenCharException::~ForbiddenCharException() throw() {}
 const char*	AParser::ForbiddenCharException::what() const throw() {
 	return (_str.c_str());
 }
+
+const char*	AParser::EmptyStrException::what() const throw() {
+	return ("Empty string as value is not allowed.");
+}

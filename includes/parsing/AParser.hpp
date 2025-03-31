@@ -46,6 +46,7 @@ class	AParser {
 		void	checkAllowedMethods(t_mmap_range< std::string, std::string >::t mmRange) const;
 		virtual void	checkArgsFormat(const std::multimap< std::string, std::string >& args) const = 0;
 		void	checkRoot(t_mmap_range< std::string, std::string >::t mmRange) const;
+		void	noEmptyStrValues(std::multimap< std::string, std::string > args) const;
 
 		virtual	~AParser();
 
@@ -84,6 +85,10 @@ class	AParser {
 				ForbiddenCharException(std::string where);
 				~ForbiddenCharException() throw();
 
+				const char*	what() const throw();
+		};
+		class	EmptyStrException: public std::exception {
+			public:
 				const char*	what() const throw();
 		};
 };

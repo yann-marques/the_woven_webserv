@@ -58,6 +58,10 @@ Config::Config(const char* fileName): AParser() {
 		std::cerr << e.what() << std::endl;
 		destruct();
 		throw(e);
+	} catch (AParser::EmptyStrException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
 	}
 	// Config exceptions
 	catch (Config::IsDirException& e) {

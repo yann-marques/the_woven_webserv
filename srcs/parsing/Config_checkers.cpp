@@ -17,6 +17,8 @@ void	Config::checkServerNames(t_mmap_range< std::string, std::string >::t mmRang
 }
 
 void	Config::checkArgsFormat(const std::multimap< std::string, std::string >& args) const {
+	noEmptyStrValues(args);
+
 	checkArgNoDouble(args.equal_range("host"), isValidHost);
 	checkPortFormat(args.equal_range("port"));
 	checkServerNames(args.equal_range("server_names"));

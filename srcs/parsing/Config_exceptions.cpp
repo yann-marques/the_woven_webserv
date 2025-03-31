@@ -33,6 +33,7 @@ const char*	Config::MissingPortException::what() const throw() {
 Config::MultipleDefinitionOfPort::MultipleDefinitionOfPort(std::string where):
 	StrException("Port used multiple times for the same host is not allowed: " + where) {}
 
+	
 Config::MultipleDefinitionOfPort::~MultipleDefinitionOfPort() throw() {}
 
 const char*	Config::MultipleDefinitionOfPort::what() const throw() {

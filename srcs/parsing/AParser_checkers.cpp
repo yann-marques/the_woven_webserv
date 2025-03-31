@@ -71,3 +71,14 @@ void	AParser::checkRoot(t_mmap_range< std::string, std::string >::t mmRange) con
 	if (mmIt != mmIte)
 		throw (DoubleArgException("root"));
 }
+
+void	AParser::noEmptyStrValues(std::multimap< std::string, std::string > args) const {
+	t_mmap_it< std::string, std::string >::t	it = args.begin(), ite = args.end();
+
+	while (it != ite) {
+		if (it->first != "error_pages" && it->first != "cgi_path"
+			&& it->second.empty())
+			throw (EmptyStrException());
+		it++;
+	}
+}

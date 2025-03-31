@@ -59,9 +59,8 @@ server {
 server {
   host: 127.0.0.3;
   port: 8080;
-  server_names: site3.com;
+  server_names: toto.toto;
   root: www/;
-  default_pages: ;
   error_pages {
     404: missing.html;
   }
