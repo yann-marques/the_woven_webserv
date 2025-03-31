@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Rules_checkers.cpp                                 :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: locharve <locharve@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/03/31 14:12:09 by locharve          #+#    #+#             */
+/*   Updated: 2025/03/31 14:12:09 by locharve         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "Rules.hpp"
 
 void	Rules::checkArgsFormat(const std::multimap< std::string, std::string >& args) const {

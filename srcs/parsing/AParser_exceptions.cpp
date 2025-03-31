@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   AParser_exceptions.cpp                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: locharve <locharve@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/03/31 14:11:27 by locharve          #+#    #+#             */
+/*   Updated: 2025/03/31 14:11:28 by locharve         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "AParser.hpp"
 
 const char*	AParser::ArgOutOfServerScopeException::what() const throw() {

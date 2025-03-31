@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Config_checkers.cpp                                :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: locharve <locharve@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/03/31 14:11:43 by locharve          #+#    #+#             */
+/*   Updated: 2025/03/31 14:11:44 by locharve         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "Config.hpp"
 
 void	Config::checkPortFormat(t_mmap_range< std::string, std::string >::t range) const {
