@@ -6,7 +6,7 @@
 /*   By: locharve <locharve@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/03/31 14:12:04 by locharve          #+#    #+#             */
-/*   Updated: 2025/03/31 14:12:05 by locharve         ###   ########.fr       */
+/*   Updated: 2025/03/31 14:27:23 by locharve         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,11 +17,19 @@ Config::Config(): AParser() {
 	setArgsToFind();
 }
 
+static bool	isEmpty(std::string str) {
+	size_t	i, n;
+	for (i = 0, n = str.size(); i < n && isspace(str[i]); i++);
+	return (!str[i]);
+}
+
 Config::Config(const char* fileName): AParser() {
 	setArgsToFind();
 
 	try {
 		std::string	fileContent = extractFileContent(fileName);
+		if (fileContent.empty() || isEmpty(fileContent))
+			throw(EmptyFileException());
 		if (!bracketsAreClosed(fileContent))
 			throw UnclosedScopeException();
 
@@ -76,7 +84,11 @@ Config::Config(const char* fileName): AParser() {
 		throw(e);
 	}
 	// Config exceptions
-	catch (Config::IsDirException& e) {
+	catch (Config::EmptyFileException& e) {
+		std::cerr << e.what() << std::endl;
+		destruct();
+		throw(e);
+	} catch (Config::IsDirException& e) {
 		std::cerr << e.what() << std::endl;
 		destruct();
 		throw(e);

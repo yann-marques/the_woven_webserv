@@ -6,7 +6,7 @@
 /*   By: locharve <locharve@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/03/31 14:09:59 by locharve          #+#    #+#             */
-/*   Updated: 2025/03/31 14:10:03 by locharve         ###   ########.fr       */
+/*   Updated: 2025/03/31 14:21:53 by locharve         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,6 +76,10 @@ class	Config: public AParser {
 			public:
 				MultipleDefinitionOfPort(std::string where);
 				~MultipleDefinitionOfPort() throw();
+				const char*	what() const throw();
+		};
+		class	EmptyFileException: public std::exception {
+			public:
 				const char*	what() const throw();
 		};
 };

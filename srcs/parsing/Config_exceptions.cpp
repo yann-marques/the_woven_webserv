@@ -6,7 +6,7 @@
 /*   By: locharve <locharve@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/03/31 14:11:48 by locharve          #+#    #+#             */
-/*   Updated: 2025/03/31 14:11:48 by locharve         ###   ########.fr       */
+/*   Updated: 2025/03/31 14:22:25 by locharve         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,4 +50,8 @@ Config::MultipleDefinitionOfPort::~MultipleDefinitionOfPort() throw() {}
 
 const char*	Config::MultipleDefinitionOfPort::what() const throw() {
 	return (_str.c_str());
+}
+
+const char*	Config::EmptyFileException::what() const throw() {
+	return ("File is empty.");
 }

@@ -16,7 +16,7 @@ server {
   }
 
   location: /api, /admin {
-    root: www/api;
+    root: www/api/;
     auto_index: true;
     allowed_methods: GET, DELETE;
     max_body_bytes: 42;
@@ -34,7 +34,7 @@ server {
             .pl: path_to_toto;
           }
           location: /bla {
-            root: www;
+            root: www/;
             auto_index: true;
           }
         }
